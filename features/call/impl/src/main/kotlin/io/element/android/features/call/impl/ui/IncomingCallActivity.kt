@@ -119,9 +119,10 @@ class IncomingCallActivity : AppCompatActivity() {
     private fun onAnswer(notificationData: CallNotificationData) {
         elementCallEntryPoint.startCall(
             CallType.RoomCall(
-                notificationData.sessionId,
-                notificationData.roomId,
-                isAudioCall = notificationData.audioOnly
+                sessionId = notificationData.sessionId,
+                roomId = notificationData.roomId,
+                isAudioCall = notificationData.audioOnly,
+                notifyEventId = notificationData.eventId.value,
             )
         )
     }

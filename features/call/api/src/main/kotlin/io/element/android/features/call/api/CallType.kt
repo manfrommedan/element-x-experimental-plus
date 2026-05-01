@@ -26,10 +26,12 @@ sealed interface CallType : NodeInputs, Parcelable {
     data class RoomCall(
         val sessionId: SessionId,
         val roomId: RoomId,
-        val isAudioCall: Boolean
+        val isAudioCall: Boolean,
+        /** `m.call.notify` event id - propagated from the incoming notification so the recipient persists the call summary against the caller's event. Null when the local user is the caller. */
+        val notifyEventId: String? = null,
     ) : CallType {
         override fun toString(): String {
-            return "RoomCall(sessionId=$sessionId, roomId=$roomId, isAudioCall=$isAudioCall)"
+            return "RoomCall(sessionId=$sessionId, roomId=$roomId, isAudioCall=$isAudioCall, notifyEventId=$notifyEventId)"
         }
     }
 }

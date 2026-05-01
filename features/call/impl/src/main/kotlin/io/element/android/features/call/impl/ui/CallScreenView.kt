@@ -9,12 +9,14 @@
 package io.element.android.features.call.impl.ui
 
 import android.annotation.SuppressLint
+import android.content.pm.PackageManager
 import android.view.ViewGroup
 import android.webkit.ConsoleMessage
 import android.webkit.JavascriptInterface
 import android.webkit.PermissionRequest
 import android.webkit.WebChromeClient
 import android.webkit.WebView
+import androidx.core.content.ContextCompat
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.consumeWindowInsets
@@ -28,6 +30,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalInspectionMode
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.PreviewParameter
@@ -89,6 +92,7 @@ internal fun CallScreenView(
         } else {
             var webViewAudioManager by remember { mutableStateOf<WebViewAudioManager?>(null) }
             val coroutineScope = rememberCoroutineScope()
+            val appContext = LocalContext.current
 
             var invalidAudioDeviceReason by remember { mutableStateOf<InvalidAudioDeviceReason?>(null) }
             invalidAudioDeviceReason?.let {
@@ -105,9 +109,11 @@ internal fun CallScreenView(
                 url = state.urlState,
                 userAgent = state.userAgent,
                 onPermissionsRequest = { request ->
-                    val androidPermissions = mapWebkitPermissions(request.resources)
-                    val callback: RequestPermissionCallback = { request.grant(it) }
-                    requestPermissions(androidPermissions.toTypedArray(), callback)
+                    handleWebRtcPermissionRequest(
+                        request = request,
+                        context = appContext,
+                        requestPermissions = requestPermissions,
+                    )
                 },
                 onConsoleMessage = onConsoleMessage,
                 onCreateWebView = { webView ->
@@ -129,6 +135,7 @@ internal fun CallScreenView(
                         webView = webView,
                         coroutineScope = coroutineScope,
                         onInvalidAudioDeviceAdded = { invalidAudioDeviceReason = it },
+                        isAudioOnlyCall = state.isAudioOnlyCall,
                     )
                     state.eventSink(CallScreenEvents.SetupMessageChannels(interceptor))
                     val pipController = WebViewPipController(webView)
@@ -154,6 +161,25 @@ internal fun CallScreenView(
             }
         }
     }
+}
+
+private fun handleWebRtcPermissionRequest(
+    request: PermissionRequest,
+    context: android.content.Context,
+    requestPermissions: (Array<String>, RequestPermissionCallback) -> Unit,
+) {
+    val androidPermissions = mapWebkitPermissions(request.resources)
+    val alreadyGranted = androidPermissions.all { perm ->
+        ContextCompat.checkSelfPermission(context, perm) == PackageManager.PERMISSION_GRANTED
+    }
+    if (alreadyGranted) {
+        Timber.d("WebRTC permission auto-granted: ${request.resources.toList()}")
+        request.grant(request.resources)
+        return
+    }
+    Timber.d("WebRTC permission needs runtime grant: $androidPermissions")
+    val callback: RequestPermissionCallback = { granted -> request.grant(granted) }
+    requestPermissions(androidPermissions.toTypedArray(), callback)
 }
 
 @Composable

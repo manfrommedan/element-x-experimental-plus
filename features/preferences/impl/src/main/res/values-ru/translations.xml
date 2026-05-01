@@ -44,6 +44,8 @@
   <string name="screen_edit_profile_error_title">"Невозможно обновить профиль"</string>
   <string name="screen_edit_profile_title">"Редактировать профиль"</string>
   <string name="screen_edit_profile_updating_details">"Обновление профиля…"</string>
+  <string name="screen_labs_enable_phone_voice_layout">"Классический стиль голосовых звонков"</string>
+  <string name="screen_labs_enable_phone_voice_layout_description">"Телефонный стиль для голосовых звонков 1:1."</string>
   <string name="screen_labs_enable_threads">"Включить ответы в обсуждениях"</string>
   <string name="screen_labs_enable_threads_description">"Приложение перезапустится, чтобы применить это изменение."</string>
   <string name="screen_labs_header_description">"Попробуйте функции в разработке. Эти функции ещё не завершены, они нестабильны и могут измениться."</string>

@@ -140,26 +140,31 @@ class WebViewWidgetMessageInterceptor(
             }
         }
 
-        // Create a WebMessageListener, which will receive messages from the WebView and reply to them
-        val webMessageListener = WebViewCompat.WebMessageListener { _, message, _, _, _ ->
-            onMessageReceived(message.data)
-        }
+        // JavascriptInterface as the baseline message channel - works on Huawei too.
+        webView.addJavascriptInterface(object {
+            @JavascriptInterface
+            fun postMessage(json: String?) {
+                onMessageReceived(json)
+            }
+        }, LISTENER_NAME)
 
-        // Use WebMessageListener if supported, otherwise use JavascriptInterface
-        if (WebViewFeature.isFeatureSupported(WebViewFeature.WEB_MESSAGE_LISTENER)) {
+        // WebMessageListener only on Chromium 119+; older Huawei builds silently drop messages.
+        val webViewVersion = WebViewCompat.getCurrentWebViewPackage(webView.context)
+            ?.versionName
+            ?.split(".")
+            ?.firstOrNull()
+            ?.toIntOrNull() ?: 0
+
+        if (webViewVersion >= 119 &&
+            WebViewFeature.isFeatureSupported(WebViewFeature.WEB_MESSAGE_LISTENER)) {
             WebViewCompat.addWebMessageListener(
                 webView,
                 LISTENER_NAME,
                 setOf("*"),
-                webMessageListener
-            )
-        } else {
-            webView.addJavascriptInterface(object {
-                @JavascriptInterface
-                fun postMessage(json: String?) {
-                    onMessageReceived(json)
+                WebViewCompat.WebMessageListener { _, message, _, _, _ ->
+                    onMessageReceived(message.data)
                 }
-            }, LISTENER_NAME)
+            )
         }
     }
 

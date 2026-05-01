@@ -27,6 +27,7 @@ internal fun aCallScreenState(
     userAgent: String = "",
     isCallActive: Boolean = true,
     isInWidgetMode: Boolean = false,
+    isAudioOnlyCall: Boolean = false,
     eventSink: (CallScreenEvents) -> Unit = {},
 ): CallScreenState {
     return CallScreenState(
@@ -35,6 +36,7 @@ internal fun aCallScreenState(
         userAgent = userAgent,
         isCallActive = isCallActive,
         isInWidgetMode = isInWidgetMode,
+        isAudioOnlyCall = isAudioOnlyCall,
         eventSink = eventSink,
     )
 }

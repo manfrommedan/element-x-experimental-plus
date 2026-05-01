@@ -16,5 +16,7 @@ data class CallScreenState(
     val userAgent: String,
     val isCallActive: Boolean,
     val isInWidgetMode: Boolean,
+    /** Voice-only flag - earpiece-first audio routing; phone-style WebView layout. */
+    val isAudioOnlyCall: Boolean,
     val eventSink: (CallScreenEvents) -> Unit,
 )

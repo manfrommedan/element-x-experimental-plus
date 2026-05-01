@@ -19,6 +19,7 @@ import io.element.android.features.call.impl.ui.CallScreenNavigator
 import io.element.android.features.call.impl.ui.CallScreenPresenter
 import io.element.android.features.call.impl.utils.WidgetMessageSerializer
 import io.element.android.features.call.utils.FakeActiveCallManager
+import io.element.android.features.call.utils.FakeCallSummaryStore
 import io.element.android.features.call.utils.FakeCallWidgetProvider
 import io.element.android.features.call.utils.FakeWidgetMessageInterceptor
 import io.element.android.libraries.androidutils.json.DefaultJsonProvider
@@ -414,6 +415,7 @@ class CallScreenPresenterTest {
             appForegroundStateService = appForegroundStateService,
             appCoroutineScope = backgroundScope,
             widgetMessageSerializer = WidgetMessageSerializer(DefaultJsonProvider()),
+            callSummaryStore = FakeCallSummaryStore(),
         )
     }
 }

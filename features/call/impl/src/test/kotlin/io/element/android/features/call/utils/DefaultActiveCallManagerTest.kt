@@ -81,6 +81,7 @@ class DefaultActiveCallManagerTest {
                     sessionId = callNotificationData.sessionId,
                     roomId = callNotificationData.roomId,
                     isAudioCall = false,
+                    notifyEventId = callNotificationData.eventId.value,
                 ),
                 callState = CallState.Ringing(callNotificationData)
             )
@@ -108,6 +109,7 @@ class DefaultActiveCallManagerTest {
                     sessionId = callNotificationData.sessionId,
                     roomId = callNotificationData.roomId,
                     isAudioCall = true,
+                    notifyEventId = callNotificationData.eventId.value,
                 ),
                 callState = CallState.Ringing(callNotificationData)
             )
@@ -188,7 +190,14 @@ class DefaultActiveCallManagerTest {
         assertThat(manager.activeCall.value).isNotNull()
         assertThat(manager.activeWakeLock?.isHeld).isTrue()
 
-        manager.hangUpCall(CallType.RoomCall(notificationData.sessionId, notificationData.roomId, false))
+        manager.hangUpCall(
+            CallType.RoomCall(
+                notificationData.sessionId,
+                notificationData.roomId,
+                isAudioCall = false,
+                notifyEventId = notificationData.eventId.value,
+            )
+        )
         assertThat(manager.activeCall.value).isNull()
         assertThat(manager.activeWakeLock?.isHeld).isFalse()
 
@@ -215,7 +224,14 @@ class DefaultActiveCallManagerTest {
         val notificationData = aCallNotificationData(roomId = A_ROOM_ID)
         manager.registerIncomingCall(notificationData)
 
-        manager.hangUpCall(CallType.RoomCall(notificationData.sessionId, notificationData.roomId, false))
+        manager.hangUpCall(
+            CallType.RoomCall(
+                notificationData.sessionId,
+                notificationData.roomId,
+                isAudioCall = false,
+                notifyEventId = notificationData.eventId.value,
+            )
+        )
 
         coVerify {
             room.declineCall(notificationEventId = notificationData.eventId)
@@ -454,6 +470,7 @@ class DefaultActiveCallManagerTest {
                     sessionId = callNotificationData.sessionId,
                     roomId = callNotificationData.roomId,
                     isAudioCall = false,
+                    notifyEventId = callNotificationData.eventId.value,
                 ),
                 callState = CallState.Ringing(callNotificationData)
             )

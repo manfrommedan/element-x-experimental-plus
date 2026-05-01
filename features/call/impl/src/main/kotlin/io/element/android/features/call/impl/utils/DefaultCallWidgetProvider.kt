@@ -11,6 +11,8 @@ package io.element.android.features.call.impl.utils
 import dev.zacsweers.metro.AppScope
 import dev.zacsweers.metro.ContributesBinding
 import io.element.android.libraries.core.extensions.runCatchingExceptions
+import io.element.android.libraries.featureflag.api.FeatureFlagService
+import io.element.android.libraries.featureflag.api.FeatureFlags
 import io.element.android.libraries.matrix.api.MatrixClientProvider
 import io.element.android.libraries.matrix.api.core.RoomId
 import io.element.android.libraries.matrix.api.core.SessionId
@@ -19,8 +21,24 @@ import io.element.android.libraries.matrix.api.widget.CallWidgetSettingsProvider
 import io.element.android.libraries.preferences.api.store.AppPreferencesStore
 import io.element.android.services.appnavstate.api.ActiveRoomsHolder
 import kotlinx.coroutines.flow.firstOrNull
+import timber.log.Timber
 
 private const val EMBEDDED_CALL_WIDGET_BASE_URL = "https://appassets.androidplatform.net/element-call/index.html"
+
+/**
+ * URL fragment params layered onto the widget URL under the phone-style Labs flag.
+ * The audio block mirrors the START_CALL_DM_VOICE intent preset for groups.
+ */
+internal fun phoneStyleUrlParams(phoneStyleEnabled: Boolean, isAudioCall: Boolean): List<String> = buildList {
+    if (!phoneStyleEnabled) return@buildList
+    add("skipLobby=true")
+    if (isAudioCall) {
+        add("phoneVoiceLayout=true")
+        add("waitForCallPickup=true")
+        add("sendNotificationType=ring")
+        add("autoLeave=true")
+    }
+}
 
 @ContributesBinding(AppScope::class)
 class DefaultCallWidgetProvider(
@@ -28,6 +46,7 @@ class DefaultCallWidgetProvider(
     private val appPreferencesStore: AppPreferencesStore,
     private val callWidgetSettingsProvider: CallWidgetSettingsProvider,
     private val activeRoomsHolder: ActiveRoomsHolder,
+    private val featureFlagService: FeatureFlagService,
 ) : CallWidgetProvider {
     override suspend fun getWidget(
         sessionId: SessionId,
@@ -61,11 +80,34 @@ class DefaultCallWidgetProvider(
             theme = theme,
         ).getOrThrow()
 
+        val phoneStyleEnabled = featureFlagService.isFeatureEnabled(FeatureFlags.PhoneVoiceLayout)
+        val finalUrl = phoneStyleUrlParams(phoneStyleEnabled, isAudioCall)
+            .fold(callUrl, ::appendUrlParam)
+        Timber.tag("Call").d(
+            "Widget URL built; isAudioCall=$isAudioCall, phoneStyleEnabled=$phoneStyleEnabled"
+        )
+
         val driver = room.getWidgetDriver(widgetSettings).getOrThrow()
 
         CallWidgetProvider.GetWidgetResult(
             driver = driver,
-            url = callUrl,
+            url = finalUrl,
         )
+    }
+}
+
+/** Appends `key=value` to an Element Call widget URL fragment (after `#?`). */
+internal fun appendUrlParam(url: String, param: String): String {
+    val hashIndex = url.indexOf('#')
+    return when {
+        // No fragment yet, open one with the param as the fragment query.
+        hashIndex == -1 -> "$url#?$param"
+        // Trailing "#" with empty fragment, start the fragment query.
+        hashIndex == url.lastIndex -> "$url?$param"
+        // Fragment already carries its own query (the common case for widget
+        // URLs that look like .../index.html#?widgetId=...&...): append.
+        url.substring(hashIndex + 1).contains('?') -> "$url&$param"
+        // Fragment exists but holds no params yet, open a fragment query.
+        else -> "$url?$param"
     }
 }

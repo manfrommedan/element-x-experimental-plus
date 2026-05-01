@@ -412,6 +412,7 @@
   <string name="common_video_quality_low_description">"Быстрая скорость загрузки и меньший размер файла"</string>
   <string name="common_video_quality_standard">"Стандартное качество"</string>
   <string name="common_video_quality_standard_description">"Баланс между качеством и скоростью загрузки"</string>
+  <string name="common_voice_call">"Голосовой вызов"</string>
   <string name="common_voice_message">"Голосовое сообщение"</string>
   <string name="common_waiting">"Ожидание…"</string>
   <string name="common_waiting_for_decryption_key">"Ожидание ключа расшифровки"</string>
