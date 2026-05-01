@@ -8,6 +8,7 @@
 
 package extension
 
+import isPhoneLayerBuild
 import kotlinx.kover.gradle.plugin.dsl.AggregationType
 import kotlinx.kover.gradle.plugin.dsl.CoverageUnit
 import kotlinx.kover.gradle.plugin.dsl.GroupingEntityType
@@ -239,7 +240,11 @@ fun Project.setupKover() {
 
 fun KoverVariantCreateConfig.defaultVariants(project: Project) {
     if (project.path == ":app") {
-        addWithDependencies("gplayDebug")
+        // Phone-layer adds a fork dimension, so the variant name shifts
+        // to gplayVanillaDebug. Track vanilla so coverage stays meaningful
+        // for upstream parity.
+        val variant = if (isPhoneLayerBuild) "gplayVanillaDebug" else "gplayDebug"
+        addWithDependencies(variant)
     } else {
         addWithDependencies("debug", "jvm", optional = true)
     }
