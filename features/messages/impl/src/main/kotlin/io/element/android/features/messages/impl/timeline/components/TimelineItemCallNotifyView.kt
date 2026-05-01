@@ -47,6 +47,16 @@ internal fun TimelineItemCallNotifyView(
     onLongClick: (TimelineItem.Event) -> Unit,
     modifier: Modifier = Modifier
 ) {
+    // Phone-style mode picks a more specific label for audio calls. When the
+    // Labs toggle is off we render the upstream-pure "Call started" line so
+    // the timeline matches what every other Element X client sees.
+    val phoneVoiceLayoutEnabled = LocalPhoneVoiceLayoutEnabled.current
+    val isAudio = content.callIntent == CallIntent.AUDIO
+    val labelRes = if (phoneVoiceLayoutEnabled && isAudio) {
+        CommonStrings.common_voice_call
+    } else {
+        CommonStrings.common_call_started
+    }
     Row(
         modifier = modifier
             .fillMaxWidth()
@@ -79,13 +89,12 @@ internal fun TimelineItemCallNotifyView(
             ) {
                 Icon(
                     modifier = Modifier.size(20.sp.toDp()),
-                    imageVector =
-                        if (content.callIntent == CallIntent.AUDIO) CompoundIcons.VoiceCallSolid() else CompoundIcons.VideoCallSolid(),
+                    imageVector = if (isAudio) CompoundIcons.VoiceCallSolid() else CompoundIcons.VideoCallSolid(),
                     contentDescription = null,
                     tint = ElementTheme.colors.iconSecondary,
                 )
                 Text(
-                    text = stringResource(CommonStrings.common_call_started),
+                    text = stringResource(labelRes),
                     style = ElementTheme.typography.fontBodyMdRegular,
                     color = ElementTheme.colors.textSecondary,
                     maxLines = 1,
