@@ -274,21 +274,38 @@ class WebViewAudioManager(
             }
         }
 
-        abandonVoipAudioFocus()
+        // Tear all media in the page so Chromium drops its own audio focus.
+        // Spotify resumes off the previous focus holder being released, so
+        // both ours and Chromium's holds need to go.
+        runCatching {
+            webView.evaluateJavascript(
+                """
+                (function() {
+                  document.querySelectorAll('audio,video').forEach(function(m) {
+                    try { m.pause(); m.muted = true; m.srcObject = null; m.src = ''; m.load(); } catch (e) {}
+                  });
+                })();
+                """.trimIndent(),
+                null,
+            )
+        }.onFailure { Timber.w(it, "Audio: failed to stop WebView media") }
 
+        // Restore audio routing first; abandoning focus while still in
+        // MODE_IN_COMMUNICATION can leave the previous focus holder routed
+        // to the earpiece or starved of FOCUS_GAIN entirely.
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            audioManager.removeOnCommunicationDeviceChangedListener(commsDeviceChangedListener)
+            audioManager.clearCommunicationDevice()
+        }
         audioManager.mode = AudioManager.MODE_NORMAL
 
-        if (!hasRegisteredCallbacks) {
-            Timber.w("Audio: tried to disable webview in-call audio mode without registering callbacks")
-            return
-        }
+        // Now release the focus. The previous holder gets AUDIOFOCUS_GAIN
+        // with audio mode and routing already back to media defaults.
+        abandonVoipAudioFocus()
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            audioManager.clearCommunicationDevice()
-            audioManager.removeOnCommunicationDeviceChangedListener(commsDeviceChangedListener)
+        if (hasRegisteredCallbacks) {
+            audioManager.unregisterAudioDeviceCallback(audioDeviceCallback)
         }
-
-        audioManager.unregisterAudioDeviceCallback(audioDeviceCallback)
     }
 
     /**
