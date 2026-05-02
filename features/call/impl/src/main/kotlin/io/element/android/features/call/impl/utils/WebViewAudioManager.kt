@@ -247,12 +247,13 @@ class WebViewAudioManager(
         }.onFailure { Timber.w(it, "Failed to adjust call stream volume") }
     }
 
-    private fun abandonVoipAudioFocus() {
-        audioFocusRequest?.let { request ->
-            runCatching { audioManager.abandonAudioFocusRequest(request) }
-                .onFailure { Timber.w(it, "Failed to abandon VoIP audio focus") }
-            audioFocusRequest = null
-        }
+    private fun abandonVoipAudioFocus(): Int {
+        val request = audioFocusRequest ?: return AudioManager.AUDIOFOCUS_REQUEST_FAILED
+        val result = runCatching { audioManager.abandonAudioFocusRequest(request) }
+            .onFailure { Timber.w(it, "Failed to abandon VoIP audio focus") }
+            .getOrDefault(AudioManager.AUDIOFOCUS_REQUEST_FAILED)
+        audioFocusRequest = null
+        return result
     }
 
     /**
@@ -274,9 +275,10 @@ class WebViewAudioManager(
             }
         }
 
-        // Tear all media in the page so Chromium drops its own audio focus.
-        // Spotify resumes off the previous focus holder being released, so
-        // both ours and Chromium's holds need to go.
+        // Stop livekit's audio elements first as a JS-side hint, then
+        // freeze the WebView so Chromium's own media session releases
+        // synchronously instead of racing our abandonAudioFocus.
+        Timber.d("Audio: stopping WebView media")
         runCatching {
             webView.evaluateJavascript(
                 """
@@ -288,20 +290,22 @@ class WebViewAudioManager(
                 """.trimIndent(),
                 null,
             )
+            webView.onPause()
         }.onFailure { Timber.w(it, "Audio: failed to stop WebView media") }
 
-        // Restore audio routing first; abandoning focus while still in
-        // MODE_IN_COMMUNICATION can leave the previous focus holder routed
-        // to the earpiece or starved of FOCUS_GAIN entirely.
+        // Restore audio routing before abandoning focus. Otherwise the
+        // previous holder (Spotify, etc.) gets AUDIOFOCUS_GAIN while audio
+        // is still pinned to the voice-call stream and either resumes
+        // silently into the earpiece or doesn't resume at all.
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             audioManager.removeOnCommunicationDeviceChangedListener(commsDeviceChangedListener)
             audioManager.clearCommunicationDevice()
         }
         audioManager.mode = AudioManager.MODE_NORMAL
+        Timber.d("Audio: mode=${audioManager.mode} after restore (target=NORMAL=0)")
 
-        // Now release the focus. The previous holder gets AUDIOFOCUS_GAIN
-        // with audio mode and routing already back to media defaults.
-        abandonVoipAudioFocus()
+        val focusResult = abandonVoipAudioFocus()
+        Timber.d("Audio: abandonAudioFocusRequest returned $focusResult")
 
         if (hasRegisteredCallbacks) {
             audioManager.unregisterAudioDeviceCallback(audioDeviceCallback)
