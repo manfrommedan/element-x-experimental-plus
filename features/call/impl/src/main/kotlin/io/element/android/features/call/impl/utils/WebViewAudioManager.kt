@@ -303,9 +303,11 @@ class WebViewAudioManager(
         // previous holder (Spotify, etc.) gets AUDIOFOCUS_GAIN while audio
         // is still pinned to the voice-call stream and either resumes
         // silently into the earpiece or doesn't resume at all.
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            audioManager.removeOnCommunicationDeviceChangedListener(commsDeviceChangedListener)
-            audioManager.clearCommunicationDevice()
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && hasRegisteredCallbacks) {
+            runCatchingExceptions { audioManager.removeOnCommunicationDeviceChangedListener(commsDeviceChangedListener) }
+                .onFailure { Timber.w(it, "Audio: removeOnCommunicationDeviceChangedListener failed (listener already gone)") }
+            runCatchingExceptions { audioManager.clearCommunicationDevice() }
+                .onFailure { Timber.w(it, "Audio: clearCommunicationDevice failed") }
         }
         audioManager.mode = AudioManager.MODE_NORMAL
         Timber.d("Audio: mode=${audioManager.mode} after restore (target=NORMAL=0)")
@@ -314,7 +316,9 @@ class WebViewAudioManager(
         Timber.d("Audio: abandonAudioFocusRequest returned $focusResult")
 
         if (hasRegisteredCallbacks) {
-            audioManager.unregisterAudioDeviceCallback(audioDeviceCallback)
+            runCatchingExceptions { audioManager.unregisterAudioDeviceCallback(audioDeviceCallback) }
+                .onFailure { Timber.w(it, "Audio: unregisterAudioDeviceCallback failed") }
+            hasRegisteredCallbacks = false
         }
     }
 
