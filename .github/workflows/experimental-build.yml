@@ -141,7 +141,7 @@ jobs:
             Not affiliated with Element Hq Ltd. Works as is, at your own risk.
 
             Built from commit [`${{ github.sha }}`](https://github.com/${{ github.repository }}/commit/${{ github.sha }}).
-            See [EXPERIMENTS.md](https://github.com/${{ github.repository }}/phone-layer/docs/EXPERIMENTS.md)
+            See [EXPERIMENTS.md](https://github.com/${{ github.repository }}/blob/experiments/phone-layer/docs/EXPERIMENTS.md)
             for what this build changes versus upstream Element X.
 
             ### Pick the right APK
