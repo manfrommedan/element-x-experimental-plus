@@ -216,9 +216,10 @@ class DefaultNotificationResultProcessor(
         Timber.i("## handleInternal() : Incoming call.")
         elementCallEntryPoint.handleIncomingCall(
             callType = CallType.RoomCall(
-                notifiableEvent.sessionId,
-                notifiableEvent.roomId,
-                isAudioCall = notifiableEvent.callIntent == CallIntent.AUDIO
+                sessionId = notifiableEvent.sessionId,
+                roomId = notifiableEvent.roomId,
+                isAudioCall = notifiableEvent.callIntent == CallIntent.AUDIO,
+                notifyEventId = notifiableEvent.eventId.value,
             ),
             eventId = notifiableEvent.eventId,
             senderId = notifiableEvent.senderId,
