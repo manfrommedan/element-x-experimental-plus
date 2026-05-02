@@ -16,6 +16,7 @@ import android.media.AudioFocusRequest
 import android.media.AudioManager
 import android.os.Build
 import android.os.PowerManager
+import android.view.ViewGroup
 import android.webkit.JavascriptInterface
 import android.webkit.WebView
 import androidx.annotation.RequiresApi
@@ -275,23 +276,28 @@ class WebViewAudioManager(
             }
         }
 
-        // Stop livekit's audio elements first as a JS-side hint, then
-        // freeze the WebView so Chromium's own media session releases
-        // synchronously instead of racing our abandonAudioFocus.
-        Timber.d("Audio: stopping WebView media")
+        // Tear the WebView down hard. The element-call livekit code grabs
+        // AUDIOFOCUS_GAIN through Chromium's MediaSession as soon as audio
+        // starts; that focus is the real owner during the call (we lose
+        // ours about 100 ms after claim, see onAudioFocusChange(-1) in
+        // logcat). Our abandonAudioFocusRequest is a stack-cleanup no-op
+        // and doesn't broadcast AUDIOFOCUS_GAIN to Spotify, because
+        // Chromium is the one holding it.
+        //
+        // webView.onPause() / evaluateJavascript leave Chromium's
+        // MediaSession alive. Navigating to about:blank would force it
+        // down but also re-fires onPageFinished -> onUrlLoaded ->
+        // onCallStarted, which would put us back in MODE_IN_COMMUNICATION
+        // mid-teardown. webView.destroy() ends the page and the
+        // MediaSession synchronously and stops every WebView callback, so
+        // there is no callback to race. AndroidView's own destroy() is
+        // documented as idempotent and runs immediately after this hook.
+        Timber.d("Audio: destroying WebView to free Chromium MediaSession")
         runCatching {
-            webView.evaluateJavascript(
-                """
-                (function() {
-                  document.querySelectorAll('audio,video').forEach(function(m) {
-                    try { m.pause(); m.muted = true; m.srcObject = null; m.src = ''; m.load(); } catch (e) {}
-                  });
-                })();
-                """.trimIndent(),
-                null,
-            )
-            webView.onPause()
-        }.onFailure { Timber.w(it, "Audio: failed to stop WebView media") }
+            webView.stopLoading()
+            (webView.parent as? ViewGroup)?.removeView(webView)
+            webView.destroy()
+        }.onFailure { Timber.w(it, "Audio: failed to destroy WebView") }
 
         // Restore audio routing before abandoning focus. Otherwise the
         // previous holder (Spotify, etc.) gets AUDIOFOCUS_GAIN while audio
