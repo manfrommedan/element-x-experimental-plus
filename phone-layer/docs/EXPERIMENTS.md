@@ -65,10 +65,10 @@ difference.
    receiver's incoming-call notification surfaces a "Decline / Answer"
    pair instead of upstream's "Decline / Video" fallback for groups.
 
-8. **No "Join call" pill on active sessions.** With the toggle on, an
+~~8. **No "Join call" pill on active sessions.** With the toggle on, an
    active call in a room reuses the same two-icon menu as the StandBy
    state instead of the wide "Join call" pill. The "● in call" banner
-   above the timeline still signals that a session is live.
+   above the timeline still signals that a session is live.~~
 
 9. **No duplicate ringback or "Calling…" badge.** Upstream's lobby
    ringtone, large "Calling…" header and earpiece overlay are suppressed
