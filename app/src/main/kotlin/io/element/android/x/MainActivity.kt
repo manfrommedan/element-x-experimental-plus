@@ -66,6 +66,7 @@ class MainActivity : NodeActivity() {
     @Composable
     private fun MainContent(appBindings: AppBindings) {
         val migrationState = appBindings.migrationEntryPoint().present()
+        Timber.tag(loggerTag.value).d("migrationAction=${migrationState.migrationAction::class.simpleName} isSuccess=${migrationState.migrationAction.isSuccess()}")
         val colors by remember {
             appBindings.enterpriseService().semanticColorsFlow(sessionId = null)
         }.collectAsState(SemanticColorsLightDark.default)
@@ -87,8 +88,10 @@ class MainActivity : NodeActivity() {
                         .background(ElementTheme.colors.bgCanvasDefault),
                 ) {
                     if (migrationState.migrationAction.isSuccess()) {
+                        Timber.tag(loggerTag.value).d("rendering MainNodeHost (migration success)")
                         MainNodeHost()
                     } else {
+                        Timber.tag(loggerTag.value).d("rendering Migration screen (action=${migrationState.migrationAction::class.simpleName})")
                         appBindings.migrationEntryPoint().Render(
                             state = migrationState,
                             modifier = Modifier,
@@ -166,8 +169,18 @@ class MainActivity : NodeActivity() {
         Timber.tag(loggerTag.value).d("onResume")
     }
 
+    override fun onStop() {
+        super.onStop()
+        Timber.tag(loggerTag.value).d("onStop (isFinishing=$isFinishing isChangingConfigurations=$isChangingConfigurations)")
+    }
+
     override fun onDestroy() {
         super.onDestroy()
-        Timber.tag(loggerTag.value).d("onDestroy")
+        Timber.tag(loggerTag.value).d("onDestroy (isFinishing=$isFinishing isChangingConfigurations=$isChangingConfigurations)")
+    }
+
+    override fun onTrimMemory(level: Int) {
+        super.onTrimMemory(level)
+        Timber.tag(loggerTag.value).d("onTrimMemory level=$level")
     }
 }
