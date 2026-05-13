@@ -215,9 +215,9 @@ class CallScreenPresenter(
             }
         }
 
-        fun handleEvent(event: CallScreenEvents) {
+        fun handleEvent(event: CallScreenEvent) {
             when (event) {
-                is CallScreenEvents.Hangup -> {
+                is CallScreenEvent.Hangup -> {
                     if (!summarySaved) {
                         summarySaved = true
                         saveCallSummary(notifyEventId, callConnectedAtMs)
@@ -240,10 +240,10 @@ class CallScreenPresenter(
                         }
                     }
                 }
-                is CallScreenEvents.SetupMessageChannels -> {
+                is CallScreenEvent.SetupMessageChannels -> {
                     messageInterceptor.value = event.widgetMessageInterceptor
                 }
-                is CallScreenEvents.OnWebViewError -> {
+                is CallScreenEvent.OnWebViewError -> {
                     if (!ignoreWebViewError) {
                         webViewError = event.description.orEmpty()
                     }
