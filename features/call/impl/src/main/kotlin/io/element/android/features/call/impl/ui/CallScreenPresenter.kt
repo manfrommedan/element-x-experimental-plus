@@ -257,7 +257,6 @@ class CallScreenPresenter(
             webViewError = webViewError,
             userAgent = userAgent,
             isCallActive = isWidgetLoaded,
-            isInWidgetMode = isInWidgetMode,
             isAudioOnlyCall = isAudioOnlyCall,
             eventSink = ::handleEvent,
         )
