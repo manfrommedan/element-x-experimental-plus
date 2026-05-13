@@ -537,4 +537,5 @@
   <string name="timeline_decryption_failure_historical_event_user_not_joined">"Вы не имеете доступа к этому сообщению"</string>
   <string name="timeline_decryption_failure_unable_to_decrypt">"Не удалось расшифровать сообщение"</string>
   <string name="timeline_decryption_failure_withheld_unverified">"Это сообщение было заблокировано либо потому, что вы не подтвердили свое устройство, либо потому, что отправителю необходимо подтвердить вашу цифровую личность."</string>
+  <string name="common_voice_call">"Голосовой вызов"</string>
 </resources>

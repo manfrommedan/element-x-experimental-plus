@@ -82,4 +82,6 @@
   <string name="troubleshoot_notifications_entry_point_push_history_title">"История уведомлений"</string>
   <string name="troubleshoot_notifications_entry_point_section">"Устранение неполадок"</string>
   <string name="troubleshoot_notifications_entry_point_title">"Уведомления об устранении неполадок"</string>
+  <string name="screen_labs_enable_phone_voice_layout">"Классический стиль голосовых звонков"</string>
+  <string name="screen_labs_enable_phone_voice_layout_description">"Телефонный стиль для голосовых звонков 1:1."</string>
 </resources>
