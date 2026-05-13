@@ -1,0 +1,14 @@
+/*
+ * Copyright (c) 2025 Element Creations Ltd.
+ * Copyright 2024, 2025 New Vector Ltd.
+ *
+ * SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Element-Commercial.
+ */
+
+package io.element.android.features.call.api
+
+/** End-of-call outcome attached to a `m.call.notify` event for the timeline card. Stored locally per device. */
+sealed interface CallSummary {
+    data object NoAnswer : CallSummary
+    data class Connected(val durationSeconds: Long) : CallSummary
+}

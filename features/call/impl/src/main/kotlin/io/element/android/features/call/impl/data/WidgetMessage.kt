@@ -40,10 +40,17 @@ data class WidgetMessage(
         @SerialName("io.element.close")
         Close,
 
+        @SerialName("io.element.device_mute")
+        DeviceMute,
+
         @SerialName("send_event")
         SendEvent,
 
         @SerialName("content_loaded")
         ContentLoaded,
+
+        /** Posted by the bundled voice footer once the remote side joins; connect marker for the summary card. */
+        @SerialName("io.element.call.remote_joined")
+        RemoteJoined,
     }
 }

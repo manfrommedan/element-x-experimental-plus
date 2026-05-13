@@ -151,4 +151,13 @@ enum class FeatureFlags(
         defaultValue = { false },
         isFinished = false,
     ),
+    PhoneVoiceLayout(
+        key = "feature.phone_voice_layout",
+        title = "Phone-style calls",
+        description = "Switches the call experience to a messenger flow: voice and video buttons in every room (1:1 and group), no lobby preview, and a classic phone-style UI for voice calls." +
+            " Disable to fall back to the upstream Element Call experience.",
+        defaultValue = { true },
+        isFinished = false,
+        isInLabs = true,
+    ),
 }

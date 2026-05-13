@@ -39,6 +39,7 @@ internal fun CallMenuItem(
     onJoinCallClick: (isAudioCall: Boolean) -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val phoneStyleEnabled = LocalPhoneVoiceLayoutEnabled.current
     when (roomCallState) {
         RoomCallState.Unavailable -> {
             Box(modifier)
@@ -46,6 +47,7 @@ internal fun CallMenuItem(
         is RoomCallState.StandBy -> {
             StandByCallMenuItem(
                 roomCallState = roomCallState,
+                phoneStyleEnabled = phoneStyleEnabled,
                 onJoinCallClick = onJoinCallClick,
                 modifier = modifier,
             )
@@ -63,12 +65,16 @@ internal fun CallMenuItem(
 @Composable
 private fun StandByCallMenuItem(
     roomCallState: RoomCallState.StandBy,
+    phoneStyleEnabled: Boolean,
     onJoinCallClick: (isAudioCall: Boolean) -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    // Upstream shows the voice button only in DMs; phone-style mode promotes
+    // the same affordance to group rooms so the modality is always a single
+    // tap away. Falls back to upstream behaviour when the Labs flag is off.
+    val showVoiceButton = roomCallState.isDM || phoneStyleEnabled
     Row(modifier = modifier) {
-        // Only show voice call in DMs
-        if (roomCallState.isDM) {
+        if (showVoiceButton) {
             IconButton(
                 onClick = { onJoinCallClick(true) },
                 enabled = roomCallState.canStartCall,
