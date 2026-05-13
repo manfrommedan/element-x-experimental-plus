@@ -102,18 +102,16 @@ android {
     val buildType = if (isEnterpriseBuild) "Enterprise" else "FOSS"
     logger.warnInBox("Building ${defaultConfig.applicationId} ($baseAppName) [$buildType]")
 
-    val oidcRedirectSchemeBase = BuildTimeConfig.METADATA_HOST_REVERSED ?: "io.element.android"
+    val oAuthRedirectSchemeBase = BuildTimeConfig.METADATA_HOST_REVERSED ?: "io.element.android"
 
     buildTypes {
         getByName("debug") {
-            // When the phone-layer is active, brand strings come from the `plus`
-            // flavor; otherwise fall back to the upstream defaults set here.
             if (!isPhoneLayerBuild) {
                 resValue("string", "app_name", "$baseAppName dbg")
                 resValue(
                     "string",
                     "login_redirect_scheme",
-                    "$oidcRedirectSchemeBase.debug",
+                    "$oAuthRedirectSchemeBase.debug",
                 )
             }
             applicationIdSuffix = ".debug"
@@ -126,7 +124,7 @@ android {
                 resValue(
                     "string",
                     "login_redirect_scheme",
-                    oidcRedirectSchemeBase,
+                    oAuthRedirectSchemeBase,
                 )
             }
             signingConfig = signingConfigs.getByName("debug")
@@ -167,7 +165,7 @@ android {
                 resValue(
                     "string",
                     "login_redirect_scheme",
-                    "$oidcRedirectSchemeBase.nightly",
+                    "$oAuthRedirectSchemeBase.nightly",
                 )
             }
             matchingFallbacks += listOf("release")
@@ -203,10 +201,6 @@ android {
     }
     flavorDimensions += "store"
     if (isPhoneLayerBuild) {
-        // Adds a `fork` dimension with `vanilla` (stock Element X) and `plus`
-        // (Element X+ phone-layer build). The dimension only exists when the
-        // phone-layer/ directory is present, so a clean upstream checkout sees
-        // exactly one variant matrix dimension, `store`.
         flavorDimensions += "fork"
     }
     productFlavors {
@@ -226,15 +220,14 @@ android {
                 dimension = "fork"
                 isDefault = true
                 resValue("string", "app_name", baseAppName)
-                resValue("string", "login_redirect_scheme", oidcRedirectSchemeBase)
+                resValue("string", "login_redirect_scheme", oAuthRedirectSchemeBase)
             }
             create("plus") {
                 dimension = "fork"
-                // Side-by-side install with the upstream Element X.
                 applicationIdSuffix = ".plus"
                 versionNameSuffix = "-plus"
                 resValue("string", "app_name", "Element X+")
-                resValue("string", "login_redirect_scheme", "$oidcRedirectSchemeBase.plus")
+                resValue("string", "login_redirect_scheme", "$oAuthRedirectSchemeBase.plus")
             }
         }
     }
@@ -288,10 +281,6 @@ dependencies {
         allEnterpriseImpl(project)
         implementation(projects.appicon.enterprise)
     } else if (isPhoneLayerBuild) {
-        // Phone-layer build: split appicon by `fork` flavor to avoid colliding
-        // with the upstream Element launcher mipmap. Plus flavor pulls in our
-        // own brand module and the patched Element Call bundle; vanilla flavor
-        // stays bit-identical to upstream.
         implementation(projects.features.enterprise.implFoss)
         "vanillaImplementation"(projects.appicon.element)
         "plusImplementation"(projects.phoneLayer.brand)

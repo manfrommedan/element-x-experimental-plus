@@ -89,19 +89,14 @@ class LabsPresenter(
             key(enabledFeature.feature.key) {
                 val title = when (enabledFeature.feature) {
                     FeatureFlags.Threads -> stringProvider.getString(R.string.screen_labs_enable_threads)
-                    FeatureFlags.PhoneVoiceLayout ->
-                        stringProvider.getString(R.string.screen_labs_enable_phone_voice_layout)
                     else -> enabledFeature.feature.title
                 }
                 val description = when (enabledFeature.feature) {
                     FeatureFlags.Threads -> stringProvider.getString(R.string.screen_labs_enable_threads_description)
-                    FeatureFlags.PhoneVoiceLayout ->
-                        stringProvider.getString(R.string.screen_labs_enable_phone_voice_layout_description)
                     else -> enabledFeature.feature.description
                 }
                 val icon = when (enabledFeature.feature) {
                     FeatureFlags.Threads -> CompoundIcons.Threads()
-                    FeatureFlags.PhoneVoiceLayout -> CompoundIcons.VoiceCall()
                     else -> null
                 }
                 remember(enabledFeature) {

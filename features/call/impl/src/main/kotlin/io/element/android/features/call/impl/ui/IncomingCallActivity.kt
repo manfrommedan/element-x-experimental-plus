@@ -19,7 +19,7 @@ import androidx.core.content.IntentCompat
 import androidx.lifecycle.lifecycleScope
 import dev.zacsweers.metro.Inject
 import io.element.android.compound.colors.SemanticColorsLightDark
-import io.element.android.features.call.api.CallType
+import io.element.android.features.call.api.CallData
 import io.element.android.features.call.api.ElementCallEntryPoint
 import io.element.android.features.call.impl.di.CallBindings
 import io.element.android.features.call.impl.notifications.CallNotificationData
@@ -118,11 +118,10 @@ class IncomingCallActivity : AppCompatActivity() {
 
     private fun onAnswer(notificationData: CallNotificationData) {
         elementCallEntryPoint.startCall(
-            CallType.RoomCall(
+            CallData(
                 sessionId = notificationData.sessionId,
                 roomId = notificationData.roomId,
                 isAudioCall = notificationData.audioOnly,
-                notifyEventId = notificationData.eventId.value,
             )
         )
     }
@@ -130,7 +129,7 @@ class IncomingCallActivity : AppCompatActivity() {
     private fun onCancel() {
         val activeCall = activeCallManager.activeCall.value ?: return
         appCoroutineScope.launch {
-            activeCallManager.hangUpCall(callType = activeCall.callType)
+            activeCallManager.hangUpCall(callData = activeCall.callData)
         }
     }
 }

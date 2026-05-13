@@ -140,7 +140,8 @@ class WebViewWidgetMessageInterceptor(
             }
         }
 
-        // JavascriptInterface as the baseline message channel - works on Huawei too.
+        // Always register JavascriptInterface as the baseline message channel.
+        // This works on all WebView implementations including Huawei.
         webView.addJavascriptInterface(object {
             @JavascriptInterface
             fun postMessage(json: String?) {
@@ -148,14 +149,15 @@ class WebViewWidgetMessageInterceptor(
             }
         }, LISTENER_NAME)
 
-        // WebMessageListener only on Chromium 119+; older Huawei builds silently drop messages.
-        val webViewVersion = WebViewCompat.getCurrentWebViewPackage(webView.context)
-            ?.versionName
-            ?.split(".")
-            ?.firstOrNull()
-            ?.toIntOrNull() ?: 0
+        // Additionally register WebMessageListener on WebViews that reliably support it.
+        // Huawei WebView (Chromium < 119) reports WEB_MESSAGE_LISTENER as supported
+        // but silently drops messages, so we only trust it on Chromium 119+.
+        // See: https://github.com/element-hq/element-x-android/issues/6632
+        val webViewVersionName = WebViewCompat.getCurrentWebViewPackage(webView.context)?.versionName.orEmpty()
+        Timber.d("Using WebView version: $webViewVersionName")
+        val webViewVersionCode = webViewVersionName.split(".").firstOrNull()?.toIntOrNull() ?: 0
 
-        if (webViewVersion >= 119 &&
+        if (webViewVersionCode >= 119 &&
             WebViewFeature.isFeatureSupported(WebViewFeature.WEB_MESSAGE_LISTENER)) {
             WebViewCompat.addWebMessageListener(
                 webView,

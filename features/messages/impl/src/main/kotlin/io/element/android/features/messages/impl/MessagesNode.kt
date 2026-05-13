@@ -15,7 +15,6 @@ import androidx.activity.compose.LocalActivity
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -30,9 +29,6 @@ import dev.zacsweers.metro.Assisted
 import dev.zacsweers.metro.AssistedInject
 import io.element.android.annotations.ContributesNode
 import io.element.android.compound.theme.ElementTheme
-import io.element.android.features.call.api.CallSummaryStore
-import io.element.android.libraries.featureflag.api.FeatureFlagService
-import io.element.android.libraries.featureflag.api.FeatureFlags
 import io.element.android.features.knockrequests.api.banner.KnockRequestsBannerRenderer
 import io.element.android.features.messages.impl.actionlist.ActionListPresenter
 import io.element.android.features.messages.impl.actionlist.model.TimelineItemActionPostProcessor
@@ -42,8 +38,6 @@ import io.element.android.features.messages.impl.messagecomposer.MessageComposer
 import io.element.android.features.messages.impl.timeline.TimelineController
 import io.element.android.features.messages.impl.timeline.TimelineEvent
 import io.element.android.features.messages.impl.timeline.TimelinePresenter
-import io.element.android.features.messages.impl.timeline.components.LocalCallSummaryStore
-import io.element.android.features.messages.impl.timeline.components.LocalPhoneVoiceLayoutEnabled
 import io.element.android.features.messages.impl.timeline.di.LocalTimelineItemPresenterFactories
 import io.element.android.features.messages.impl.timeline.di.TimelineItemPresenterFactories
 import io.element.android.features.messages.impl.timeline.model.TimelineItem
@@ -74,6 +68,8 @@ import io.element.android.libraries.matrix.api.timeline.Timeline
 import io.element.android.libraries.matrix.api.timeline.item.TimelineItemDebugInfo
 import io.element.android.libraries.mediaplayer.api.MediaPlayer
 import io.element.android.libraries.ui.strings.CommonStrings
+import io.element.android.libraries.ui.utils.a11y.hasExternalKeyboard
+import io.element.android.libraries.ui.utils.a11y.isTalkbackActive
 import io.element.android.services.analytics.api.AnalyticsLongRunningTransaction.LoadMessagesUi
 import io.element.android.services.analytics.api.AnalyticsService
 import io.element.android.services.analytics.api.finishLongRunningTransaction
@@ -100,8 +96,6 @@ class MessagesNode(
     private val permalinkParser: PermalinkParser,
     private val knockRequestsBannerRenderer: KnockRequestsBannerRenderer,
     private val roomMemberModerationRenderer: RoomMemberModerationRenderer,
-    private val callSummaryStore: CallSummaryStore,
-    private val featureFlagService: FeatureFlagService,
 ) : Node(buildContext, plugins = plugins), MessagesNavigator {
     data class Inputs(
         val focusedEventId: EventId?,
@@ -123,7 +117,7 @@ class MessagesNode(
     )
 
     interface Callback : Plugin {
-        fun handleEventClick(timelineMode: Timeline.Mode, event: TimelineItem.Event): Boolean
+        fun handleEventClick(timelineMode: Timeline.Mode, event: TimelineItem.Event, canUseOverlay: Boolean): Boolean
         fun navigateToPreviewAttachments(attachments: ImmutableList<Attachment>, inReplyToEventId: EventId?)
         fun navigateToRoomMemberDetails(userId: UserId)
         fun handlePermalinkClick(data: PermalinkData)
@@ -133,6 +127,7 @@ class MessagesNode(
         fun navigateToSendLocation()
         fun navigateToCreatePoll()
         fun navigateToEditPoll(eventId: EventId)
+        fun navigateToCurrentLiveLocation()
         fun navigateToRoomCall(roomId: RoomId, isAudioCall: Boolean)
         fun navigateToThread(threadRootId: ThreadId, focusedEventId: EventId?)
         fun navigateToRoomDetails()
@@ -245,6 +240,10 @@ class MessagesNode(
         callback.navigateToDeveloperSettings()
     }
 
+    override fun navigateToCurrentLiveLocation() {
+        callback.navigateToCurrentLiveLocation()
+    }
+
     private fun displaySameRoomToast() {
         context.toast(CommonStrings.screen_room_permalink_same_room_android)
     }
@@ -255,13 +254,9 @@ class MessagesNode(
     override fun View(modifier: Modifier) {
         val activity = requireNotNull(LocalActivity.current)
         val isDark = ElementTheme.isLightTheme.not()
-        val phoneVoiceLayoutEnabled by featureFlagService
-            .isFeatureEnabledFlow(FeatureFlags.PhoneVoiceLayout)
-            .collectAsState(initial = false)
+        val canUseOverlay = !isTalkbackActive() && !hasExternalKeyboard()
         CompositionLocalProvider(
             LocalTimelineItemPresenterFactories provides timelineItemPresenterFactories,
-            LocalCallSummaryStore provides callSummaryStore,
-            LocalPhoneVoiceLayoutEnabled provides phoneVoiceLayoutEnabled,
         ) {
             val state = presenter.present()
 
@@ -281,11 +276,11 @@ class MessagesNode(
                 onRoomDetailsClick = callback::navigateToRoomDetails,
                 onEventContentClick = { isLive, event ->
                     if (isLive) {
-                        callback.handleEventClick(timelineController.mainTimelineMode(), event)
+                        callback.handleEventClick(timelineController.mainTimelineMode(), event, canUseOverlay)
                     } else {
                         val detachedTimelineMode = timelineController.detachedTimelineMode()
                         if (detachedTimelineMode != null) {
-                            callback.handleEventClick(detachedTimelineMode, event)
+                            callback.handleEventClick(detachedTimelineMode, event, canUseOverlay)
                         } else {
                             false
                         }

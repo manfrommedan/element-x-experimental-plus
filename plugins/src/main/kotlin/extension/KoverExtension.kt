@@ -240,9 +240,6 @@ fun Project.setupKover() {
 
 fun KoverVariantCreateConfig.defaultVariants(project: Project) {
     if (project.path == ":app") {
-        // Phone-layer adds a fork dimension, so the variant name shifts
-        // to gplayVanillaDebug. Track vanilla so coverage stays meaningful
-        // for upstream parity.
         val variant = if (isPhoneLayerBuild) "gplayVanillaDebug" else "gplayDebug"
         addWithDependencies(variant)
     } else {

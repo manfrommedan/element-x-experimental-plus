@@ -67,10 +67,6 @@ class DefaultCallWidgetSettingsProvider(
                     if (isAudioCall) CallIntent.START_CALL_DM_VOICE else CallIntent.START_CALL_DM
                 }
                 else -> CallIntent.START_CALL
-                // Note: Rust SDK does not expose group voice intent variants
-                // (JOIN_EXISTING_VOICE / START_CALL_VOICE). For group audio calls
-                // the audio-only routing default is enforced client-side via the
-                // earpiece-first priority list in `WebViewAudioManager`.
             }.also {
                 Timber.d("Starting/joining call with intent: $it")
             }

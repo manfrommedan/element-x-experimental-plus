@@ -75,7 +75,6 @@ dependencies {
     implementation(projects.libraries.featureflag.api)
     implementation(projects.libraries.matrix.api)
     implementation(projects.libraries.matrixmedia.api)
-    implementation(projects.libraries.matrixui)
     implementation(projects.libraries.network)
     implementation(projects.libraries.preferences.api)
     implementation(projects.libraries.push.api)
@@ -83,14 +82,11 @@ dependencies {
     implementation(projects.services.analytics.api)
     implementation(projects.services.appnavstate.api)
     implementation(projects.services.toolbox.api)
-    implementation(libs.androidx.datastore.preferences)
     implementation(libs.androidx.webkit)
     implementation(libs.coil.compose)
     implementation(libs.network.retrofit)
     implementation(libs.serialization.json)
-    // Element Call assets are bundled directly into the app under
-    // app/src/main/assets/element-call/ - built from the local element-call
-    // fork that carries our voice layout. No AAR dep.
+    implementation(libs.element.call.embedded)
     api(projects.features.call.api)
 
     testCommonDependencies(libs, true)
