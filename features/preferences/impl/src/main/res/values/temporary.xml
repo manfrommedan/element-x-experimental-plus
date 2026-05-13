@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?><!--
+  ~ Copyright (c) 2026 Element Creations Ltd.
+  ~
+  ~ SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Element-Commercial.
+  ~ Please see LICENSE files in the repository root for full details.
+  -->
+
+<resources>
+    <!-- Labs toggle: phone-style 1:1 voice call layout. -->
+    <string name="screen_labs_enable_phone_voice_layout">"Phone-style voice calls"</string>
+    <string name="screen_labs_enable_phone_voice_layout_description">"Use a classic phone-style layout for 1:1 voice calls."</string>
+</resources>

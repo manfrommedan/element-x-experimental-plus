@@ -122,6 +122,7 @@ class IncomingCallActivity : AppCompatActivity() {
                 sessionId = notificationData.sessionId,
                 roomId = notificationData.roomId,
                 isAudioCall = notificationData.audioOnly,
+                notifyEventId = notificationData.eventId.value,
             )
         )
     }
