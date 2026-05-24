@@ -9,4 +9,5 @@
     <string name="action_select_messages">"Выбрать"</string>
     <string name="screen_messages_selection_count_short">"Выбрано: %1$d"</string>
     <string name="screen_messages_selection_delete_confirm">"Удалить %1$d сообщений?"</string>
+    <string name="screen_messages_selection_cap_reached">"Максимум 30 сообщений"</string>
 </resources>

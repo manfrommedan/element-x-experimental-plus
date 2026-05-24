@@ -8,7 +8,10 @@
 
 package io.element.android.appnav
 
+import android.app.Activity
+import android.content.Intent
 import android.os.Parcelable
+import androidx.activity.compose.LocalActivity
 import androidx.compose.foundation.layout.Box
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -171,6 +174,13 @@ class LoggedInFlowNode(
     }
 
     private val callback: Callback = callback()
+
+    /**
+     * Set in View() from LocalActivity. Used by the IncomingShare callback to finish the
+     * dedicated share Activity after a successful send (WhatsApp / Telegram pattern).
+     */
+    private var currentActivity: Activity? = null
+
     private val loggedInFlowProcessor = LoggedInEventProcessor(
         snackbarDispatcher = snackbarDispatcher,
         roomMembershipObserver = matrixClient.roomMembershipObserver,
@@ -581,16 +591,21 @@ class LoggedInFlowNode(
                     params = ShareEntryPoint.Params(shareIntentData = navTarget.shareIntentData),
                     callback = object : ShareEntryPoint.Callback {
                         override fun onDone(roomIds: List<RoomId>) {
-                            // Remove the incoming share screen
                             backstack.pop()
 
-                            // Navigate to the room if the text/media was shared to a single one
+                            val activity = currentActivity
+                            val isShareIntent = activity?.intent?.action.let {
+                                it == Intent.ACTION_SEND || it == Intent.ACTION_SEND_MULTIPLE
+                            }
+                            if (isShareIntent && activity != null) {
+                                activity.finish()
+                                return
+                            }
+
+                            // Normal (in-app) share: navigate to the room if shared to a single one.
                             roomIds.singleOrNull()?.let { roomId ->
                                 lifecycleScope.launch {
-                                    // Wait until the incoming share screen is removed
                                     backstack.elements.first { it.lastOrNull()?.key?.navTarget !is NavTarget.IncomingShare }
-
-                                    // Then attach the room
                                     attachRoom(roomId.toRoomIdOrAlias(), clearBackstack = false)
                                 }
                             }
@@ -670,6 +685,7 @@ class LoggedInFlowNode(
 
     @Composable
     override fun View(modifier: Modifier) {
+        currentActivity = LocalActivity.current
         val colors by remember {
             enterpriseService.semanticColorsFlow(sessionId = matrixClient.sessionId)
         }.collectAsState(SemanticColorsLightDark.default)

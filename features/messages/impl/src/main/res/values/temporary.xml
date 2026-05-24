@@ -9,4 +9,5 @@
     <string name="action_select_messages">"Select"</string>
     <string name="screen_messages_selection_count_short">"%1$d"</string>
     <string name="screen_messages_selection_delete_confirm">"Delete %1$d messages?"</string>
+    <string name="screen_messages_selection_cap_reached">"Maximum 30 messages"</string>
 </resources>

@@ -506,6 +506,10 @@ class MessagesFlowNode(
                         backstack.push(NavTarget.ForwardEvent(listOf(eventId), fromPinnedEvents = false))
                     }
 
+                    override fun handleBulkForwardEventClick(eventIds: List<EventId>) {
+                        if (eventIds.isNotEmpty()) backstack.push(NavTarget.ForwardEvent(eventIds, fromPinnedEvents = false))
+                    }
+
                     override fun navigateToReportMessage(eventId: EventId, senderId: UserId) {
                         backstack.push(NavTarget.ReportMessage(eventId, senderId))
                     }

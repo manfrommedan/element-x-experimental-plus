@@ -275,8 +275,7 @@ class MessagesPresenter(
                     val current = selectionState.selectedIds
                     val next = if (targetId in current) current - targetId else current + targetId
                     if (next.size > selectionState.maxSelection) {
-                        // Hit the cap - surface a snackbar and keep the existing selection.
-                        snackbarDispatcher.post(SnackbarMessage(CommonStrings.common_error))
+                        snackbarDispatcher.post(SnackbarMessage(R.string.screen_messages_selection_cap_reached))
                         return@handleEvent
                     }
                     selectionState = selectionState.copy(
