@@ -21,4 +21,8 @@
     <!-- Selection mode top bar. -->
     <string name="screen_messages_selection_count">"%1$d selected"</string>
     <string name="screen_messages_selection_delete_confirm">"Delete %1$d messages?"</string>
+    <!-- Labs section headers. -->
+    <string name="screen_labs_section_make_element_better">"Make Element better"</string>
+    <string name="screen_labs_section_calls">"Calls"</string>
+    <string name="screen_labs_section_upstream">"Element Labs"</string>
 </resources>

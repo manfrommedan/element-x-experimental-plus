@@ -53,6 +53,9 @@ class LabsPresenter(
         }
         var isApplyingChanges by remember { mutableStateOf(false) }
         val featureUiModels = createUiModels(enabledFeatures)
+        val sections = remember(featureUiModels) {
+            buildSections(enabledFeatures, featureUiModels)
+        }
 
         fun handleEvent(event: LabsEvents) {
             when (event) {
@@ -75,10 +78,40 @@ class LabsPresenter(
             }
         }
         return LabsState(
-            features = featureUiModels,
+            sections = sections,
             isApplyingChanges = isApplyingChanges,
             eventSink = ::handleEvent,
         )
+    }
+
+    private fun buildSections(
+        enabledFeatures: SnapshotStateList<EnabledFeature>,
+        uiModels: ImmutableList<FeatureUiModel>,
+    ): ImmutableList<LabsSection> {
+        val byKey = uiModels.associateBy { it.key }
+        // Categorise each feature; anything not categorised falls into the upstream Labs bucket.
+        val callsKeys = setOf(FeatureFlags.PhoneVoiceLayout.key)
+        val ourImprovementsKeys = setOf(
+            FeatureFlags.BulkAttachmentsPicker.key,
+            FeatureFlags.ShareMxidShortcut.key,
+            FeatureFlags.MessageMultiSelect.key,
+        )
+        val calls = mutableListOf<FeatureUiModel>()
+        val ours = mutableListOf<FeatureUiModel>()
+        val upstream = mutableListOf<FeatureUiModel>()
+        enabledFeatures.forEach { enabled ->
+            val model = byKey[enabled.feature.key] ?: return@forEach
+            when (enabled.feature.key) {
+                in callsKeys -> calls.add(model)
+                in ourImprovementsKeys -> ours.add(model)
+                else -> upstream.add(model)
+            }
+        }
+        return listOfNotNull(
+            ours.takeIf { it.isNotEmpty() }?.let { LabsSection(R.string.screen_labs_section_make_element_better, it.toImmutableList()) },
+            calls.takeIf { it.isNotEmpty() }?.let { LabsSection(R.string.screen_labs_section_calls, it.toImmutableList()) },
+            upstream.takeIf { it.isNotEmpty() }?.let { LabsSection(R.string.screen_labs_section_upstream, it.toImmutableList()) },
+        ).toImmutableList()
     }
 
     @Composable

@@ -23,6 +23,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.PreviewParameter
 import androidx.compose.ui.unit.dp
+import io.element.android.compound.theme.ElementTheme
 import io.element.android.compound.tokens.generated.CompoundIcons
 import io.element.android.features.preferences.impl.R
 import io.element.android.libraries.designsystem.atomic.molecules.IconTitleSubtitleMolecule
@@ -34,6 +35,7 @@ import io.element.android.libraries.designsystem.components.list.ListItemContent
 import io.element.android.libraries.designsystem.components.list.SwitchListItem
 import io.element.android.libraries.designsystem.preview.ElementPreview
 import io.element.android.libraries.designsystem.preview.PreviewsDayNight
+import io.element.android.libraries.designsystem.theme.components.Text
 import io.element.android.libraries.designsystem.theme.components.TopAppBar
 
 /**
@@ -83,16 +85,26 @@ fun LabsView(
                 modifier = Modifier.fillMaxWidth(),
                 contentPadding = PaddingValues(horizontal = 10.dp, vertical = 20.dp),
             ) {
-                items(items = state.features, key = { it.key }) { feature ->
-                    SwitchListItem(
-                        leadingContent = feature.icon?.let { ListItemContent.Icon(it) },
-                        headline = feature.title,
-                        supportingText = feature.description,
-                        value = feature.isEnabled,
-                        onChange = {
-                            state.eventSink(LabsEvents.ToggleFeature(feature))
-                        }
-                    )
+                state.sections.forEach { section ->
+                    item(key = "header-${section.titleResId}") {
+                        Text(
+                            modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 20.dp, bottom = 8.dp),
+                            text = stringResource(section.titleResId),
+                            style = ElementTheme.typography.fontBodyLgMedium,
+                            color = ElementTheme.colors.textSecondary,
+                        )
+                    }
+                    items(items = section.features, key = { it.key }) { feature ->
+                        SwitchListItem(
+                            leadingContent = feature.icon?.let { ListItemContent.Icon(it) },
+                            headline = feature.title,
+                            supportingText = feature.description,
+                            value = feature.isEnabled,
+                            onChange = {
+                                state.eventSink(LabsEvents.ToggleFeature(feature))
+                            }
+                        )
+                    }
                 }
             }
         }
