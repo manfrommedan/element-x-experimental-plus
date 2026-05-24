@@ -35,6 +35,8 @@ sealed interface MessagesEvent {
     data object BulkCopySelected : MessagesEvent
     /** Open the forward picker pre-loaded with every selected event. */
     data object BulkForwardSelected : MessagesEvent
+    /** Select every loaded timeline event (capped at maxSelection). */
+    data object SelectAllVisible : MessagesEvent
 }
 
 enum class InviteDialogAction {

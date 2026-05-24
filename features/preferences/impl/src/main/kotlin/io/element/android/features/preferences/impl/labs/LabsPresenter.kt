@@ -108,9 +108,9 @@ class LabsPresenter(
             }
         }
         return listOfNotNull(
+            upstream.takeIf { it.isNotEmpty() }?.let { LabsSection(R.string.screen_labs_section_upstream, it.toImmutableList()) },
             ours.takeIf { it.isNotEmpty() }?.let { LabsSection(R.string.screen_labs_section_make_element_better, it.toImmutableList()) },
             calls.takeIf { it.isNotEmpty() }?.let { LabsSection(R.string.screen_labs_section_calls, it.toImmutableList()) },
-            upstream.takeIf { it.isNotEmpty() }?.let { LabsSection(R.string.screen_labs_section_upstream, it.toImmutableList()) },
         ).toImmutableList()
     }
 

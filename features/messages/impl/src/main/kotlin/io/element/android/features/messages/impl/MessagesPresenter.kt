@@ -317,6 +317,20 @@ class MessagesPresenter(
                     selectionState = io.element.android.features.messages.impl.selection.TimelineSelectionState()
                     navigator.forwardEvents(targets)
                 }
+                MessagesEvent.SelectAllVisible -> {
+                    // Take loaded timeline events with a resolved eventId, capped at maxSelection.
+                    val ids = timelineState.timelineItems
+                        .asSequence()
+                        .filterIsInstance<io.element.android.features.messages.impl.timeline.model.TimelineItem.Event>()
+                        .mapNotNull { it.eventId }
+                        .take(selectionState.maxSelection)
+                        .toList()
+                    if (ids.isEmpty()) return@handleEvent
+                    selectionState = selectionState.copy(
+                        isActive = true,
+                        selectedIds = ids.toPersistentSet(),
+                    )
+                }
                 is MessagesEvent.ToggleReaction -> {
                     localCoroutineScope.toggleReaction(event.emoji, event.eventOrTransactionId)
                 }

@@ -266,6 +266,7 @@ fun MessagesView(
                         io.element.android.features.messages.impl.selection.MessagesSelectionTopBar(
                             state = state.selectionState,
                             onCancelClick = { state.eventSink(MessagesEvent.ClearSelection) },
+                            onSelectAllClick = { state.eventSink(MessagesEvent.SelectAllVisible) },
                             onCopyClick = {
                                 // BulkCopy is finalised in the View because it needs the clipboard manager.
                                 val texts = state.timelineState.timelineItems

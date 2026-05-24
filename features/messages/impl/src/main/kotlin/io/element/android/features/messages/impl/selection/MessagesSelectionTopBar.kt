@@ -24,6 +24,7 @@ import io.element.android.libraries.ui.strings.CommonStrings
 fun MessagesSelectionTopBar(
     state: TimelineSelectionState,
     onCancelClick: () -> Unit,
+    onSelectAllClick: () -> Unit,
     onCopyClick: () -> Unit,
     onDeleteClick: () -> Unit,
     onForwardClick: () -> Unit,
@@ -46,6 +47,13 @@ fun MessagesSelectionTopBar(
             )
         },
         actions = {
+            IconButton(onClick = onSelectAllClick) {
+                Icon(
+                    imageVector = CompoundIcons.CheckCircle(),
+                    contentDescription = stringResource(R.string.action_select_all),
+                    tint = ElementTheme.colors.iconPrimary,
+                )
+            }
             IconButton(onClick = onCopyClick) {
                 Icon(
                     imageVector = CompoundIcons.Copy(),
