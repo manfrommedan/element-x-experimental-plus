@@ -1574,7 +1574,10 @@ class MessageComposerPresenterTest {
         mediaOptimizationConfigProvider = mediaOptimizationConfigProvider,
         notificationConversationService = notificationConversationService,
         slashCommandService = slashCommandService,
-        featureFlagService = io.element.android.libraries.featureflag.test.FakeFeatureFlagService(),
+        featureFlagService = io.element.android.libraries.featureflag.test.FakeFeatureFlagService(
+            // Keep single-pick gallery flow for legacy tests; bulk-pick has its own coverage elsewhere.
+            initialState = mapOf(io.element.android.libraries.featureflag.api.FeatureFlags.BulkAttachmentsPicker.key to false),
+        ),
     ).apply {
         isTesting = true
         showTextFormatting = isRichTextEditorEnabled
