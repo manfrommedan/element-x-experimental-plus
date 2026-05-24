@@ -327,23 +327,31 @@ fun MessagesView(
                                 }
                             },
                             onLinkClick = { link, customTab ->
-                                if (customTab) {
-                                    onLinkClick(link.url, true)
-                                    // Do not check those links, they are internal link only
-                                } else {
-                                    state.linkState.eventSink(LinkEvent.OnLinkClick(link))
+                                if (!state.selectionState.isActive) {
+                                    if (customTab) {
+                                        onLinkClick(link.url, true)
+                                        // Do not check those links, they are internal link only
+                                    } else {
+                                        state.linkState.eventSink(LinkEvent.OnLinkClick(link))
+                                    }
                                 }
                             },
                             onReactionClick = ::onEmojiReactionClick,
                             onReactionLongClick = ::onEmojiReactionLongClick,
                             onMoreReactionsClick = ::onMoreReactionsClick,
                             onReadReceiptClick = { event ->
-                                state.readReceiptBottomSheetState.eventSink(ReadReceiptBottomSheetEvent.EventSelected(event))
+                                if (state.selectionState.isActive) {
+                                    state.eventSink(MessagesEvent.ToggleSelection(event))
+                                } else {
+                                    state.readReceiptBottomSheetState.eventSink(ReadReceiptBottomSheetEvent.EventSelected(event))
+                                }
                             },
                             onSendLocationClick = onSendLocationClick,
                             onCreatePollClick = onCreatePollClick,
                             onSwipeToReply = { targetEvent ->
-                                state.eventSink(MessagesEvent.HandleAction(TimelineItemAction.Reply, targetEvent))
+                                if (!state.selectionState.isActive) {
+                                    state.eventSink(MessagesEvent.HandleAction(TimelineItemAction.Reply, targetEvent))
+                                }
                             },
                             forceJumpToBottomVisibility = forceJumpToBottomVisibility,
                             onViewAllPinnedMessagesClick = onViewAllPinnedMessagesClick,
