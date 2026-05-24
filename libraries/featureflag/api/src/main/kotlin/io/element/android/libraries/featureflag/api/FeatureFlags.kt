@@ -171,4 +171,12 @@ enum class FeatureFlags(
         isFinished = false,
         isInLabs = true,
     ),
+    FavoritesPinnedToTop(
+        key = "feature.favorites_pinned_to_top",
+        title = "Pin favourites at the top",
+        description = "Always show your favourite rooms above the rest of the chat list, in their own section.",
+        defaultValue = { true },
+        isFinished = false,
+        isInLabs = true,
+    ),
 }

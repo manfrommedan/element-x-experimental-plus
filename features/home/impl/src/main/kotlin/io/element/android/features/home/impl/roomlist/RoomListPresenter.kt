@@ -45,6 +45,8 @@ import io.element.android.features.leaveroom.api.LeaveRoomState
 import io.element.android.libraries.architecture.AsyncData
 import io.element.android.libraries.architecture.Presenter
 import io.element.android.libraries.fullscreenintent.api.FullScreenIntentPermissionsState
+import io.element.android.libraries.featureflag.api.FeatureFlagService
+import io.element.android.libraries.featureflag.api.FeatureFlags
 import io.element.android.libraries.matrix.api.MatrixClient
 import io.element.android.libraries.matrix.api.core.RoomId
 import io.element.android.libraries.matrix.api.encryption.RecoveryState
@@ -90,6 +92,7 @@ class RoomListPresenter(
     private val announcementService: AnnouncementService,
     private val coldStartWatcher: AnalyticsColdStartWatcher,
     private val spaceFiltersPresenter: Presenter<SpaceFiltersState>,
+    private val featureFlagService: FeatureFlagService,
 ) : Presenter<RoomListState> {
     private val encryptionService = client.encryptionService
 
@@ -243,6 +246,8 @@ class RoomListPresenter(
         }
         val seenRoomInvites by remember { seenInvitesStore.seenRoomIds() }.collectAsState(emptySet())
         val securityBannerState by rememberSecurityBannerState(securityBannerDismissed)
+        val pinFavoritesToTop by featureFlagService.isFeatureEnabledFlow(FeatureFlags.FavoritesPinnedToTop)
+            .collectAsState(initial = false)
         return when {
             showEmpty -> RoomListContentState.Empty(
                 securityBannerState = securityBannerState,
@@ -258,6 +263,7 @@ class RoomListPresenter(
                     batteryOptimizationState = batteryOptimizationPresenter.present(),
                     summaries = roomSummaries.dataOrNull().orEmpty().toImmutableList(),
                     seenRoomInvites = seenRoomInvites.toImmutableSet(),
+                    pinFavoritesToTop = pinFavoritesToTop,
                 )
             }
         }

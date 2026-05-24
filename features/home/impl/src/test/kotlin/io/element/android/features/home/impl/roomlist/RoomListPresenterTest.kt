@@ -668,6 +668,8 @@ class RoomListPresenterTest {
         appPreferencesStore: AppPreferencesStore = InMemoryAppPreferencesStore(),
         seenInvitesStore: SeenInvitesStore = InMemorySeenInvitesStore(),
         announcementService: AnnouncementService = FakeAnnouncementService(),
+        featureFlagService: io.element.android.libraries.featureflag.api.FeatureFlagService =
+            io.element.android.libraries.featureflag.test.FakeFeatureFlagService(),
     ) = RoomListPresenter(
         client = client,
         leaveRoomPresenter = { leaveRoomState },
@@ -696,5 +698,6 @@ class RoomListPresenterTest {
         seenInvitesStore = seenInvitesStore,
         announcementService = announcementService,
         coldStartWatcher = FakeAnalyticsColdStartWatcher(),
+        featureFlagService = featureFlagService,
     )
 }

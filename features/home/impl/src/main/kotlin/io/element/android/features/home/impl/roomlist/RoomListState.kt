@@ -74,5 +74,6 @@ sealed interface RoomListContentState {
         val showNewNotificationSoundBanner: Boolean,
         val summaries: ImmutableList<RoomListRoomSummary>,
         val seenRoomInvites: ImmutableSet<RoomId>,
+        val pinFavoritesToTop: Boolean = false,
     ) : RoomListContentState
 }

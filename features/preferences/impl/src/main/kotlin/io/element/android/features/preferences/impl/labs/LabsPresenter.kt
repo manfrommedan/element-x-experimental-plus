@@ -95,6 +95,7 @@ class LabsPresenter(
             FeatureFlags.BulkAttachmentsPicker.key,
             FeatureFlags.ShareMxidShortcut.key,
             FeatureFlags.MessageMultiSelect.key,
+            FeatureFlags.FavoritesPinnedToTop.key,
         )
         val calls = mutableListOf<FeatureUiModel>()
         val ours = mutableListOf<FeatureUiModel>()
@@ -130,6 +131,8 @@ class LabsPresenter(
                         stringProvider.getString(R.string.screen_labs_enable_share_mxid_shortcut)
                     FeatureFlags.MessageMultiSelect ->
                         stringProvider.getString(R.string.screen_labs_enable_message_multi_select)
+                    FeatureFlags.FavoritesPinnedToTop ->
+                        stringProvider.getString(R.string.screen_labs_enable_favorites_pinned_to_top)
                     else -> enabledFeature.feature.title
                 }
                 val description = when (enabledFeature.feature) {
@@ -142,6 +145,8 @@ class LabsPresenter(
                         stringProvider.getString(R.string.screen_labs_enable_share_mxid_shortcut_description)
                     FeatureFlags.MessageMultiSelect ->
                         stringProvider.getString(R.string.screen_labs_enable_message_multi_select_description)
+                    FeatureFlags.FavoritesPinnedToTop ->
+                        stringProvider.getString(R.string.screen_labs_enable_favorites_pinned_to_top_description)
                     else -> enabledFeature.feature.description
                 }
                 val icon = when (enabledFeature.feature) {
@@ -150,6 +155,7 @@ class LabsPresenter(
                     FeatureFlags.BulkAttachmentsPicker -> CompoundIcons.Image()
                     FeatureFlags.ShareMxidShortcut -> CompoundIcons.Copy()
                     FeatureFlags.MessageMultiSelect -> CompoundIcons.CheckCircle()
+                    FeatureFlags.FavoritesPinnedToTop -> CompoundIcons.Favourite()
                     else -> null
                 }
                 remember(enabledFeature) {
