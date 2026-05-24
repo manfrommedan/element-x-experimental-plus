@@ -16,13 +16,13 @@ import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
@@ -280,27 +280,28 @@ private fun RoomsViewList(
             item(key = "favorites_header", contentType = "section_header") {
                 RoomListSectionHeader(text = stringResource(R.string.screen_roomlist_section_favorites))
             }
-            itemsIndexed(
-                items = favorites,
-                contentType = { _, room -> room.contentType() },
-            ) { index, room ->
-                RoomSummaryRow(
-                    room = room,
-                    hideInviteAvatars = hideInvitesAvatars,
-                    isInviteSeen = room.displayType == RoomSummaryDisplayType.INVITE &&
-                        state.seenRoomInvites.contains(room.roomId),
-                    onClick = onRoomClick,
-                    eventSink = eventSink,
-                )
-                if (index != favorites.lastIndex) {
-                    HorizontalDivider()
-                }
+        }
+        itemsIndexed(
+            items = favorites,
+            contentType = { _, room -> room.contentType() },
+        ) { index, room ->
+            RoomSummaryRow(
+                room = room,
+                hideInviteAvatars = hideInvitesAvatars,
+                isInviteSeen = room.displayType == RoomSummaryDisplayType.INVITE &&
+                    state.seenRoomInvites.contains(room.roomId),
+                onClick = onRoomClick,
+                eventSink = eventSink,
+            )
+            if (index != favorites.lastIndex) {
+                HorizontalDivider()
             }
+        }
+        if (showFavoritesSection) {
             item(key = "favorites_section_spacer", contentType = "section_spacer") {
                 Spacer(modifier = Modifier.height(8.dp))
             }
         }
-
         itemsIndexed(
             items = others,
             contentType = { _, room -> room.contentType() },
