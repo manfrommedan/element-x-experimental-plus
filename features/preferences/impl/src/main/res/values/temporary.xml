@@ -21,6 +21,9 @@
     <!-- Labs toggle: favourites pinned at the top of the chat list. -->
     <string name="screen_labs_enable_favorites_pinned_to_top">"Favourites at the top"</string>
     <string name="screen_labs_enable_favorites_pinned_to_top_description">"Show your favourite rooms in their own section above the rest of the chat list, like SchildiChat or Telegram pinned chats."</string>
+    <!-- Advanced settings toggle: hide redacted (deleted) events in timelines. -->
+    <string name="screen_advanced_settings_hide_redacted_events_toggle_title">"Hide deleted messages"</string>
+    <string name="screen_advanced_settings_hide_redacted_events_toggle_subtitle">"Hide redacted events from the timeline entirely. They still exist on the server, but you won't see the tombstone."</string>
     <!-- Selection mode top bar. -->
     <string name="screen_messages_selection_count">"%1$d selected"</string>
     <string name="screen_messages_selection_delete_confirm">"Delete %1$d messages?"</string>

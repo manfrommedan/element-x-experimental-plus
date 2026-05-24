@@ -44,6 +44,7 @@ fun aAdvancedSettingsState(
     liveLocationMinimumDistanceUpdate: Int? = 50,
     setTimelineMediaPreviewAction: AsyncAction<Unit> = AsyncAction.Uninitialized,
     setHideInviteAvatarsAction: AsyncAction<Unit> = AsyncAction.Uninitialized,
+    hideRedactedEvents: Boolean = false,
     eventSink: (AdvancedSettingsEvents) -> Unit = {},
 ) = AdvancedSettingsState(
     isDeveloperModeEnabled = isDeveloperModeEnabled,
@@ -58,5 +59,6 @@ fun aAdvancedSettingsState(
         setHideInviteAvatarsAction = setHideInviteAvatarsAction
     ),
     liveLocationMinimumDistanceUpdate = liveLocationMinimumDistanceUpdate,
+    hideRedactedEvents = hideRedactedEvents,
     eventSink = eventSink
 )

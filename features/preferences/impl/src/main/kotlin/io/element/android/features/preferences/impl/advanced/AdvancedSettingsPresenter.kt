@@ -57,6 +57,10 @@ class AdvancedSettingsPresenter(
             appPreferencesStore.getLiveLocationMinimumDistanceInMetersUpdateFlow().collect { value = it }
         }
 
+        val hideRedactedEvents by remember {
+            appPreferencesStore.getHideRedactedEventsFlow()
+        }.collectAsState(initial = false)
+
         val mediaPreviewConfigState = mediaPreviewConfigStateStore.state()
 
         val themeOption by remember {
@@ -120,6 +124,9 @@ class AdvancedSettingsPresenter(
                     }
                 }
                 is AdvancedSettingsEvents.SetHideInviteAvatars -> mediaPreviewConfigStateStore.setHideInviteAvatars(event.value)
+                is AdvancedSettingsEvents.SetHideRedactedEvents -> sessionCoroutineScope.launch {
+                    appPreferencesStore.setHideRedactedEvents(event.value)
+                }
                 is AdvancedSettingsEvents.SetTimelineMediaPreviewValue -> mediaPreviewConfigStateStore.setTimelineMediaPreviewValue(event.value)
                 is AdvancedSettingsEvents.SetLiveLocationMinimumDistanceUpdate -> sessionCoroutineScope.launch {
                     appPreferencesStore.setLiveLocationMinimumDistanceInMetersUpdate(event.value)
@@ -141,6 +148,7 @@ class AdvancedSettingsPresenter(
             availableThemeOptions = availableThemeOptions,
             mediaPreviewConfigState = mediaPreviewConfigState,
             liveLocationMinimumDistanceUpdate = liveLocationMinimumDistanceUpdate,
+            hideRedactedEvents = hideRedactedEvents,
             eventSink = ::handleEvent,
         )
     }

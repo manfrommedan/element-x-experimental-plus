@@ -290,6 +290,14 @@ private fun ModerationAndSafety(
             },
             enabled = !state.mediaPreviewConfigState.setHideInviteAvatarsAction.isLoading()
         )
+        PreferenceSwitch(
+            title = stringResource(R.string.screen_advanced_settings_hide_redacted_events_toggle_title),
+            subtitle = stringResource(R.string.screen_advanced_settings_hide_redacted_events_toggle_subtitle),
+            isChecked = state.hideRedactedEvents,
+            onCheckedChange = {
+                state.eventSink(AdvancedSettingsEvents.SetHideRedactedEvents(it))
+            },
+        )
         ListSectionHeader(
             title = stringResource(R.string.screen_advanced_settings_show_media_timeline_title),
             hasDivider = false,

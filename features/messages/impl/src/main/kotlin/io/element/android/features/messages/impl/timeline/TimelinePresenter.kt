@@ -63,6 +63,7 @@ import io.element.android.services.analytics.api.finishLongRunningTransaction
 import io.element.android.services.analyticsproviders.api.AnalyticsUserData
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.persistentListOf
+import kotlinx.collections.immutable.toImmutableList
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.combine
@@ -87,6 +88,7 @@ class TimelinePresenter(
     private val sendPollResponseAction: SendPollResponseAction,
     private val endPollAction: EndPollAction,
     private val sessionPreferencesStore: SessionPreferencesStore,
+    private val appPreferencesStore: io.element.android.libraries.preferences.api.store.AppPreferencesStore,
     @Assisted private val timelineController: TimelineController,
     private val timelineItemIndexer: TimelineItemIndexer = TimelineItemIndexer(),
     private val resolveVerifiedUserSendFailurePresenter: Presenter<ResolveVerifiedUserSendFailureState>,
@@ -311,8 +313,22 @@ class TimelinePresenter(
             Timber.tag(tag).d("Timeline: $timelineMode | focus state: ${focusRequestState.value}")
         }
 
+        val hideRedactedEvents by remember {
+            appPreferencesStore.getHideRedactedEventsFlow()
+        }.collectAsState(initial = false)
+        val visibleTimelineItems = remember(timelineItems, hideRedactedEvents) {
+            if (hideRedactedEvents) {
+                timelineItems.filterNot { item ->
+                    item is io.element.android.features.messages.impl.timeline.model.TimelineItem.Event &&
+                        item.content is io.element.android.features.messages.impl.timeline.model.event.TimelineItemRedactedContent
+                }.toImmutableList()
+            } else {
+                timelineItems
+            }
+        }
+
         return TimelineState(
-            timelineItems = timelineItems,
+            timelineItems = visibleTimelineItems,
             timelineMode = timelineMode,
             timelineRoomInfo = timelineRoomInfo,
             renderReadReceipts = renderReadReceipts,

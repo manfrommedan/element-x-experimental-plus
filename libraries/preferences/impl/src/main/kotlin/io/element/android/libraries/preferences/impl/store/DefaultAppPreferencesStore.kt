@@ -30,6 +30,7 @@ private val themeKey = stringPreferencesKey("theme")
 private val hideInviteAvatarsKey = booleanPreferencesKey("hideInviteAvatars")
 private val timelineMediaPreviewValueKey = stringPreferencesKey("timelineMediaPreviewValue")
 private val liveLocationMinimumDistanceUpdateKey = intPreferencesKey("liveLocationMinimumDistanceUpdate")
+private val hideRedactedEventsKey = booleanPreferencesKey("hideRedactedEvents")
 private val logLevelKey = stringPreferencesKey("logLevel")
 private val traceLogPacksKey = stringPreferencesKey("traceLogPacks")
 
@@ -126,6 +127,18 @@ class DefaultAppPreferencesStore(
     override fun getTimelineMediaPreviewValueFlow(): Flow<MediaPreviewValue?> {
         return store.data.map { prefs ->
             prefs[timelineMediaPreviewValueKey]?.let { MediaPreviewValue.valueOf(it) }
+        }
+    }
+
+    override suspend fun setHideRedactedEvents(value: Boolean) {
+        store.edit { prefs ->
+            prefs[hideRedactedEventsKey] = value
+        }
+    }
+
+    override fun getHideRedactedEventsFlow(): Flow<Boolean> {
+        return store.data.map { prefs ->
+            prefs[hideRedactedEventsKey] ?: false
         }
     }
 

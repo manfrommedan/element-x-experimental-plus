@@ -33,6 +33,7 @@ class InMemoryAppPreferencesStore(
     private val tracingLogPacks = MutableStateFlow(traceLockPacks)
     private val hideInviteAvatars = MutableStateFlow(hideInviteAvatars)
     private val timelineMediaPreviewValue = MutableStateFlow(timelineMediaPreviewValue)
+    private val hideRedactedEvents = MutableStateFlow(false)
 
     override suspend fun setDeveloperModeEnabled(enabled: Boolean) {
         isDeveloperModeEnabled.value = enabled
@@ -84,6 +85,14 @@ class InMemoryAppPreferencesStore(
     @Deprecated("Use MediaPreviewService instead. Kept only for migration.")
     override suspend fun setTimelineMediaPreviewValue(mediaPreviewValue: MediaPreviewValue?) {
         timelineMediaPreviewValue.value = mediaPreviewValue
+    }
+
+    override suspend fun setHideRedactedEvents(value: Boolean) {
+        hideRedactedEvents.value = value
+    }
+
+    override fun getHideRedactedEventsFlow(): Flow<Boolean> {
+        return hideRedactedEvents
     }
 
     override suspend fun setTracingLogLevel(logLevel: LogLevel) {
