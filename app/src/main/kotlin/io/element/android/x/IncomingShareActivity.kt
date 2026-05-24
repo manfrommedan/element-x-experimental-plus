@@ -27,7 +27,7 @@ class IncomingShareActivity : MainActivity() {
             this,
             object : OnBackPressedCallback(enabled = true) {
                 override fun handleOnBackPressed() {
-                    finish()
+                    finishAndRemoveTask()
                 }
             },
         )

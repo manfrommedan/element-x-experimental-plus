@@ -594,11 +594,18 @@ class LoggedInFlowNode(
                             backstack.pop()
 
                             val activity = currentActivity
-                            val isShareIntent = activity?.intent?.action.let {
-                                it == Intent.ACTION_SEND || it == Intent.ACTION_SEND_MULTIPLE
-                            }
-                            if (isShareIntent && activity != null) {
-                                activity.finish()
+                            // Detect the dedicated share Activity by class name (lives in :app
+                            // which appnav can't import) or by the launching intent action.
+                            val isShareActivity = activity != null && (
+                                activity.javaClass.simpleName == "IncomingShareActivity" ||
+                                    activity.intent?.action == Intent.ACTION_SEND ||
+                                    activity.intent?.action == Intent.ACTION_SEND_MULTIPLE
+                                )
+                            if (isShareActivity && activity != null) {
+                                // finishAndRemoveTask drops the activity from whichever task it
+                                // ended up in (caller's task when taskAffinity took effect, or
+                                // its own task otherwise) so the OS returns to the caller app.
+                                activity.finishAndRemoveTask()
                                 return
                             }
 
