@@ -222,15 +222,27 @@ fun MessagesView(
     }
 
     fun onEmojiReactionClick(emoji: String, event: TimelineItem.Event) {
+        if (state.selectionState.isActive) {
+            state.eventSink(MessagesEvent.ToggleSelection(event))
+            return
+        }
         state.eventSink(MessagesEvent.ToggleReaction(emoji, event.eventOrTransactionId))
     }
 
     fun onEmojiReactionLongClick(emoji: String, event: TimelineItem.Event) {
+        if (state.selectionState.isActive) {
+            state.eventSink(MessagesEvent.ToggleSelection(event))
+            return
+        }
         if (event.eventId == null) return
         state.reactionSummaryState.eventSink(ReactionSummaryEvent.ShowReactionSummary(event.eventId, event.reactionsState.reactions, emoji))
     }
 
     fun onMoreReactionsClick(event: TimelineItem.Event) {
+        if (state.selectionState.isActive) {
+            state.eventSink(MessagesEvent.ToggleSelection(event))
+            return
+        }
         state.customReactionState.eventSink(CustomReactionEvent.ShowCustomReactionSheet(event))
     }
 
@@ -308,8 +320,10 @@ fun MessagesView(
                             onContentClick = ::onContentClick,
                             onMessageLongClick = ::onMessageLongClick,
                             onUserDataClick = {
-                                hidingKeyboard {
-                                    state.eventSink(MessagesEvent.OnUserClicked(it))
+                                if (!state.selectionState.isActive) {
+                                    hidingKeyboard {
+                                        state.eventSink(MessagesEvent.OnUserClicked(it))
+                                    }
                                 }
                             },
                             onLinkClick = { link, customTab ->

@@ -66,12 +66,18 @@ class ForwardMessagesPresenter(
     ) = launch {
         suspend {
             val timeline = timelineProvider.getActiveTimeline()
+            var failures = 0
+            var lastError: Throwable? = null
             for ((index, eventId) in eventIds.withIndex()) {
-                timeline.forwardEvent(eventId, roomIds)
-                    .onFailure { Timber.e(it, "Error while forwarding event $eventId") }
-                    .getOrThrow()
+                val result = timeline.forwardEvent(eventId, roomIds)
+                if (result.isFailure) {
+                    failures += 1
+                    lastError = result.exceptionOrNull()
+                    Timber.e(lastError, "Error forwarding event $eventId (${failures} failed so far)")
+                }
                 if (index < eventIds.lastIndex) kotlinx.coroutines.delay(150)
             }
+            if (failures == eventIds.size && lastError != null) throw lastError
             roomIds
         }.runCatchingUpdatingState(forwardingActionState)
     }
