@@ -10,4 +10,6 @@
     <string name="screen_messages_selection_count_short">"%1$d"</string>
     <string name="screen_messages_selection_delete_confirm">"Delete %1$d messages?"</string>
     <string name="screen_messages_selection_cap_reached">"Maximum 30 messages"</string>
+    <string name="screen_composer_attachments_cap_reached">"You can share up to 30 items at a time"</string>
+    <string name="screen_messages_forwarded">"Forwarded"</string>
 </resources>

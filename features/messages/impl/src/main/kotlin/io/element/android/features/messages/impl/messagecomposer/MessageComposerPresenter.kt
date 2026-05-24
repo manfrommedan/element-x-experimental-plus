@@ -626,7 +626,13 @@ class MessageComposerPresenter(
 
     private fun handlePickedMediaList(picked: List<Pair<Uri, String?>>) {
         if (picked.isEmpty()) return
-        val attachments = picked.map { (uri, mimeType) ->
+        // Android system picker only treats maxItems as a hint on some OEM galleries -
+        // hard-cap on our side so the UI/server flow never exceeds the labs limit.
+        val capped = picked.take(io.element.android.libraries.mediapickers.api.DEFAULT_MAX_PICK_ITEMS)
+        if (capped.size < picked.size) {
+            snackbarDispatcher.post(SnackbarMessage(io.element.android.features.messages.impl.R.string.screen_composer_attachments_cap_reached))
+        }
+        val attachments = capped.map { (uri, mimeType) ->
             Attachment.Media(
                 localMediaFactory.createFromUri(
                     uri = uri,
