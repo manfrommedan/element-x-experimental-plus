@@ -47,7 +47,7 @@ import timber.log.Timber
 
 private val loggerTag = LoggerTag("MainActivity")
 
-class MainActivity : NodeActivity() {
+open class MainActivity : NodeActivity() {
     private lateinit var mainNode: MainNode
     private lateinit var appBindings: AppBindings
 

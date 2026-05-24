@@ -27,6 +27,6 @@ data class TimelineSelectionState(
     val isAtCap: Boolean get() = count >= maxSelection
 
     companion object {
-        const val MAX_SELECTION = 100
+        const val MAX_SELECTION = 30
     }
 }

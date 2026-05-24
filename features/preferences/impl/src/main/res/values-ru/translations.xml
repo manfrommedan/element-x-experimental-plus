@@ -89,7 +89,7 @@
   <string name="screen_labs_enable_share_mxid_shortcut">"Копировать Matrix ID из настроек"</string>
   <string name="screen_labs_enable_share_mxid_shortcut_description">"Кнопка копирования рядом с твоим Matrix ID в шапке настроек - поделиться в одно касание."</string>
   <string name="screen_labs_enable_message_multi_select">"Множественный выбор сообщений"</string>
-  <string name="screen_labs_enable_message_multi_select_description">"Долгое нажатие на сообщение - включается режим выбора. Тап по другим сообщениям добавляет их в выбор. Массовое удаление, копирование, пересылка до 100 сообщений."</string>
+  <string name="screen_labs_enable_message_multi_select_description">"Долгое нажатие на сообщение - включается режим выбора. Тап по другим сообщениям добавляет их в выбор. Массовое удаление, копирование, пересылка до 30 сообщений."</string>
   <string name="screen_messages_selection_count">"Выбрано: %1$d"</string>
   <string name="screen_messages_selection_delete_confirm">"Удалить %1$d сообщений?"</string>
 </resources>
