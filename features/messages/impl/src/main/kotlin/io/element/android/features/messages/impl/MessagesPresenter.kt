@@ -318,10 +318,12 @@ class MessagesPresenter(
                     navigator.forwardEvents(targets)
                 }
                 MessagesEvent.SelectAllVisible -> {
-                    // Take loaded timeline events with a resolved eventId, capped at maxSelection.
+                    // Take loaded timeline events with a resolved eventId, skipping redacted
+                    // (deleted) ones, capped at maxSelection.
                     val ids = timelineState.timelineItems
                         .asSequence()
                         .filterIsInstance<io.element.android.features.messages.impl.timeline.model.TimelineItem.Event>()
+                        .filterNot { it.content is io.element.android.features.messages.impl.timeline.model.event.TimelineItemRedactedContent }
                         .mapNotNull { it.eventId }
                         .take(selectionState.maxSelection)
                         .toList()
