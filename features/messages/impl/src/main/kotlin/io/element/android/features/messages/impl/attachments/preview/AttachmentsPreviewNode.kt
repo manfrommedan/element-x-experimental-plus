@@ -42,7 +42,7 @@ class AttachmentsPreviewNode(
     private val enterpriseService: EnterpriseService,
 ) : Node(buildContext, plugins = plugins) {
     data class Inputs(
-        val attachment: Attachment,
+        val attachments: List<Attachment>,
         val timelineMode: Timeline.Mode,
         val inReplyToEventId: EventId?,
     ) : NodeInputs
@@ -54,7 +54,7 @@ class AttachmentsPreviewNode(
     }
 
     private val presenter = presenterFactory.create(
-        attachment = inputs.attachment,
+        attachments = inputs.attachments,
         timelineMode = inputs.timelineMode,
         onDoneListener = onDoneListener,
         inReplyToEventId = inputs.inReplyToEventId,

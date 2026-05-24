@@ -20,6 +20,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
@@ -62,6 +63,8 @@ import io.element.android.libraries.matrix.api.timeline.TimelineException
 import io.element.android.libraries.matrix.api.timeline.item.event.toEventOrTransactionId
 import io.element.android.libraries.matrix.ui.messages.reply.InReplyToDetails
 import io.element.android.libraries.matrix.ui.messages.reply.map
+import io.element.android.libraries.featureflag.api.FeatureFlagService
+import io.element.android.libraries.featureflag.api.FeatureFlags
 import io.element.android.libraries.mediapickers.api.PickerProvider
 import io.element.android.libraries.mediaupload.api.MediaOptimizationConfigProvider
 import io.element.android.libraries.mediaupload.api.MediaSenderFactory
@@ -132,6 +135,7 @@ class MessageComposerPresenter(
     private val mediaOptimizationConfigProvider: MediaOptimizationConfigProvider,
     private val notificationConversationService: NotificationConversationService,
     private val slashCommandService: SlashCommandService,
+    private val featureFlagService: FeatureFlagService,
 ) : Presenter<MessageComposerState> {
     @AssistedFactory
     interface Factory {
@@ -175,8 +179,14 @@ class MessageComposerPresenter(
             canShareLocation.value = locationService.isServiceAvailable()
         }
 
-        val galleryMediaPicker = mediaPickerProvider.registerGalleryPicker { uri, mimeType ->
+        val bulkPickerEnabled by produceState(initialValue = true) {
+            value = featureFlagService.isFeatureEnabled(FeatureFlags.BulkAttachmentsPicker)
+        }
+        val galleryMediaSinglePicker = mediaPickerProvider.registerGalleryPicker { uri, mimeType ->
             handlePickedMedia(uri, mimeType)
+        }
+        val galleryMediaMultiPicker = mediaPickerProvider.registerMultipleGalleryPicker { pickedMedia ->
+            handlePickedMediaList(pickedMedia)
         }
         val filesPicker = mediaPickerProvider.registerFilePicker(AnyMimeTypes) { uri, mimeType ->
             handlePickedMedia(uri, mimeType ?: MimeTypes.OctetStream)
@@ -288,7 +298,11 @@ class MessageComposerPresenter(
                 MessageComposerEvent.DismissAttachmentMenu -> showAttachmentSourcePicker = false
                 MessageComposerEvent.PickAttachmentSource.FromGallery -> localCoroutineScope.launch {
                     showAttachmentSourcePicker = false
-                    galleryMediaPicker.launch()
+                    if (bulkPickerEnabled) {
+                        galleryMediaMultiPicker.launch()
+                    } else {
+                        galleryMediaSinglePicker.launch()
+                    }
                 }
                 MessageComposerEvent.PickAttachmentSource.FromFiles -> localCoroutineScope.launch {
                     showAttachmentSourcePicker = false
@@ -607,17 +621,25 @@ class MessageComposerPresenter(
         mimeType: String? = null,
     ) {
         uri ?: return
-        val localMedia = localMediaFactory.createFromUri(
-            uri = uri,
-            mimeType = mimeType,
-            name = null,
-            formattedFileSize = null
-        )
-        val mediaAttachment = Attachment.Media(localMedia)
-        val inReplyToEventId = (messageComposerContext.composerMode as? MessageComposerMode.Reply)?.eventId
-        navigator.navigateToPreviewAttachments(persistentListOf(mediaAttachment), inReplyToEventId)
+        handlePickedMediaList(listOf(uri to mimeType))
+    }
 
-        // Reset composer since the attachment will be sent in a separate flow
+    private fun handlePickedMediaList(picked: List<Pair<Uri, String?>>) {
+        if (picked.isEmpty()) return
+        val attachments = picked.map { (uri, mimeType) ->
+            Attachment.Media(
+                localMediaFactory.createFromUri(
+                    uri = uri,
+                    mimeType = mimeType,
+                    name = null,
+                    formattedFileSize = null,
+                )
+            )
+        }.toImmutableList()
+        val inReplyToEventId = (messageComposerContext.composerMode as? MessageComposerMode.Reply)?.eventId
+        navigator.navigateToPreviewAttachments(attachments, inReplyToEventId)
+
+        // Reset composer since the attachments will be sent in a separate flow
         messageComposerContext.composerMode = MessageComposerMode.Normal
     }
 

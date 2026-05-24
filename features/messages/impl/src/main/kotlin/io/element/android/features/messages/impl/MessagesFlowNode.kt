@@ -147,7 +147,7 @@ class MessagesFlowNode(
         ) : NavTarget
 
         @Parcelize
-        data class AttachmentPreview(val timelineMode: Timeline.Mode, val attachment: Attachment, val inReplyToEventId: EventId?) : NavTarget
+        data class AttachmentPreview(val timelineMode: Timeline.Mode, val attachments: List<Attachment>, val inReplyToEventId: EventId?) : NavTarget
 
         @Parcelize
         data class LocationViewer(val mode: ShowLocationMode) : NavTarget
@@ -239,7 +239,7 @@ class MessagesFlowNode(
                     override fun navigateToPreviewAttachments(attachments: ImmutableList<Attachment>, inReplyToEventId: EventId?) {
                         backstack.push(
                             NavTarget.AttachmentPreview(
-                                attachment = attachments.first(),
+                                attachments = attachments,
                                 timelineMode = Timeline.Mode.Live,
                                 inReplyToEventId = inReplyToEventId,
                             )
@@ -351,7 +351,7 @@ class MessagesFlowNode(
             }
             is NavTarget.AttachmentPreview -> {
                 val inputs = AttachmentsPreviewNode.Inputs(
-                    attachment = navTarget.attachment,
+                    attachments = navTarget.attachments,
                     timelineMode = navTarget.timelineMode,
                     inReplyToEventId = navTarget.inReplyToEventId,
                 )
@@ -478,7 +478,7 @@ class MessagesFlowNode(
                     override fun navigateToPreviewAttachments(attachments: ImmutableList<Attachment>, inReplyToEventId: EventId?) {
                         backstack.push(
                             NavTarget.AttachmentPreview(
-                                attachment = attachments.first(),
+                                attachments = attachments,
                                 timelineMode = Timeline.Mode.Thread(navTarget.threadRootId),
                                 inReplyToEventId = inReplyToEventId,
                             )

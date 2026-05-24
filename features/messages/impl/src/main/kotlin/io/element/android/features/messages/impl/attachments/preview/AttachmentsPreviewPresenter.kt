@@ -44,6 +44,8 @@ import io.element.android.libraries.mediaupload.api.allFiles
 import io.element.android.libraries.preferences.api.store.VideoCompressionPreset
 import io.element.android.libraries.textcomposer.model.TextEditorState
 import io.element.android.libraries.textcomposer.model.rememberMarkdownTextEditorState
+import kotlinx.collections.immutable.ImmutableList
+import kotlinx.collections.immutable.toImmutableList
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
@@ -53,7 +55,7 @@ import timber.log.Timber
 
 @AssistedInject
 class AttachmentsPreviewPresenter(
-    @Assisted private val attachment: Attachment,
+    @Assisted private val attachments: List<Attachment>,
     @Assisted private val onDoneListener: OnDoneListener,
     @Assisted private val timelineMode: Timeline.Mode,
     @Assisted private val inReplyToEventId: EventId?,
@@ -68,13 +70,14 @@ class AttachmentsPreviewPresenter(
     @AssistedFactory
     interface Factory {
         fun create(
-            attachment: Attachment,
+            attachments: List<Attachment>,
             timelineMode: Timeline.Mode,
             onDoneListener: OnDoneListener,
             inReplyToEventId: EventId?,
         ): AttachmentsPreviewPresenter
     }
 
+    private val attachmentList: ImmutableList<Attachment> = attachments.toImmutableList()
     private val mediaSender = mediaSenderFactory.create(timelineMode)
 
     @Composable
@@ -94,8 +97,10 @@ class AttachmentsPreviewPresenter(
 
         var preprocessMediaJob by remember { mutableStateOf<Job?>(null) }
 
-        val mediaAttachment = attachment as Attachment.Media
-        val mediaOptimizationSelectorPresenter = remember {
+        var currentIndex by remember { mutableStateOf(0) }
+        val current = attachmentList[currentIndex]
+        val mediaAttachment = current as Attachment.Media
+        val mediaOptimizationSelectorPresenter = remember(currentIndex) {
             mediaOptimizationSelectorPresenterFactory.create(mediaAttachment.localMedia)
         }
         val mediaOptimizationSelectorState by rememberUpdatedState(mediaOptimizationSelectorPresenter.present())
@@ -104,13 +109,14 @@ class AttachmentsPreviewPresenter(
 
         var displayFileTooLargeError by remember { mutableStateOf(false) }
 
-        LaunchedEffect(mediaOptimizationSelectorState.displayMediaSelectorViews) {
-            // If the media optimization selector is not displayed, we can pre-process the media
-            // to prepare it for sending. This is done to avoid blocking the UI thread when the
-            // user clicks on the send button.
-            if (mediaOptimizationSelectorState.displayMediaSelectorViews == false) {
+        LaunchedEffect(mediaOptimizationSelectorState.displayMediaSelectorViews, currentIndex) {
+            // Cancel any in-flight preprocess from a previous page; the upfront-preprocess optimization
+            // is only relevant for single-attachment flow where the user lingers on one image.
+            preprocessMediaJob?.cancel()
+            sendActionState.value = SendActionState.Idle
+            if (mediaOptimizationSelectorState.displayMediaSelectorViews == false && attachmentList.size == 1) {
                 preprocessMediaJob = preProcessAttachment(
-                    attachment = attachment,
+                    attachment = current,
                     mediaOptimizationConfig = mediaOptimizationConfigProvider.get(),
                     displayProgress = false,
                     sendActionState = sendActionState,
@@ -142,52 +148,62 @@ class AttachmentsPreviewPresenter(
 
         fun handleEvent(event: AttachmentsPreviewEvent) {
             when (event) {
+                is AttachmentsPreviewEvent.NavigateToPage -> {
+                    val target = event.index.coerceIn(0, attachmentList.lastIndex)
+                    if (target != currentIndex) {
+                        currentIndex = target
+                    }
+                }
                 is AttachmentsPreviewEvent.SendAttachment -> {
                     ongoingSendAttachmentJob.value = coroutineScope.launch {
-                        // If the media optimization selector is displayed, we need to wait for the user to select the options
-                        // before we can pre-process the media.
-                        if (mediaOptimizationSelectorState.displayMediaSelectorViews == true) {
-                            val config = MediaOptimizationConfig(
-                                compressImages = mediaOptimizationSelectorState.isImageOptimizationEnabled == true,
-                                videoCompressionPreset = mediaOptimizationSelectorState.selectedVideoPreset ?: VideoCompressionPreset.STANDARD,
-                            )
-                            preprocessMediaJob = preProcessAttachment(
-                                attachment = attachment,
-                                mediaOptimizationConfig = config,
-                                displayProgress = true,
-                                sendActionState = sendActionState,
-                            )
-                        }
-
-                        // If the processing was hidden before, make it visible now
-                        if (sendActionState.value is SendActionState.Sending.Processing) {
-                            sendActionState.value = SendActionState.Sending.Processing(displayProgress = true)
-                        }
-
-                        // Wait until the media is ready to be uploaded
-                        val mediaUploadInfo = observableSendState.firstInstanceOf<SendActionState.Sending.ReadyToUpload>().mediaInfo
-
-                        // Pre-processing is done, send the attachment
+                        val config = MediaOptimizationConfig(
+                            compressImages = mediaOptimizationSelectorState.isImageOptimizationEnabled == true,
+                            videoCompressionPreset = mediaOptimizationSelectorState.selectedVideoPreset ?: VideoCompressionPreset.STANDARD,
+                        )
                         val caption = markdownTextEditorState.getMessageMarkdown(permalinkBuilder)
                             .takeIf { it.isNotEmpty() }
 
-                        // If we're supposed to send the media as a background job, we can dismiss this screen already
-                        if (coroutineContext.isActive) {
-                            onDoneListener()
-                        }
-
-                        // Send the media using the session coroutine scope so it doesn't matter if this screen or the chat one are closed
-                        sessionCoroutineScope.launch(dispatchers.io) {
-                            sendPreProcessedMedia(
-                                mediaUploadInfo = mediaUploadInfo,
-                                caption = caption,
-                                sendActionState = sendActionState,
-                                dismissAfterSend = false,
-                                inReplyToEventId = inReplyToEventId,
-                            )
-
-                            // Clean up the pre-processed media after it's been sent
-                            mediaSender.cleanUp()
+                        if (attachmentList.size == 1) {
+                            // Single-attachment flow: keep the original preprocess-then-upload behaviour
+                            // so the user sees existing Processing/Uploading progress dialogs.
+                            if (mediaOptimizationSelectorState.displayMediaSelectorViews == true) {
+                                preprocessMediaJob = preProcessAttachment(
+                                    attachment = current,
+                                    mediaOptimizationConfig = config,
+                                    displayProgress = true,
+                                    sendActionState = sendActionState,
+                                )
+                            }
+                            if (sendActionState.value is SendActionState.Sending.Processing) {
+                                sendActionState.value = SendActionState.Sending.Processing(displayProgress = true)
+                            }
+                            val mediaUploadInfo = observableSendState.firstInstanceOf<SendActionState.Sending.ReadyToUpload>().mediaInfo
+                            if (coroutineContext.isActive) {
+                                onDoneListener()
+                            }
+                            sessionCoroutineScope.launch(dispatchers.io) {
+                                sendPreProcessedMedia(
+                                    mediaUploadInfo = mediaUploadInfo,
+                                    caption = caption,
+                                    sendActionState = sendActionState,
+                                    dismissAfterSend = false,
+                                    inReplyToEventId = inReplyToEventId,
+                                )
+                                mediaSender.cleanUp()
+                            }
+                        } else {
+                            // Multi-attachment (bulk) flow: dismiss immediately, then send all in
+                            // original 0..N-1 order from the session scope. Caption attaches to first
+                            // message only (Telegram / WhatsApp parity).
+                            if (coroutineContext.isActive) {
+                                onDoneListener()
+                            }
+                            sessionCoroutineScope.launch(dispatchers.io) {
+                                sendAllSequentially(
+                                    mediaOptimizationConfig = config,
+                                    caption = caption,
+                                )
+                            }
                         }
                     }
                 }
@@ -200,11 +216,13 @@ class AttachmentsPreviewPresenter(
                     mediaSender.cleanUp()
                     ongoingSendAttachmentJob.value?.cancel()
 
-                    // Dismiss the screen
-                    dismiss(
-                        attachment,
-                        sendActionState,
-                    )
+                    // Dismiss the screen: clean up every picked attachment, not just the current page
+                    attachmentList.forEach { attach ->
+                        (attach as? Attachment.Media)?.let { temporaryUriDeleter.delete(it.localMedia.uri) }
+                    }
+                    sendActionState.value.mediaUploadInfo()?.let(::cleanUp)
+                    sendActionState.value = SendActionState.Done
+                    onDoneListener()
                 }
                 AttachmentsPreviewEvent.CancelAndClearSendState -> {
                     // Cancel media sending
@@ -224,7 +242,8 @@ class AttachmentsPreviewPresenter(
         }
 
         return AttachmentsPreviewState(
-            attachment = attachment,
+            attachments = attachmentList,
+            currentIndex = currentIndex,
             sendActionState = sendActionState.value,
             textEditorState = textEditorState,
             mediaOptimizationSelectorState = mediaOptimizationSelectorState,
@@ -278,30 +297,43 @@ class AttachmentsPreviewPresenter(
         )
     }
 
-    private fun dismiss(
-        attachment: Attachment,
-        sendActionState: MutableState<SendActionState>,
-    ) {
-        // Delete the temporary file
-        when (attachment) {
-            is Attachment.Media -> {
-                temporaryUriDeleter.delete(attachment.localMedia.uri)
-                sendActionState.value.mediaUploadInfo()?.let { data ->
-                    cleanUp(data)
-                }
-            }
-        }
-        // Reset the sendActionState to ensure that dialog is closed before the screen
-        sendActionState.value = SendActionState.Done
-        onDoneListener()
-    }
-
     private fun cleanUp(
         mediaUploadInfo: MediaUploadInfo,
     ) {
         mediaUploadInfo.allFiles().forEach { file ->
             file.safeDelete()
         }
+    }
+
+    /**
+     * Bulk-pick send. Iterates attachments in their original 0..N-1 order so the room timeline
+     * preserves selection order. Caption + inReplyToEventId attach to the first message only,
+     * matching WhatsApp / Telegram batched-share behaviour.
+     *
+     * Throttle between sends is provided by mediaSender's internal send pipeline; we add no extra
+     * delay here. Failures are logged per-item but do not abort the batch.
+     */
+    private suspend fun sendAllSequentially(
+        mediaOptimizationConfig: MediaOptimizationConfig,
+        caption: String?,
+    ) {
+        for ((index, attach) in attachmentList.withIndex()) {
+            val media = attach as? Attachment.Media ?: continue
+            runCatchingExceptions {
+                mediaSender.sendMedia(
+                    uri = media.localMedia.uri,
+                    mimeType = media.localMedia.info.mimeType,
+                    caption = if (index == 0) caption else null,
+                    inReplyToEventId = if (index == 0) inReplyToEventId else null,
+                    mediaOptimizationConfig = mediaOptimizationConfig,
+                ).getOrThrow()
+            }.onFailure { cause ->
+                Timber.e(cause, "Failed to send bulk attachment ${index + 1}/${attachmentList.size}")
+                if (cause is CancellationException) throw cause
+            }
+            temporaryUriDeleter.delete(media.localMedia.uri)
+        }
+        mediaSender.cleanUp()
     }
 
     private suspend fun sendPreProcessedMedia(

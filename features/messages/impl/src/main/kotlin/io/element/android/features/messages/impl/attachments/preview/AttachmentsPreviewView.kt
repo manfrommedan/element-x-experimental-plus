@@ -11,9 +11,13 @@ package io.element.android.features.messages.impl.attachments.preview
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.IntrinsicSize
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -21,7 +25,16 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.snapshotFlow
+import androidx.compose.ui.draw.clip
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -107,7 +120,14 @@ fun AttachmentsPreviewView(
                         onClick = ::postCancel,
                     )
                 },
-                title = {},
+                title = {
+                    if (state.totalCount > 1) {
+                        Text(
+                            text = "${state.currentIndex + 1} / ${state.totalCount}",
+                            style = ElementTheme.typography.fontBodyLgMedium,
+                        )
+                    }
+                },
             )
         }
     ) { paddingValues ->
@@ -173,14 +193,41 @@ private fun AttachmentPreviewContent(
             .fillMaxSize()
             .navigationBarsPadding(),
     ) {
-        Box(
-            modifier = Modifier
-                .weight(1f),
-            contentAlignment = Alignment.Center
-        ) {
-            when (val attachment = state.attachment) {
-                is Attachment.Media -> {
-                    localMediaRenderer.Render(attachment.localMedia)
+        if (state.totalCount > 1) {
+            val pagerState = rememberPagerState(initialPage = state.currentIndex) { state.totalCount }
+            // Pager -> presenter: keep state.currentIndex in sync with user swipes.
+            LaunchedEffect(pagerState) {
+                snapshotFlow { pagerState.currentPage }.collect { page ->
+                    state.eventSink(AttachmentsPreviewEvent.NavigateToPage(page))
+                }
+            }
+            // Presenter -> pager: jump to page when user taps a thumbnail (rare; usually swipe wins).
+            LaunchedEffect(state.currentIndex) {
+                if (pagerState.currentPage != state.currentIndex) {
+                    pagerState.animateScrollToPage(state.currentIndex)
+                }
+            }
+            HorizontalPager(
+                state = pagerState,
+                modifier = Modifier.weight(1f),
+            ) { pageIndex ->
+                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    val attachment = state.attachments[pageIndex]
+                    if (attachment is Attachment.Media) {
+                        localMediaRenderer.Render(attachment.localMedia)
+                    }
+                }
+            }
+            AttachmentsThumbnailStrip(state = state)
+        } else {
+            Box(
+                modifier = Modifier.weight(1f),
+                contentAlignment = Alignment.Center
+            ) {
+                when (val attachment = state.attachment) {
+                    is Attachment.Media -> {
+                        localMediaRenderer.Render(attachment.localMedia)
+                    }
                 }
             }
         }
@@ -213,6 +260,40 @@ private fun AttachmentPreviewContent(
                 .height(IntrinsicSize.Min)
                 .imePadding(),
         )
+    }
+}
+
+@Composable
+private fun AttachmentsThumbnailStrip(
+    state: AttachmentsPreviewState,
+) {
+    LazyRow(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 8.dp),
+        contentPadding = PaddingValues(horizontal = 12.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        itemsIndexed(state.attachments) { index, attachment ->
+            val isCurrent = index == state.currentIndex
+            val borderColor = if (isCurrent) ElementTheme.colors.iconAccentPrimary else ElementTheme.colors.borderDisabled
+            Box(
+                modifier = Modifier
+                    .size(56.dp)
+                    .clip(RoundedCornerShape(6.dp))
+                    .border(width = if (isCurrent) 2.dp else 1.dp, color = borderColor, shape = RoundedCornerShape(6.dp))
+                    .clickable { state.eventSink(AttachmentsPreviewEvent.NavigateToPage(index)) }
+            ) {
+                if (attachment is Attachment.Media) {
+                    coil3.compose.AsyncImage(
+                        model = attachment.localMedia.uri,
+                        contentDescription = null,
+                        contentScale = androidx.compose.ui.layout.ContentScale.Crop,
+                        modifier = Modifier.fillMaxSize(),
+                    )
+                }
+            }
+        }
     }
 }
 

@@ -15,13 +15,17 @@ import io.element.android.libraries.mediaupload.api.MediaUploadInfo
 import io.element.android.libraries.textcomposer.model.TextEditorState
 
 data class AttachmentsPreviewState(
-    val attachment: Attachment,
+    val attachments: kotlinx.collections.immutable.ImmutableList<Attachment>,
+    val currentIndex: Int,
     val sendActionState: SendActionState,
     val textEditorState: TextEditorState,
     val mediaOptimizationSelectorState: MediaOptimizationSelectorState,
     val displayFileTooLargeError: Boolean,
     val eventSink: (AttachmentsPreviewEvent) -> Unit,
-)
+) {
+    val totalCount: Int = attachments.size
+    val attachment: Attachment = attachments[currentIndex]
+}
 
 @Immutable
 sealed interface SendActionState {

@@ -102,6 +102,7 @@ class LabsPresenter(
                 val icon = when (enabledFeature.feature) {
                     FeatureFlags.Threads -> CompoundIcons.Threads()
                     FeatureFlags.PhoneVoiceLayout -> CompoundIcons.VoiceCall()
+                    FeatureFlags.BulkAttachmentsPicker -> CompoundIcons.Image()
                     else -> null
                 }
                 remember(enabledFeature) {
