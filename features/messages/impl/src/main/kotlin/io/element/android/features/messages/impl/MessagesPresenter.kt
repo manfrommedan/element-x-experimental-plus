@@ -312,10 +312,20 @@ class MessagesPresenter(
                     selectionState = io.element.android.features.messages.impl.selection.TimelineSelectionState()
                 }
                 MessagesEvent.BulkForwardSelected -> {
-                    val targets = selectionState.selectedIds.toList()
-                    if (targets.isEmpty()) return@handleEvent
+                    if (selectionState.selectedIds.isEmpty()) return@handleEvent
+                    // Order by original sentTime so the recipient sees the forwarded
+                    // run in the same chronological order they had in the source room,
+                    // regardless of how the user tapped them in selection mode.
+                    val orderedTargets = timelineState.timelineItems
+                        .asSequence()
+                        .filterIsInstance<io.element.android.features.messages.impl.timeline.model.TimelineItem.Event>()
+                        .filter { it.eventId != null && it.eventId in selectionState.selectedIds }
+                        .sortedBy { it.sentTimeMillis }
+                        .mapNotNull { it.eventId }
+                        .toList()
+                    if (orderedTargets.isEmpty()) return@handleEvent
                     selectionState = io.element.android.features.messages.impl.selection.TimelineSelectionState()
-                    navigator.forwardEvents(targets)
+                    navigator.forwardEvents(orderedTargets)
                 }
                 MessagesEvent.SelectAllVisible -> {
                     // Take loaded timeline events with a resolved eventId, skipping redacted
