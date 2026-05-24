@@ -29,7 +29,7 @@ class PreferencesVoicePlayerStore(
 
     override fun playBackSpeedIndex(): Flow<Int> {
         return store.data.map { prefs ->
-            prefs[playbackSpeedIndex] ?: 0
+            (prefs[playbackSpeedIndex] ?: 0).coerceIn(0, VoicePlayerConfig.availablePlaybackSpeeds.lastIndex)
         }
     }
 

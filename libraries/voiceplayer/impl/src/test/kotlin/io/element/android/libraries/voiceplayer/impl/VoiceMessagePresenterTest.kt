@@ -226,10 +226,6 @@ class VoiceMessagePresenterTest {
                 it.eventSink(VoiceMessageEvent.ChangePlaybackSpeed)
             }
             awaitItem().also {
-                assertThat(it.playbackSpeed).isEqualTo(0.5f)
-                it.eventSink(VoiceMessageEvent.ChangePlaybackSpeed)
-            }
-            awaitItem().also {
                 assertThat(it.playbackSpeed).isEqualTo(1.0f)
             }
         }
