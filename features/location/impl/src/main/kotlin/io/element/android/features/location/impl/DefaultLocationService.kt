@@ -2,6 +2,7 @@
  * Copyright (c) 2025 Element Creations Ltd.
  *
  * SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Element-Commercial.
+ *
  * Please see LICENSE files in the repository root for full details.
  */
 
@@ -11,7 +12,7 @@ import dev.zacsweers.metro.AppScope
 import dev.zacsweers.metro.ContributesBinding
 import dev.zacsweers.metro.Inject
 import io.element.android.features.location.api.LocationService
-import io.element.android.features.location.api.internal.MapTilerKeyHolder
+import io.element.android.features.location.api.internal.GeoapifyKeyHolder
 import io.element.android.libraries.di.annotations.AppCoroutineScope
 import io.element.android.libraries.preferences.api.store.AppPreferencesStore
 import kotlinx.coroutines.CoroutineScope
@@ -25,11 +26,11 @@ class DefaultLocationService(
 ) : LocationService {
     init {
         appCoroutineScope.launch {
-            appPreferencesStore.getMapTilerApiKeyFlow().collect { override ->
-                MapTilerKeyHolder.set(override)
+            appPreferencesStore.getGeoapifyApiKeyFlow().collect { override ->
+                GeoapifyKeyHolder.set(override)
             }
         }
     }
 
-    override fun isServiceAvailable(): Boolean = MapTilerKeyHolder.current().isNotEmpty()
+    override fun isServiceAvailable(): Boolean = GeoapifyKeyHolder.current().isNotEmpty()
 }

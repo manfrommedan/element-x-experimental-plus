@@ -54,11 +54,13 @@ jobs:
         # The phone-layer fork dimension has vanilla / plus variants;
         # ship the plus variant (Element X+ branding + bundled Element Call).
         env:
-          # Picked up by features/location/api/build.gradle.kts.
-          # If the API key secret is unset, MAPTILER_API_KEY is "" and
-          # LocationService.isServiceAvailable() returns false, which
-          # hides the composer's Location attachment entry. Add the
-          # secret in repo Settings -> Secrets to enable it.
+          # Active runtime provider: Geoapify. MapTiler vars kept only because
+          # upstream BuildConfig fields still exist (legacy classes compiled
+          # but no longer used at runtime - see features/location/api/internal/).
+          # Geoapify free tier covers static maps; MapTiler free tier doesn't.
+          ELEMENT_ANDROID_GEOAPIFY_API_KEY: ${{ secrets.ELEMENT_ANDROID_GEOAPIFY_API_KEY }}
+          ELEMENT_ANDROID_GEOAPIFY_LIGHT_STYLE: ${{ secrets.ELEMENT_ANDROID_GEOAPIFY_LIGHT_STYLE }}
+          ELEMENT_ANDROID_GEOAPIFY_DARK_STYLE: ${{ secrets.ELEMENT_ANDROID_GEOAPIFY_DARK_STYLE }}
           ELEMENT_ANDROID_MAPTILER_API_KEY: ${{ secrets.ELEMENT_ANDROID_MAPTILER_API_KEY }}
           ELEMENT_ANDROID_MAPTILER_LIGHT_MAP_ID: ${{ secrets.ELEMENT_ANDROID_MAPTILER_LIGHT_MAP_ID }}
           ELEMENT_ANDROID_MAPTILER_DARK_MAP_ID: ${{ secrets.ELEMENT_ANDROID_MAPTILER_DARK_MAP_ID }}

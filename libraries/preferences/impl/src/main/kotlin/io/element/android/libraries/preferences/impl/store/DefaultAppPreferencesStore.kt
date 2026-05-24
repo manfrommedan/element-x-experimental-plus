@@ -31,7 +31,7 @@ private val hideInviteAvatarsKey = booleanPreferencesKey("hideInviteAvatars")
 private val timelineMediaPreviewValueKey = stringPreferencesKey("timelineMediaPreviewValue")
 private val liveLocationMinimumDistanceUpdateKey = intPreferencesKey("liveLocationMinimumDistanceUpdate")
 private val hideRedactedEventsKey = booleanPreferencesKey("hideRedactedEvents")
-private val mapTilerApiKeyKey = stringPreferencesKey("mapTilerApiKey")
+private val geoapifyApiKeyKey = stringPreferencesKey("geoapifyApiKey")
 private val logLevelKey = stringPreferencesKey("logLevel")
 private val traceLogPacksKey = stringPreferencesKey("traceLogPacks")
 
@@ -143,20 +143,20 @@ class DefaultAppPreferencesStore(
         }
     }
 
-    override suspend fun setMapTilerApiKey(value: String?) {
+    override suspend fun setGeoapifyApiKey(value: String?) {
         store.edit { prefs ->
             val trimmed = value?.trim()
             if (trimmed.isNullOrEmpty()) {
-                prefs.remove(mapTilerApiKeyKey)
+                prefs.remove(geoapifyApiKeyKey)
             } else {
-                prefs[mapTilerApiKeyKey] = trimmed
+                prefs[geoapifyApiKeyKey] = trimmed
             }
         }
     }
 
-    override fun getMapTilerApiKeyFlow(): Flow<String?> {
+    override fun getGeoapifyApiKeyFlow(): Flow<String?> {
         return store.data.map { prefs ->
-            prefs[mapTilerApiKeyKey]
+            prefs[geoapifyApiKeyKey]
         }
     }
 

@@ -24,10 +24,10 @@
     <!-- Advanced settings toggle: hide redacted (deleted) events in timelines. -->
     <string name="screen_advanced_settings_hide_redacted_events_toggle_title">"Hide deleted messages"</string>
     <string name="screen_advanced_settings_hide_redacted_events_toggle_subtitle">"Hide redacted events from the timeline entirely. They still exist on the server, but you won't see the tombstone."</string>
-    <!-- Advanced settings field: user-supplied MapTiler API key for the Location attachment. -->
-    <string name="screen_advanced_settings_maptiler_api_key_title">"MapTiler API key (Location)"</string>
-    <string name="screen_advanced_settings_maptiler_api_key_description">"Paste a free MapTiler API key (maptiler.com) to enable the Location attachment in the composer and render maps in chat. No key = Location entry hidden. The key is stored locally on this device."</string>
-    <string name="screen_advanced_settings_maptiler_api_key_set">"API key set. Location attachment is enabled."</string>
+    <!-- Advanced settings field: user-supplied Geoapify API key for the Location attachment. -->
+    <string name="screen_advanced_settings_geoapify_api_key_title">"Geoapify API key (Location)"</string>
+    <string name="screen_advanced_settings_geoapify_api_key_description">"Paste a free Geoapify API key (geoapify.com, 3000 requests/day) to enable the Location attachment and render maps in chat. The key is stored locally on this device and overrides the bundled one. Leave empty to use the bundled key."</string>
+    <string name="screen_advanced_settings_geoapify_api_key_set">"Personal API key in use. Location attachment is enabled."</string>
     <!-- Selection mode top bar. -->
     <string name="screen_messages_selection_count">"%1$d selected"</string>
     <string name="screen_messages_selection_delete_confirm">"Delete %1$d messages?"</string>

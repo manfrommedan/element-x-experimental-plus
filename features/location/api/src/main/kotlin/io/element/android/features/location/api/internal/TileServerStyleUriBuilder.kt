@@ -23,7 +23,7 @@ interface TileServerStyleUriBuilder {
     ): String
 }
 
-fun TileServerStyleUriBuilder(): TileServerStyleUriBuilder = MapTilerTileServerStyleUriBuilder()
+fun TileServerStyleUriBuilder(): TileServerStyleUriBuilder = GeoapifyTileServerStyleUriBuilder()
 
 /**
  * Provides and remembers a style URI for a MapLibre compatible tile server.

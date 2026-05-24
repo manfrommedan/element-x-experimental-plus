@@ -61,8 +61,8 @@ class AdvancedSettingsPresenter(
             appPreferencesStore.getHideRedactedEventsFlow()
         }.collectAsState(initial = false)
 
-        val mapTilerApiKey by remember {
-            appPreferencesStore.getMapTilerApiKeyFlow()
+        val geoapifyApiKey by remember {
+            appPreferencesStore.getGeoapifyApiKeyFlow()
         }.collectAsState(initial = null)
 
         val mediaPreviewConfigState = mediaPreviewConfigStateStore.state()
@@ -131,8 +131,8 @@ class AdvancedSettingsPresenter(
                 is AdvancedSettingsEvents.SetHideRedactedEvents -> sessionCoroutineScope.launch {
                     appPreferencesStore.setHideRedactedEvents(event.value)
                 }
-                is AdvancedSettingsEvents.SetMapTilerApiKey -> sessionCoroutineScope.launch {
-                    appPreferencesStore.setMapTilerApiKey(event.value)
+                is AdvancedSettingsEvents.SetGeoapifyApiKey -> sessionCoroutineScope.launch {
+                    appPreferencesStore.setGeoapifyApiKey(event.value)
                 }
                 is AdvancedSettingsEvents.SetTimelineMediaPreviewValue -> mediaPreviewConfigStateStore.setTimelineMediaPreviewValue(event.value)
                 is AdvancedSettingsEvents.SetLiveLocationMinimumDistanceUpdate -> sessionCoroutineScope.launch {
@@ -156,7 +156,7 @@ class AdvancedSettingsPresenter(
             mediaPreviewConfigState = mediaPreviewConfigState,
             liveLocationMinimumDistanceUpdate = liveLocationMinimumDistanceUpdate,
             hideRedactedEvents = hideRedactedEvents,
-            mapTilerApiKey = mapTilerApiKey,
+            geoapifyApiKey = geoapifyApiKey,
             eventSink = ::handleEvent,
         )
     }

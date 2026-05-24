@@ -38,8 +38,8 @@ interface AppPreferencesStore {
     suspend fun setHideRedactedEvents(value: Boolean)
     fun getHideRedactedEventsFlow(): Flow<Boolean>
 
-    suspend fun setMapTilerApiKey(value: String?)
-    fun getMapTilerApiKeyFlow(): Flow<String?>
+    suspend fun setGeoapifyApiKey(value: String?)
+    fun getGeoapifyApiKeyFlow(): Flow<String?>
 
     suspend fun setTracingLogLevel(logLevel: LogLevel)
     fun getTracingLogLevelFlow(): Flow<LogLevel>

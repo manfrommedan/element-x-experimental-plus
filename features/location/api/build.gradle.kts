@@ -24,6 +24,8 @@ android {
     }
 
     defaultConfig {
+        // Legacy MapTiler fields kept for compatibility with upstream code paths
+        // that still reference them. Runtime no longer uses MapTiler.
         buildConfigFieldStr(
             name = "MAPTILER_BASE_URL",
             value = BuildTimeConfig.SERVICES_MAPTILER_BASE_URL ?: "https://api.maptiler.com/maps"
@@ -46,7 +48,6 @@ android {
                 System.getenv("ELEMENT_ANDROID_MAPTILER_LIGHT_MAP_ID")
                     ?: readLocalProperty("services.maptiler.lightMapId")
             }
-            // fall back to maptiler's default light map.
                 ?: "basic-v2"
         )
         buildConfigFieldStr(
@@ -57,8 +58,38 @@ android {
                 System.getenv("ELEMENT_ANDROID_MAPTILER_DARK_MAP_ID")
                     ?: readLocalProperty("services.maptiler.darkMapId")
             }
-            // fall back to maptiler's default dark map.
                 ?: "basic-v2-dark"
+        )
+        // Geoapify - active runtime provider for both static map previews and
+        // interactive tile-server style.json. Free tier (3000 requests/day)
+        // covers chat-message previews and live-location maps for a single
+        // user comfortably, unlike MapTiler whose free tier denies static
+        // map rendering (HTTP 403 "Access to rendered maps not allowed").
+        buildConfigFieldStr(
+            name = "GEOAPIFY_STATIC_BASE_URL",
+            value = "https://api.geoapify.com/v1/staticmap"
+        )
+        buildConfigFieldStr(
+            name = "GEOAPIFY_STYLE_BASE_URL",
+            value = "https://maps.geoapify.com/v1/styles"
+        )
+        buildConfigFieldStr(
+            name = "GEOAPIFY_API_KEY",
+            value = System.getenv("ELEMENT_ANDROID_GEOAPIFY_API_KEY")
+                ?: readLocalProperty("services.geoapify.apikey")
+                ?: ""
+        )
+        buildConfigFieldStr(
+            name = "GEOAPIFY_LIGHT_STYLE",
+            value = System.getenv("ELEMENT_ANDROID_GEOAPIFY_LIGHT_STYLE")
+                ?: readLocalProperty("services.geoapify.lightStyle")
+                ?: "osm-bright"
+        )
+        buildConfigFieldStr(
+            name = "GEOAPIFY_DARK_STYLE",
+            value = System.getenv("ELEMENT_ANDROID_GEOAPIFY_DARK_STYLE")
+                ?: readLocalProperty("services.geoapify.darkStyle")
+                ?: "dark-matter"
         )
     }
 }

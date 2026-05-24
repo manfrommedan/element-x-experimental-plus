@@ -25,4 +25,4 @@ interface StaticMapUrlBuilder {
     fun isServiceAvailable(): Boolean
 }
 
-fun StaticMapUrlBuilder(): StaticMapUrlBuilder = MapTilerStaticMapUrlBuilder()
+fun StaticMapUrlBuilder(): StaticMapUrlBuilder = GeoapifyStaticMapUrlBuilder()

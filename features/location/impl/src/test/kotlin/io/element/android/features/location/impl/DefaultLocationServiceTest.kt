@@ -10,7 +10,7 @@ package io.element.android.features.location.impl
 
 import com.google.common.truth.Truth.assertThat
 import io.element.android.features.location.api.BuildConfig
-import io.element.android.features.location.api.internal.MapTilerKeyHolder
+import io.element.android.features.location.api.internal.GeoapifyKeyHolder
 import io.element.android.libraries.preferences.test.InMemoryAppPreferencesStore
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.runTest
@@ -19,24 +19,24 @@ import org.junit.Test
 class DefaultLocationServiceTest {
     @Test
     fun `isServiceAvailable falls back to BuildConfig when no override set`() = runTest {
-        MapTilerKeyHolder.set(null)
+        GeoapifyKeyHolder.set(null)
         val locationService = DefaultLocationService(
             appPreferencesStore = InMemoryAppPreferencesStore(),
             appCoroutineScope = TestScope(),
         )
         assertThat(locationService.isServiceAvailable()).isEqualTo(
-            BuildConfig.MAPTILER_API_KEY.isNotEmpty()
+            BuildConfig.GEOAPIFY_API_KEY.isNotEmpty()
         )
     }
 
     @Test
     fun `isServiceAvailable reports true when user override is set`() = runTest {
-        MapTilerKeyHolder.set("user-supplied-key")
+        GeoapifyKeyHolder.set("user-supplied-key")
         val locationService = DefaultLocationService(
             appPreferencesStore = InMemoryAppPreferencesStore(),
             appCoroutineScope = TestScope(),
         )
         assertThat(locationService.isServiceAvailable()).isTrue()
-        MapTilerKeyHolder.set(null) // reset for other tests
+        GeoapifyKeyHolder.set(null) // reset for other tests
     }
 }
