@@ -53,6 +53,15 @@ jobs:
         # Call WebView at runtime, flip back to -PdisableR8 here.
         # The phone-layer fork dimension has vanilla / plus variants;
         # ship the plus variant (Element X+ branding + bundled Element Call).
+        env:
+          # Picked up by features/location/api/build.gradle.kts.
+          # If the API key secret is unset, MAPTILER_API_KEY is "" and
+          # LocationService.isServiceAvailable() returns false, which
+          # hides the composer's Location attachment entry. Add the
+          # secret in repo Settings -> Secrets to enable it.
+          ELEMENT_ANDROID_MAPTILER_API_KEY: ${{ secrets.ELEMENT_ANDROID_MAPTILER_API_KEY }}
+          ELEMENT_ANDROID_MAPTILER_LIGHT_MAP_ID: ${{ secrets.ELEMENT_ANDROID_MAPTILER_LIGHT_MAP_ID }}
+          ELEMENT_ANDROID_MAPTILER_DARK_MAP_ID: ${{ secrets.ELEMENT_ANDROID_MAPTILER_DARK_MAP_ID }}
         run: ./gradlew :app:assembleFdroidPlusRelease --stacktrace --no-configuration-cache
 
       - name: Collect build metadata
