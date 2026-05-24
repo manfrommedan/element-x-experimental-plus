@@ -30,23 +30,27 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.snapshotFlow
-import androidx.compose.ui.draw.clip
+import androidx.compose.material3.Icon
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.tooling.preview.PreviewParameter
 import androidx.compose.ui.unit.dp
+import coil3.compose.AsyncImage
 import io.element.android.compound.theme.ElementTheme
 import io.element.android.compound.tokens.generated.CompoundIcons
 import io.element.android.features.messages.impl.R
@@ -93,6 +97,7 @@ fun AttachmentsPreviewView(
     state: AttachmentsPreviewState,
     localMediaRenderer: LocalMediaRenderer,
     modifier: Modifier = Modifier,
+    onAddMoreClick: () -> Unit = {},
 ) {
     fun postSendAttachment() {
         state.eventSink(AttachmentsPreviewEvent.SendAttachment)
@@ -136,6 +141,7 @@ fun AttachmentsPreviewView(
             state = state,
             localMediaRenderer = localMediaRenderer,
             onSendClick = ::postSendAttachment,
+            onAddMoreClick = onAddMoreClick,
         )
     }
     AttachmentSendStateView(
@@ -186,6 +192,7 @@ private fun AttachmentPreviewContent(
     state: AttachmentsPreviewState,
     localMediaRenderer: LocalMediaRenderer,
     onSendClick: () -> Unit,
+    onAddMoreClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Column(
@@ -218,7 +225,7 @@ private fun AttachmentPreviewContent(
                     }
                 }
             }
-            AttachmentsThumbnailStrip(state = state)
+            AttachmentsThumbnailStrip(state = state, onAddMoreClick = onAddMoreClick)
         } else {
             Box(
                 modifier = Modifier.weight(1f),
@@ -266,6 +273,7 @@ private fun AttachmentPreviewContent(
 @Composable
 private fun AttachmentsThumbnailStrip(
     state: AttachmentsPreviewState,
+    onAddMoreClick: () -> Unit,
 ) {
     LazyRow(
         modifier = Modifier
@@ -280,18 +288,58 @@ private fun AttachmentsThumbnailStrip(
             Box(
                 modifier = Modifier
                     .size(56.dp)
-                    .clip(RoundedCornerShape(6.dp))
-                    .border(width = if (isCurrent) 2.dp else 1.dp, color = borderColor, shape = RoundedCornerShape(6.dp))
-                    .clickable { state.eventSink(AttachmentsPreviewEvent.NavigateToPage(index)) }
             ) {
-                if (attachment is Attachment.Media) {
-                    coil3.compose.AsyncImage(
-                        model = attachment.localMedia.uri,
-                        contentDescription = null,
-                        contentScale = androidx.compose.ui.layout.ContentScale.Crop,
-                        modifier = Modifier.fillMaxSize(),
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .clip(RoundedCornerShape(6.dp))
+                        .border(width = if (isCurrent) 2.dp else 1.dp, color = borderColor, shape = RoundedCornerShape(6.dp))
+                        .clickable { state.eventSink(AttachmentsPreviewEvent.NavigateToPage(index)) }
+                ) {
+                    if (attachment is Attachment.Media) {
+                        AsyncImage(
+                            model = attachment.localMedia.uri,
+                            contentDescription = null,
+                            contentScale = ContentScale.Crop,
+                            modifier = Modifier.fillMaxSize(),
+                        )
+                    }
+                }
+                // X badge for removing this item from the batch.
+                Box(
+                    modifier = Modifier
+                        .size(18.dp)
+                        .align(Alignment.TopEnd)
+                        .clip(CircleShape)
+                        .background(ElementTheme.colors.bgCanvasDefault)
+                        .border(1.dp, ElementTheme.colors.borderInteractivePrimary, CircleShape)
+                        .clickable { state.eventSink(AttachmentsPreviewEvent.RemoveAttachment(index)) },
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(
+                        imageVector = CompoundIcons.Close(),
+                        contentDescription = stringResource(CommonStrings.action_remove),
+                        modifier = Modifier.size(12.dp),
+                        tint = ElementTheme.colors.iconPrimary,
                     )
                 }
+            }
+        }
+        // Trailing "add more" tile so the user can extend the batch without leaving the preview.
+        item {
+            Box(
+                modifier = Modifier
+                    .size(56.dp)
+                    .clip(RoundedCornerShape(6.dp))
+                    .border(1.dp, ElementTheme.colors.borderDisabled, RoundedCornerShape(6.dp))
+                    .clickable(onClick = onAddMoreClick),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    imageVector = CompoundIcons.Plus(),
+                    contentDescription = "Add more",
+                    tint = ElementTheme.colors.iconSecondary,
+                )
             }
         }
     }

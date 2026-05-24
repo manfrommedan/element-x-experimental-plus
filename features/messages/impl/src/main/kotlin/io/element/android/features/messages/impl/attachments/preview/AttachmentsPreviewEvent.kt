@@ -8,9 +8,13 @@
 
 package io.element.android.features.messages.impl.attachments.preview
 
+import android.net.Uri
+
 sealed interface AttachmentsPreviewEvent {
     data object SendAttachment : AttachmentsPreviewEvent
     data object CancelAndDismiss : AttachmentsPreviewEvent
     data object CancelAndClearSendState : AttachmentsPreviewEvent
     data class NavigateToPage(val index: Int) : AttachmentsPreviewEvent
+    data class RemoveAttachment(val index: Int) : AttachmentsPreviewEvent
+    data class AddMore(val picked: List<Pair<Uri, String?>>) : AttachmentsPreviewEvent
 }

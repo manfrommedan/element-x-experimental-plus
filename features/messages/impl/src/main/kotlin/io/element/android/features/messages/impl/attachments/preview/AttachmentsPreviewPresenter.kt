@@ -12,6 +12,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -41,6 +42,7 @@ import io.element.android.libraries.mediaupload.api.MediaOptimizationConfigProvi
 import io.element.android.libraries.mediaupload.api.MediaSenderFactory
 import io.element.android.libraries.mediaupload.api.MediaUploadInfo
 import io.element.android.libraries.mediaupload.api.allFiles
+import io.element.android.libraries.mediaviewer.api.local.LocalMediaFactory
 import io.element.android.libraries.preferences.api.store.VideoCompressionPreset
 import io.element.android.libraries.textcomposer.model.TextEditorState
 import io.element.android.libraries.textcomposer.model.rememberMarkdownTextEditorState
@@ -66,6 +68,7 @@ class AttachmentsPreviewPresenter(
     @SessionCoroutineScope private val sessionCoroutineScope: CoroutineScope,
     private val dispatchers: CoroutineDispatchers,
     private val mediaOptimizationConfigProvider: MediaOptimizationConfigProvider,
+    private val localMediaFactory: LocalMediaFactory,
 ) : Presenter<AttachmentsPreviewState> {
     @AssistedFactory
     interface Factory {
@@ -77,7 +80,6 @@ class AttachmentsPreviewPresenter(
         ): AttachmentsPreviewPresenter
     }
 
-    private val attachmentList: ImmutableList<Attachment> = attachments.toImmutableList()
     private val mediaSender = mediaSenderFactory.create(timelineMode)
 
     @Composable
@@ -97,7 +99,13 @@ class AttachmentsPreviewPresenter(
 
         var preprocessMediaJob by remember { mutableStateOf<Job?>(null) }
 
+        // Live mutable list so Remove/AddMore events from the preview UI can rebuild the carousel.
+        val attachmentList = remember { mutableStateListOf<Attachment>().apply { addAll(attachments) } }
         var currentIndex by remember { mutableStateOf(0) }
+        // Guard against currentIndex falling past the end after a Remove.
+        if (currentIndex > attachmentList.lastIndex) {
+            currentIndex = attachmentList.lastIndex.coerceAtLeast(0)
+        }
         val current = attachmentList[currentIndex]
         val mediaAttachment = current as Attachment.Media
         val mediaOptimizationSelectorPresenter = remember(currentIndex) {
@@ -146,6 +154,20 @@ class AttachmentsPreviewPresenter(
             }
         }
 
+        fun cancelAndDismiss() {
+            displayFileTooLargeError = false
+            preprocessMediaJob?.cancel()
+            mediaSender.cleanUp()
+            ongoingSendAttachmentJob.value?.cancel()
+            // Wipe the temporary URIs for every picked attachment so we don't leak storage.
+            attachmentList.forEach { attach ->
+                (attach as? Attachment.Media)?.let { temporaryUriDeleter.delete(it.localMedia.uri) }
+            }
+            sendActionState.value.mediaUploadInfo()?.let(::cleanUp)
+            sendActionState.value = SendActionState.Done
+            onDoneListener()
+        }
+
         fun handleEvent(event: AttachmentsPreviewEvent) {
             when (event) {
                 is AttachmentsPreviewEvent.NavigateToPage -> {
@@ -153,6 +175,34 @@ class AttachmentsPreviewPresenter(
                     if (target != currentIndex) {
                         currentIndex = target
                     }
+                }
+                is AttachmentsPreviewEvent.RemoveAttachment -> {
+                    if (event.index !in attachmentList.indices) return
+                    if (attachmentList.size <= 1) {
+                        // Removing the last item is equivalent to cancelling the whole flow.
+                        cancelAndDismiss()
+                        return
+                    }
+                    val removed = attachmentList.removeAt(event.index)
+                    (removed as? Attachment.Media)?.let { temporaryUriDeleter.delete(it.localMedia.uri) }
+                    when {
+                        currentIndex >= attachmentList.size -> currentIndex = attachmentList.lastIndex
+                        event.index < currentIndex -> currentIndex -= 1
+                    }
+                }
+                is AttachmentsPreviewEvent.AddMore -> {
+                    if (event.picked.isEmpty()) return
+                    val newAttachments = event.picked.map { (uri, mimeType) ->
+                        Attachment.Media(
+                            localMedia = localMediaFactory.createFromUri(
+                                uri = uri,
+                                mimeType = mimeType,
+                                name = null,
+                                formattedFileSize = null,
+                            )
+                        )
+                    }
+                    attachmentList.addAll(newAttachments)
                 }
                 is AttachmentsPreviewEvent.SendAttachment -> {
                     ongoingSendAttachmentJob.value = coroutineScope.launch {
@@ -193,37 +243,26 @@ class AttachmentsPreviewPresenter(
                             }
                         } else {
                             // Multi-attachment (bulk) flow: dismiss immediately, then send all in
-                            // original 0..N-1 order from the session scope. Caption attaches to first
-                            // message only (Telegram / WhatsApp parity).
+                            // original 0..N-1 order from the session scope. Caption + reply attach to the
+                            // message backing the page the user was viewing when they tapped Send -
+                            // matches WhatsApp where "type caption on slide N, send" lands the caption on slide N.
                             if (coroutineContext.isActive) {
                                 onDoneListener()
                             }
+                            val snapshot = attachmentList.toList()
+                            val captionIndex = currentIndex.coerceIn(0, snapshot.lastIndex)
                             sessionCoroutineScope.launch(dispatchers.io) {
                                 sendAllSequentially(
+                                    items = snapshot,
                                     mediaOptimizationConfig = config,
                                     caption = caption,
+                                    captionIndex = captionIndex,
                                 )
                             }
                         }
                     }
                 }
-                AttachmentsPreviewEvent.CancelAndDismiss -> {
-                    displayFileTooLargeError = false
-
-                    // Cancel media preprocessing and sending
-                    preprocessMediaJob?.cancel()
-                    // If we couldn't send the pre-processed media, remove it
-                    mediaSender.cleanUp()
-                    ongoingSendAttachmentJob.value?.cancel()
-
-                    // Dismiss the screen: clean up every picked attachment, not just the current page
-                    attachmentList.forEach { attach ->
-                        (attach as? Attachment.Media)?.let { temporaryUriDeleter.delete(it.localMedia.uri) }
-                    }
-                    sendActionState.value.mediaUploadInfo()?.let(::cleanUp)
-                    sendActionState.value = SendActionState.Done
-                    onDoneListener()
-                }
+                AttachmentsPreviewEvent.CancelAndDismiss -> cancelAndDismiss()
                 AttachmentsPreviewEvent.CancelAndClearSendState -> {
                     // Cancel media sending
                     ongoingSendAttachmentJob.value?.let {
@@ -242,7 +281,7 @@ class AttachmentsPreviewPresenter(
         }
 
         return AttachmentsPreviewState(
-            attachments = attachmentList,
+            attachments = attachmentList.toImmutableList(),
             currentIndex = currentIndex,
             sendActionState = sendActionState.value,
             textEditorState = textEditorState,
@@ -314,21 +353,23 @@ class AttachmentsPreviewPresenter(
      * delay here. Failures are logged per-item but do not abort the batch.
      */
     private suspend fun sendAllSequentially(
+        items: List<Attachment>,
         mediaOptimizationConfig: MediaOptimizationConfig,
         caption: String?,
+        captionIndex: Int = 0,
     ) {
-        for ((index, attach) in attachmentList.withIndex()) {
+        for ((index, attach) in items.withIndex()) {
             val media = attach as? Attachment.Media ?: continue
             runCatchingExceptions {
                 mediaSender.sendMedia(
                     uri = media.localMedia.uri,
                     mimeType = media.localMedia.info.mimeType,
-                    caption = if (index == 0) caption else null,
-                    inReplyToEventId = if (index == 0) inReplyToEventId else null,
+                    caption = if (index == captionIndex) caption else null,
+                    inReplyToEventId = if (index == captionIndex) inReplyToEventId else null,
                     mediaOptimizationConfig = mediaOptimizationConfig,
                 ).getOrThrow()
             }.onFailure { cause ->
-                Timber.e(cause, "Failed to send bulk attachment ${index + 1}/${attachmentList.size}")
+                Timber.e(cause, "Failed to send bulk attachment ${index + 1}/${items.size}")
                 if (cause is CancellationException) throw cause
             }
             temporaryUriDeleter.delete(media.localMedia.uri)

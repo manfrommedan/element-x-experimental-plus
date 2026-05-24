@@ -79,6 +79,7 @@ fun PreferencesRootView(
                 onOpenUserProfile(state.myUser)
             },
             matrixUser = state.myUser,
+            showCopyMxidButton = state.showShareMxidShortcut,
         )
         if (state.isMultiAccountEnabled) {
             MultiAccountSection(

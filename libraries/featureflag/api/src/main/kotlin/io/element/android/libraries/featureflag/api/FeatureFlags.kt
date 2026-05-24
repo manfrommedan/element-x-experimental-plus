@@ -155,4 +155,12 @@ enum class FeatureFlags(
         isFinished = false,
         isInLabs = true,
     ),
+    ShareMxidShortcut(
+        key = "feature.share_mxid_shortcut",
+        title = "Copy Matrix ID from settings",
+        description = "Adds a copy-to-clipboard button next to your Matrix ID in the settings header so you can share it in one tap.",
+        defaultValue = { true },
+        isFinished = false,
+        isInLabs = true,
+    ),
 }
