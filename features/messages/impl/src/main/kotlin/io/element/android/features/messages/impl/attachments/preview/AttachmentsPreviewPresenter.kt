@@ -112,18 +112,19 @@ class AttachmentsPreviewPresenter(
 
         // Per-image caption store keyed by URI (stable across reorder; survives index shifts on Remove).
         val captions = remember { mutableStateMapOf<Uri, String>() }
-        val lastShownIndex = remember { mutableStateOf(currentIndex) }
         LaunchedEffect(currentIndex) {
-            val previous = lastShownIndex.value
-            if (previous != currentIndex) {
-                (attachmentList.getOrNull(previous) as? Attachment.Media)?.let { old ->
-                    captions[old.localMedia.uri] = markdownTextEditorState.text.value().toString()
+            val media = attachmentList.getOrNull(currentIndex) as? Attachment.Media ?: return@LaunchedEffect
+            // Reload caption for the new slide so the editor reflects what the user previously
+            // typed there. true = treat as user-edited (no auto-formatting interference).
+            markdownTextEditorState.text.update(captions[media.localMedia.uri].orEmpty(), true)
+            // Continuously persist every keystroke under THIS slide's URI. Cancelling on
+            // currentIndex change (keyed LaunchedEffect) stops collection - the previous slide
+            // already had its latest text saved, so no flush is needed on Send.
+            snapshotFlow { markdownTextEditorState.text.value().toString() }
+                .collect { text ->
+                    if (text.isEmpty()) captions.remove(media.localMedia.uri)
+                    else captions[media.localMedia.uri] = text
                 }
-                val newAttachment = attachmentList.getOrNull(currentIndex) as? Attachment.Media
-                val saved = newAttachment?.let { captions[it.localMedia.uri] }.orEmpty()
-                markdownTextEditorState.text.update(saved, true)
-                lastShownIndex.value = currentIndex
-            }
         }
         val mediaAttachment = current as Attachment.Media
         val mediaOptimizationSelectorPresenter = remember(currentIndex) {

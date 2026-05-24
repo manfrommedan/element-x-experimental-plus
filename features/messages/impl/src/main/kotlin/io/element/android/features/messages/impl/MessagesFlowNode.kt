@@ -121,7 +121,7 @@ class MessagesFlowNode(
     private val knockRequestsListEntryPoint: KnockRequestsListEntryPoint,
     private val dateFormatter: DateFormatter,
     private val coroutineDispatchers: CoroutineDispatchers,
-    private val snackbarDispatcher: io.element.android.libraries.designsystem.utils.snackbar.SnackbarDispatcher,
+    @io.element.android.libraries.di.annotations.ApplicationContext private val context: android.content.Context,
 ) : BaseFlowNode<MessagesFlowNode.NavTarget>(
     backstack = BackStack(
         initialElement = plugins.filterIsInstance<MessagesEntryPoint.Params>().first().initialTarget.toNavTarget(),
@@ -386,9 +386,11 @@ class MessagesFlowNode(
                     override fun onDone(roomIds: List<RoomId>) {
                         backstack.pop()
                         if (roomIds.isNotEmpty()) {
-                            snackbarDispatcher.post(
-                                io.element.android.libraries.designsystem.utils.snackbar.SnackbarMessage(R.string.screen_messages_forwarded)
-                            )
+                            android.widget.Toast.makeText(
+                                context,
+                                R.string.screen_messages_forwarded,
+                                android.widget.Toast.LENGTH_SHORT,
+                            ).show()
                         }
                         roomIds.singleOrNull()?.let { roomId ->
                             callback.navigateToRoom(roomId)
