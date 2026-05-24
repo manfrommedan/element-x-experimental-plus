@@ -298,6 +298,23 @@ private fun ModerationAndSafety(
                 state.eventSink(AdvancedSettingsEvents.SetHideRedactedEvents(it))
             },
         )
+        val mapTilerSupportingText = if (state.mapTilerApiKey.isNullOrEmpty()) {
+            stringResource(R.string.screen_advanced_settings_maptiler_api_key_description)
+        } else {
+            stringResource(R.string.screen_advanced_settings_maptiler_api_key_set)
+        }
+        io.element.android.libraries.designsystem.components.preferences.PreferenceTextField(
+            headline = stringResource(R.string.screen_advanced_settings_maptiler_api_key_title),
+            value = state.mapTilerApiKey,
+            placeholder = "abc123…",
+            supportingText = mapTilerSupportingText,
+            displayValue = { _ -> false },
+            keyboardOptions = androidx.compose.foundation.text.KeyboardOptions.Default.copy(
+                autoCorrectEnabled = false,
+                keyboardType = androidx.compose.ui.text.input.KeyboardType.Ascii,
+            ),
+            onChange = { state.eventSink(AdvancedSettingsEvents.SetMapTilerApiKey(it)) }
+        )
         ListSectionHeader(
             title = stringResource(R.string.screen_advanced_settings_show_media_timeline_title),
             hasDivider = false,

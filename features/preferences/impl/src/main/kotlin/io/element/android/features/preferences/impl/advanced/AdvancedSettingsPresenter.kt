@@ -61,6 +61,10 @@ class AdvancedSettingsPresenter(
             appPreferencesStore.getHideRedactedEventsFlow()
         }.collectAsState(initial = false)
 
+        val mapTilerApiKey by remember {
+            appPreferencesStore.getMapTilerApiKeyFlow()
+        }.collectAsState(initial = null)
+
         val mediaPreviewConfigState = mediaPreviewConfigStateStore.state()
 
         val themeOption by remember {
@@ -127,6 +131,9 @@ class AdvancedSettingsPresenter(
                 is AdvancedSettingsEvents.SetHideRedactedEvents -> sessionCoroutineScope.launch {
                     appPreferencesStore.setHideRedactedEvents(event.value)
                 }
+                is AdvancedSettingsEvents.SetMapTilerApiKey -> sessionCoroutineScope.launch {
+                    appPreferencesStore.setMapTilerApiKey(event.value)
+                }
                 is AdvancedSettingsEvents.SetTimelineMediaPreviewValue -> mediaPreviewConfigStateStore.setTimelineMediaPreviewValue(event.value)
                 is AdvancedSettingsEvents.SetLiveLocationMinimumDistanceUpdate -> sessionCoroutineScope.launch {
                     appPreferencesStore.setLiveLocationMinimumDistanceInMetersUpdate(event.value)
@@ -149,6 +156,7 @@ class AdvancedSettingsPresenter(
             mediaPreviewConfigState = mediaPreviewConfigState,
             liveLocationMinimumDistanceUpdate = liveLocationMinimumDistanceUpdate,
             hideRedactedEvents = hideRedactedEvents,
+            mapTilerApiKey = mapTilerApiKey,
             eventSink = ::handleEvent,
         )
     }

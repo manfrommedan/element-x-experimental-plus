@@ -31,6 +31,7 @@ private val hideInviteAvatarsKey = booleanPreferencesKey("hideInviteAvatars")
 private val timelineMediaPreviewValueKey = stringPreferencesKey("timelineMediaPreviewValue")
 private val liveLocationMinimumDistanceUpdateKey = intPreferencesKey("liveLocationMinimumDistanceUpdate")
 private val hideRedactedEventsKey = booleanPreferencesKey("hideRedactedEvents")
+private val mapTilerApiKeyKey = stringPreferencesKey("mapTilerApiKey")
 private val logLevelKey = stringPreferencesKey("logLevel")
 private val traceLogPacksKey = stringPreferencesKey("traceLogPacks")
 
@@ -139,6 +140,23 @@ class DefaultAppPreferencesStore(
     override fun getHideRedactedEventsFlow(): Flow<Boolean> {
         return store.data.map { prefs ->
             prefs[hideRedactedEventsKey] ?: false
+        }
+    }
+
+    override suspend fun setMapTilerApiKey(value: String?) {
+        store.edit { prefs ->
+            val trimmed = value?.trim()
+            if (trimmed.isNullOrEmpty()) {
+                prefs.remove(mapTilerApiKeyKey)
+            } else {
+                prefs[mapTilerApiKeyKey] = trimmed
+            }
+        }
+    }
+
+    override fun getMapTilerApiKeyFlow(): Flow<String?> {
+        return store.data.map { prefs ->
+            prefs[mapTilerApiKeyKey]
         }
     }
 

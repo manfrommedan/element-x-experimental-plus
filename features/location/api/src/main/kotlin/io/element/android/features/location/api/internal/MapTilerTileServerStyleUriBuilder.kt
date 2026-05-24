@@ -14,19 +14,19 @@ import io.element.android.features.location.api.BuildConfig
 
 internal class MapTilerTileServerStyleUriBuilder(
     private val baseUrl: String,
-    private val apiKey: String,
+    private val apiKeyProvider: () -> String,
     private val lightMapId: String,
     private val darkMapId: String,
 ) : TileServerStyleUriBuilder {
     constructor() : this(
         baseUrl = BuildConfig.MAPTILER_BASE_URL.removeSuffix("/"),
-        apiKey = BuildConfig.MAPTILER_API_KEY,
+        apiKeyProvider = { MapTilerKeyHolder.current() },
         lightMapId = BuildConfig.MAPTILER_LIGHT_MAP_ID,
         darkMapId = BuildConfig.MAPTILER_DARK_MAP_ID,
     )
 
     override fun build(darkMode: Boolean): String {
         val mapId = if (darkMode) darkMapId else lightMapId
-        return "$baseUrl/$mapId/style.json?key=$apiKey"
+        return "$baseUrl/$mapId/style.json?key=${apiKeyProvider()}"
     }
 }

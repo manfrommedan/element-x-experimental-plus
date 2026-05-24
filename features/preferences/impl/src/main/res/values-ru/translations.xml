@@ -94,6 +94,9 @@
   <string name="screen_labs_enable_favorites_pinned_to_top_description">"Избранные чаты показываются отдельным разделом над остальным списком, как в SchildiChat или закреплённых чатах Telegram."</string>
   <string name="screen_advanced_settings_hide_redacted_events_toggle_title">"Скрывать удалённые сообщения"</string>
   <string name="screen_advanced_settings_hide_redacted_events_toggle_subtitle">"Удалённые сообщения не показываются в чате. На сервере они остаются, но плашку 'Сообщение удалено' видно не будет."</string>
+  <string name="screen_advanced_settings_maptiler_api_key_title">"MapTiler API ключ (Локация)"</string>
+  <string name="screen_advanced_settings_maptiler_api_key_description">"Зарегистрируйся на maptiler.com (бесплатно, 100k запросов в месяц), скопируй API ключ и вставь сюда - тогда в композере появится пункт 'Локация' и карты будут рендериться в чатах. Без ключа - пункт скрыт. Ключ хранится локально на устройстве."</string>
+  <string name="screen_advanced_settings_maptiler_api_key_set">"Ключ задан. Локация работает."</string>
   <string name="screen_labs_section_make_element_better">"Как ElementX, но лучше"</string>
   <string name="screen_labs_section_calls">"Звонки"</string>
   <string name="screen_labs_section_upstream">"Element Labs"</string>

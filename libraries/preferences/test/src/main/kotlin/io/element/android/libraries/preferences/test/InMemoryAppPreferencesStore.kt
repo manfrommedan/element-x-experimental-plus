@@ -34,6 +34,7 @@ class InMemoryAppPreferencesStore(
     private val hideInviteAvatars = MutableStateFlow(hideInviteAvatars)
     private val timelineMediaPreviewValue = MutableStateFlow(timelineMediaPreviewValue)
     private val hideRedactedEvents = MutableStateFlow(false)
+    private val mapTilerApiKey = MutableStateFlow<String?>(null)
 
     override suspend fun setDeveloperModeEnabled(enabled: Boolean) {
         isDeveloperModeEnabled.value = enabled
@@ -93,6 +94,14 @@ class InMemoryAppPreferencesStore(
 
     override fun getHideRedactedEventsFlow(): Flow<Boolean> {
         return hideRedactedEvents
+    }
+
+    override suspend fun setMapTilerApiKey(value: String?) {
+        mapTilerApiKey.value = value?.trim()?.takeIf { it.isNotEmpty() }
+    }
+
+    override fun getMapTilerApiKeyFlow(): Flow<String?> {
+        return mapTilerApiKey
     }
 
     override suspend fun setTracingLogLevel(logLevel: LogLevel) {

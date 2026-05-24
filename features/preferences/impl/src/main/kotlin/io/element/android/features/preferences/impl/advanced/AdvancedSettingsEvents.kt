@@ -21,5 +21,6 @@ sealed interface AdvancedSettingsEvents {
     data class SetTimelineMediaPreviewValue(val value: MediaPreviewValue) : AdvancedSettingsEvents
     data class SetHideInviteAvatars(val value: Boolean) : AdvancedSettingsEvents
     data class SetHideRedactedEvents(val value: Boolean) : AdvancedSettingsEvents
+    data class SetMapTilerApiKey(val value: String?) : AdvancedSettingsEvents
     data class SetLiveLocationMinimumDistanceUpdate(val value: Int) : AdvancedSettingsEvents
 }
