@@ -1,0 +1,72 @@
+/*
+ * Copyright (c) 2025 Element Creations Ltd.
+ *
+ * SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Element-Commercial.
+ * Please see LICENSE files in the repository root for full details.
+ */
+
+package io.element.android.features.messages.impl.selection
+
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.res.stringResource
+import io.element.android.compound.theme.ElementTheme
+import io.element.android.compound.tokens.generated.CompoundIcons
+import io.element.android.features.messages.impl.R
+import io.element.android.libraries.designsystem.theme.components.Text
+import io.element.android.libraries.designsystem.theme.components.TopAppBar
+import io.element.android.libraries.ui.strings.CommonStrings
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun MessagesSelectionTopBar(
+    state: TimelineSelectionState,
+    onCancelClick: () -> Unit,
+    onCopyClick: () -> Unit,
+    onDeleteClick: () -> Unit,
+    onForwardClick: () -> Unit,
+) {
+    TopAppBar(
+        navigationIcon = {
+            IconButton(onClick = onCancelClick) {
+                Icon(
+                    imageVector = CompoundIcons.Close(),
+                    contentDescription = stringResource(CommonStrings.action_cancel),
+                    tint = ElementTheme.colors.iconPrimary,
+                )
+            }
+        },
+        title = {
+            Text(
+                text = stringResource(R.string.screen_messages_selection_count_short, state.count),
+                style = ElementTheme.typography.fontHeadingMdRegular,
+                color = ElementTheme.colors.textPrimary,
+            )
+        },
+        actions = {
+            IconButton(onClick = onCopyClick) {
+                Icon(
+                    imageVector = CompoundIcons.Copy(),
+                    contentDescription = stringResource(CommonStrings.action_copy),
+                    tint = ElementTheme.colors.iconPrimary,
+                )
+            }
+            IconButton(onClick = onForwardClick) {
+                Icon(
+                    imageVector = CompoundIcons.Forward(),
+                    contentDescription = stringResource(CommonStrings.action_forward),
+                    tint = ElementTheme.colors.iconPrimary,
+                )
+            }
+            IconButton(onClick = onDeleteClick) {
+                Icon(
+                    imageVector = CompoundIcons.Delete(),
+                    contentDescription = stringResource(CommonStrings.action_remove),
+                    tint = ElementTheme.colors.iconCriticalPrimary,
+                )
+            }
+        },
+    )
+}

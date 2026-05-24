@@ -95,6 +95,8 @@ class LabsPresenter(
                         stringProvider.getString(R.string.screen_labs_enable_bulk_attachments_picker)
                     FeatureFlags.ShareMxidShortcut ->
                         stringProvider.getString(R.string.screen_labs_enable_share_mxid_shortcut)
+                    FeatureFlags.MessageMultiSelect ->
+                        stringProvider.getString(R.string.screen_labs_enable_message_multi_select)
                     else -> enabledFeature.feature.title
                 }
                 val description = when (enabledFeature.feature) {
@@ -105,6 +107,8 @@ class LabsPresenter(
                         stringProvider.getString(R.string.screen_labs_enable_bulk_attachments_picker_description)
                     FeatureFlags.ShareMxidShortcut ->
                         stringProvider.getString(R.string.screen_labs_enable_share_mxid_shortcut_description)
+                    FeatureFlags.MessageMultiSelect ->
+                        stringProvider.getString(R.string.screen_labs_enable_message_multi_select_description)
                     else -> enabledFeature.feature.description
                 }
                 val icon = when (enabledFeature.feature) {
@@ -112,6 +116,7 @@ class LabsPresenter(
                     FeatureFlags.PhoneVoiceLayout -> CompoundIcons.VoiceCall()
                     FeatureFlags.BulkAttachmentsPicker -> CompoundIcons.Image()
                     FeatureFlags.ShareMxidShortcut -> CompoundIcons.Copy()
+                    FeatureFlags.MessageMultiSelect -> CompoundIcons.CheckCircle()
                     else -> null
                 }
                 remember(enabledFeature) {

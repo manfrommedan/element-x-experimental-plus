@@ -91,6 +91,8 @@ import io.element.android.libraries.ui.strings.CommonStrings
 import io.element.android.services.analytics.api.AnalyticsService
 import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.toImmutableList
+import io.element.android.libraries.matrix.api.timeline.item.event.toEventOrTransactionId
+import kotlinx.collections.immutable.toPersistentSet
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.onStart
@@ -175,6 +177,8 @@ class MessagesPresenter(
         }
 
         val canOpenThreadList by featureFlagService.isFeatureEnabledFlow(FeatureFlags.RoomThreadList).collectAsState(initial = false)
+        val isMultiSelectEnabled by featureFlagService.isFeatureEnabledFlow(FeatureFlags.MessageMultiSelect).collectAsState(initial = false)
+        var selectionState by remember { mutableStateOf(io.element.android.features.messages.impl.selection.TimelineSelectionState()) }
         val isCurrentlySharingLiveLocationInRoom by remember { liveLocationShareManager.isCurrentlySharing(room.roomId) }.collectAsState()
 
         val userEventPermissions by room.permissionsAsState(UserEventPermissions.DEFAULT) { perms ->
@@ -242,6 +246,12 @@ class MessagesPresenter(
         fun handleEvent(event: MessagesEvent) {
             when (event) {
                 is MessagesEvent.HandleAction -> {
+                    if (event.action == io.element.android.features.messages.impl.actionlist.model.TimelineItemAction.Select) {
+                        // Intercept the "Select" action and route to selection-mode bookkeeping
+                        // instead of the per-event handler chain.
+                        handleEvent(MessagesEvent.EnterSelection(event.event))
+                        return@handleEvent
+                    }
                     localCoroutineScope.handleTimelineAction(
                         action = event.action,
                         targetEvent = event.event,
@@ -250,6 +260,57 @@ class MessagesPresenter(
                         timelineState = timelineState,
                         timelineProtectionState = timelineProtectionState,
                     )
+                }
+                is MessagesEvent.EnterSelection -> {
+                    val anchorEventId = event.anchor.eventId
+                    if (anchorEventId != null) {
+                        selectionState = selectionState.copy(
+                            isActive = true,
+                            selectedIds = (selectionState.selectedIds + anchorEventId).toPersistentSet(),
+                        )
+                    }
+                }
+                is MessagesEvent.ToggleSelection -> {
+                    val targetId = event.event.eventId ?: return@handleEvent
+                    val current = selectionState.selectedIds
+                    val next = if (targetId in current) current - targetId else current + targetId
+                    if (next.size > selectionState.maxSelection) {
+                        // Hit the cap - surface a snackbar and keep the existing selection.
+                        snackbarDispatcher.post(SnackbarMessage(CommonStrings.common_error))
+                        return@handleEvent
+                    }
+                    selectionState = selectionState.copy(
+                        isActive = next.isNotEmpty(),
+                        selectedIds = next.toPersistentSet(),
+                    )
+                }
+                MessagesEvent.ClearSelection -> {
+                    selectionState = io.element.android.features.messages.impl.selection.TimelineSelectionState()
+                }
+                MessagesEvent.BulkRedactSelected -> {
+                    val targets = selectionState.selectedIds.toList()
+                    if (targets.isEmpty()) return@handleEvent
+                    val snapshot = selectionState
+                    selectionState = io.element.android.features.messages.impl.selection.TimelineSelectionState()
+                    sessionCoroutineScope.launch {
+                        var failures = 0
+                        for (id in targets) {
+                            val res = room.liveTimeline.redactEvent(
+                                eventOrTransactionId = id.toEventOrTransactionId(),
+                                reason = null,
+                            )
+                            if (res.isFailure) failures += 1
+                            kotlinx.coroutines.delay(200) // throttle against Synapse per-room redact rate-limit
+                        }
+                        if (failures > 0) {
+                            snackbarDispatcher.post(SnackbarMessage(CommonStrings.common_error))
+                        }
+                    }
+                }
+                MessagesEvent.BulkCopySelected -> {
+                    // The actual clipboard write happens in the View (LocalClipboardManager). The
+                    // presenter just exits selection mode after the View handles the copy.
+                    selectionState = io.element.android.features.messages.impl.selection.TimelineSelectionState()
                 }
                 is MessagesEvent.ToggleReaction -> {
                     localCoroutineScope.toggleReaction(event.emoji, event.eventOrTransactionId)
@@ -328,6 +389,8 @@ class MessagesPresenter(
                 hasUnreadThreads = false,
             ),
             showLiveLocationShareBanner = isCurrentlySharingLiveLocationInRoom && timelineState.timelineMode !is Timeline.Mode.Thread,
+            selectionState = selectionState,
+            isMultiSelectEnabled = isMultiSelectEnabled,
             eventSink = ::handleEvent,
         )
     }
@@ -398,6 +461,7 @@ class MessagesPresenter(
             TimelineItemAction.Pin -> handlePinAction(targetEvent)
             TimelineItemAction.Unpin -> handleUnpinAction(targetEvent)
             TimelineItemAction.ViewInTimeline -> Unit
+            TimelineItemAction.Select -> Unit // Handled upstream in handleEvent(HandleAction) before reaching here
         }
     }
 

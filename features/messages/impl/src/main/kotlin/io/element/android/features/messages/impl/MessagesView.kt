@@ -156,6 +156,28 @@ fun MessagesView(
 
     val snackbarHostState = rememberSnackbarHostState(snackbarMessage = state.snackbarMessage)
 
+    val clipboardManager = androidx.compose.ui.platform.LocalClipboardManager.current
+    var showBulkDeleteConfirm by remember { mutableStateOf(false) }
+
+    // Back press while selecting should exit selection mode rather than the room.
+    androidx.activity.compose.BackHandler(enabled = state.selectionState.isActive) {
+        state.eventSink(MessagesEvent.ClearSelection)
+    }
+
+    if (showBulkDeleteConfirm) {
+        io.element.android.libraries.designsystem.components.dialogs.ConfirmationDialog(
+            title = androidx.compose.ui.res.stringResource(io.element.android.libraries.ui.strings.CommonStrings.action_remove),
+            content = androidx.compose.ui.res.stringResource(R.string.screen_messages_selection_delete_confirm, state.selectionState.count),
+            submitText = androidx.compose.ui.res.stringResource(io.element.android.libraries.ui.strings.CommonStrings.action_remove),
+            destructiveSubmit = true,
+            onSubmitClick = {
+                showBulkDeleteConfirm = false
+                state.eventSink(MessagesEvent.BulkRedactSelected)
+            },
+            onDismiss = { showBulkDeleteConfirm = false },
+        )
+    }
+
     var maxComposerHeightPx by remember { mutableIntStateOf(120) }
 
     // This is needed because the composer is inside an AndroidView that can't be affected by the FocusManager in Compose
@@ -168,6 +190,11 @@ fun MessagesView(
 
     fun onContentClick(event: TimelineItem.Event) {
         Timber.v("onMessageClick= ${event.id}")
+        if (state.selectionState.isActive) {
+            // In selection mode a tap toggles membership instead of opening the item.
+            state.eventSink(MessagesEvent.ToggleSelection(event))
+            return
+        }
         val hideKeyboard = onEventContentClick(state.timelineState.isLive, event)
         if (hideKeyboard) {
             localView.hideKeyboard()
@@ -176,6 +203,10 @@ fun MessagesView(
 
     fun onMessageLongClick(event: TimelineItem.Event) {
         Timber.v("OnMessageLongClicked= ${event.id}")
+        if (state.selectionState.isActive) {
+            state.eventSink(MessagesEvent.ToggleSelection(event))
+            return
+        }
         hidingKeyboard {
             state.actionListState.eventSink(
                 ActionListEvent.ComputeForMessage(
@@ -219,7 +250,28 @@ fun MessagesView(
             Scaffold(
                 contentWindowInsets = WindowInsets.statusBars,
                 topBar = {
-                    if (state.timelineState.timelineMode is Timeline.Mode.Thread) {
+                    if (state.selectionState.isActive) {
+                        io.element.android.features.messages.impl.selection.MessagesSelectionTopBar(
+                            state = state.selectionState,
+                            onCancelClick = { state.eventSink(MessagesEvent.ClearSelection) },
+                            onCopyClick = {
+                                // BulkCopy is finalised in the View because it needs the clipboard manager.
+                                val texts = state.timelineState.timelineItems
+                                    .asSequence()
+                                    .filterIsInstance<io.element.android.features.messages.impl.timeline.model.TimelineItem.Event>()
+                                    .filter { it.eventId in state.selectionState.selectedIds }
+                                    .mapNotNull { (it.content as? io.element.android.features.messages.impl.timeline.model.event.TimelineItemTextBasedContent)?.body }
+                                    .joinToString("\n\n")
+                                if (texts.isNotEmpty()) clipboardManager.setText(androidx.compose.ui.text.AnnotatedString(texts))
+                                state.eventSink(MessagesEvent.BulkCopySelected)
+                            },
+                            onForwardClick = {
+                                // Forward bulk is a follow-up - exit selection for now so the user is unstuck.
+                                state.eventSink(MessagesEvent.ClearSelection)
+                            },
+                            onDeleteClick = { showBulkDeleteConfirm = true },
+                        )
+                    } else if (state.timelineState.timelineMode is Timeline.Mode.Thread) {
                         ThreadTopBar(
                             roomName = state.roomName,
                             roomAvatarData = state.roomAvatar,

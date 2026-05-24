@@ -15,4 +15,10 @@
     <!-- Labs toggle: copy Matrix ID shortcut in settings header. -->
     <string name="screen_labs_enable_share_mxid_shortcut">"Copy Matrix ID from settings"</string>
     <string name="screen_labs_enable_share_mxid_shortcut_description">"Adds a copy button next to your Matrix ID in the settings header so you can share it in one tap."</string>
+    <!-- Labs toggle: multi-select messages with bulk actions. -->
+    <string name="screen_labs_enable_message_multi_select">"Multi-select messages"</string>
+    <string name="screen_labs_enable_message_multi_select_description">"Long-press a message to enter selection mode, then tap others to add to the selection. Bulk delete, copy and forward up to 100 messages at once."</string>
+    <!-- Selection mode top bar. -->
+    <string name="screen_messages_selection_count">"%1$d selected"</string>
+    <string name="screen_messages_selection_delete_confirm">"Delete %1$d messages?"</string>
 </resources>
