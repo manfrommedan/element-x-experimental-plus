@@ -8,12 +8,22 @@
 
 package io.element.android.features.messages.impl.timeline.components
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.expandHorizontally
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkHorizontally
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.geometry.Offset
@@ -26,11 +36,13 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import io.element.android.compound.theme.ElementTheme
+import io.element.android.features.messages.impl.selection.SelectionIndicator
 import io.element.android.features.messages.impl.timeline.TimelineEvent
 import io.element.android.features.messages.impl.timeline.TimelineRoomInfo
 import io.element.android.features.messages.impl.timeline.components.event.TimelineItemEventContentView
 import io.element.android.features.messages.impl.timeline.components.layout.ContentAvoidingLayoutData
 import io.element.android.features.messages.impl.timeline.model.TimelineItem
+import kotlinx.collections.immutable.ImmutableSet
 import io.element.android.features.messages.impl.timeline.model.event.TimelineItemLegacyCallInviteContent
 import io.element.android.features.messages.impl.timeline.model.event.TimelineItemPollContent
 import io.element.android.features.messages.impl.timeline.model.event.TimelineItemRtcNotificationContent
@@ -74,6 +86,7 @@ internal fun TimelineItemRow(
     onSwipeToReply: (TimelineItem.Event) -> Unit,
     eventSink: (TimelineEvent.TimelineItemEvent) -> Unit,
     modifier: Modifier = Modifier,
+    selectedEventIds: ImmutableSet<EventId>? = null,
     eventContentView: @Composable (TimelineItem.Event, Modifier, (ContentAvoidingLayoutData) -> Unit) -> Unit =
         { event, contentModifier, onContentLayoutChange ->
             TimelineItemEventContentView(
@@ -100,7 +113,85 @@ internal fun TimelineItemRow(
     } else {
         Modifier
     }
-    Box(modifier = modifier.then(backgroundModifier)) {
+    val selectableEvent = (timelineItem as? TimelineItem.Event)?.takeIf { it.eventId != null && selectedEventIds != null }
+    val isSelected = selectableEvent != null && selectableEvent.eventId in selectedEventIds!!
+    val selectionTint = if (isSelected) {
+        Modifier.background(ElementTheme.colors.bgAccentSelected)
+    } else {
+        Modifier
+    }
+    val selectionClick = if (selectableEvent != null) {
+        Modifier.clickable(
+            interactionSource = null,
+            indication = null,
+            onClick = { onContentClick(selectableEvent) },
+        )
+    } else {
+        Modifier
+    }
+    Box(modifier = modifier.then(backgroundModifier).then(selectionTint).then(selectionClick)) {
+        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+            AnimatedVisibility(
+                visible = selectedEventIds != null && timelineItem is TimelineItem.Event,
+                enter = fadeIn(tween(150)) + expandHorizontally(tween(180)),
+                exit = fadeOut(tween(120)) + shrinkHorizontally(tween(150)),
+            ) {
+                SelectionIndicator(checked = isSelected)
+            }
+            Box(modifier = Modifier.weight(1f)) {
+                TimelineItemRowContent(
+                    timelineItem = timelineItem,
+                    timelineMode = timelineMode,
+                    timelineRoomInfo = timelineRoomInfo,
+                    renderReadReceipts = renderReadReceipts,
+                    isLastOutgoingMessage = isLastOutgoingMessage,
+                    timelineProtectionState = timelineProtectionState,
+                    focusedEventId = focusedEventId,
+                    displayThreadSummaries = displayThreadSummaries,
+                    onUserDataClick = onUserDataClick,
+                    onLinkClick = onLinkClick,
+                    onLinkLongClick = onLinkLongClick,
+                    onContentClick = onContentClick,
+                    onLongClick = onLongClick,
+                    inReplyToClick = inReplyToClick,
+                    onReactionClick = onReactionClick,
+                    onReactionLongClick = onReactionLongClick,
+                    onMoreReactionsClick = onMoreReactionsClick,
+                    onReadReceiptClick = onReadReceiptClick,
+                    onSwipeToReply = onSwipeToReply,
+                    eventSink = eventSink,
+                    eventContentView = eventContentView,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun TimelineItemRowContent(
+    timelineItem: TimelineItem,
+    timelineMode: Timeline.Mode,
+    timelineRoomInfo: TimelineRoomInfo,
+    renderReadReceipts: Boolean,
+    isLastOutgoingMessage: Boolean,
+    timelineProtectionState: TimelineProtectionState,
+    focusedEventId: EventId?,
+    displayThreadSummaries: Boolean,
+    onUserDataClick: (MatrixUser) -> Unit,
+    onLinkClick: (Link) -> Unit,
+    onLinkLongClick: (Link) -> Unit,
+    onContentClick: (TimelineItem.Event) -> Unit,
+    onLongClick: (TimelineItem.Event) -> Unit,
+    inReplyToClick: (EventId) -> Unit,
+    onReactionClick: (key: String, TimelineItem.Event) -> Unit,
+    onReactionLongClick: (key: String, TimelineItem.Event) -> Unit,
+    onMoreReactionsClick: (TimelineItem.Event) -> Unit,
+    onReadReceiptClick: (TimelineItem.Event) -> Unit,
+    onSwipeToReply: (TimelineItem.Event) -> Unit,
+    eventSink: (TimelineEvent.TimelineItemEvent) -> Unit,
+    eventContentView: @Composable (TimelineItem.Event, Modifier, (ContentAvoidingLayoutData) -> Unit) -> Unit,
+) {
+    Box {
         when (timelineItem) {
             is TimelineItem.Virtual -> {
                 TimelineItemVirtualRow(

@@ -570,6 +570,7 @@ private fun MessagesViewContent(
                 forceJumpToBottomVisibility = forceJumpToBottomVisibility,
                 nestedScrollConnection = scrollBehavior.nestedScrollConnection,
                 floatingDateTopOffset = pinnedBannerHeightDp,
+                selectedEventIds = if (state.selectionState.isActive) state.selectionState.selectedIds else null,
             )
 
             if (state.timelineState.timelineMode !is Timeline.Mode.Thread) {

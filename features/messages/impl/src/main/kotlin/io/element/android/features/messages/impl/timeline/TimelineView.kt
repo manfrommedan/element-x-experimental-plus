@@ -108,6 +108,7 @@ fun TimelineView(
     forceJumpToBottomVisibility: Boolean = false,
     nestedScrollConnection: NestedScrollConnection = rememberNestedScrollInteropConnection(),
     floatingDateTopOffset: Dp = 0.dp,
+    selectedEventIds: kotlinx.collections.immutable.ImmutableSet<EventId>? = null,
 ) {
     fun clearFocusRequestState() {
         state.eventSink(TimelineEvent.ClearFocusRequestState)
@@ -187,6 +188,7 @@ fun TimelineView(
                         onReadReceiptClick = onReadReceiptClick,
                         onSwipeToReply = onSwipeToReply,
                         eventSink = state.eventSink,
+                        selectedEventIds = selectedEventIds,
                     )
                 }
             }
