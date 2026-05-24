@@ -8,18 +8,14 @@
 
 package io.element.android.features.preferences.impl.user
 
-import android.view.HapticFeedbackConstants
-import androidx.compose.material3.SnackbarDuration
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.PreviewParameter
 import io.element.android.libraries.androidutils.system.copyToClipboard
 import io.element.android.libraries.designsystem.preview.ElementPreview
 import io.element.android.libraries.designsystem.preview.PreviewsDayNight
-import io.element.android.libraries.designsystem.utils.snackbar.LocalSnackbarDispatcher
-import io.element.android.libraries.designsystem.utils.snackbar.SnackbarMessage
 import io.element.android.libraries.matrix.api.user.MatrixUser
 import io.element.android.libraries.matrix.ui.components.MatrixUserHeader
 import io.element.android.libraries.matrix.ui.components.MatrixUserProvider
@@ -32,21 +28,13 @@ fun UserPreferences(
     showCopyMxidButton: Boolean = false,
 ) {
     val context = LocalContext.current
-    val view = LocalView.current
-    val snackbarDispatcher = LocalSnackbarDispatcher.current
+    val toastMessage = stringResource(CommonStrings.common_copied_to_clipboard)
     MatrixUserHeader(
         modifier = modifier,
         matrixUser = matrixUser,
         onCopyMxidClick = if (showCopyMxidButton) {
             {
-                view.performHapticFeedback(HapticFeedbackConstants.CONTEXT_CLICK)
-                context.copyToClipboard(text = matrixUser.userId.value)
-                snackbarDispatcher.post(
-                    SnackbarMessage(
-                        messageResId = CommonStrings.common_copied_to_clipboard,
-                        duration = SnackbarDuration.Long,
-                    )
-                )
+                context.copyToClipboard(text = matrixUser.userId.value, toastMessage = toastMessage)
             }
         } else null,
     )

@@ -87,10 +87,10 @@ fun MatrixUserHeader(
         if (onCopyMxidClick != null) {
             IconButton(onClick = onCopyMxidClick) {
                 Icon(
-                    modifier = Modifier.size(20.dp),
+                    modifier = Modifier.size(24.dp),
                     imageVector = CompoundIcons.Copy(),
                     contentDescription = stringResource(CommonStrings.action_copy),
-                    tint = ElementTheme.colors.iconSecondary,
+                    tint = ElementTheme.colors.iconAccentPrimary,
                 )
             }
         }
