@@ -33,6 +33,8 @@ sealed interface MessagesEvent {
     data object BulkRedactSelected : MessagesEvent
     /** Join selected message bodies and write to clipboard. */
     data object BulkCopySelected : MessagesEvent
+    /** Open the forward picker pre-loaded with every selected event. */
+    data object BulkForwardSelected : MessagesEvent
 }
 
 enum class InviteDialogAction {

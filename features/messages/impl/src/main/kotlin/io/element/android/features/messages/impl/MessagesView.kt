@@ -265,10 +265,7 @@ fun MessagesView(
                                 if (texts.isNotEmpty()) clipboardManager.setText(androidx.compose.ui.text.AnnotatedString(texts))
                                 state.eventSink(MessagesEvent.BulkCopySelected)
                             },
-                            onForwardClick = {
-                                // Forward bulk is a follow-up - exit selection for now so the user is unstuck.
-                                state.eventSink(MessagesEvent.ClearSelection)
-                            },
+                            onForwardClick = { state.eventSink(MessagesEvent.BulkForwardSelected) },
                             onDeleteClick = { showBulkDeleteConfirm = true },
                         )
                     } else if (state.timelineState.timelineMode is Timeline.Mode.Thread) {

@@ -312,6 +312,12 @@ class MessagesPresenter(
                     // presenter just exits selection mode after the View handles the copy.
                     selectionState = io.element.android.features.messages.impl.selection.TimelineSelectionState()
                 }
+                MessagesEvent.BulkForwardSelected -> {
+                    val targets = selectionState.selectedIds.toList()
+                    if (targets.isEmpty()) return@handleEvent
+                    selectionState = io.element.android.features.messages.impl.selection.TimelineSelectionState()
+                    navigator.forwardEvents(targets)
+                }
                 is MessagesEvent.ToggleReaction -> {
                     localCoroutineScope.toggleReaction(event.emoji, event.eventOrTransactionId)
                 }
