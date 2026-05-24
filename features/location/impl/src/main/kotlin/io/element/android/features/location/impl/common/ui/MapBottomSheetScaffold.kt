@@ -42,7 +42,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.max
-import io.element.android.features.location.api.internal.rememberTileStyleJson
+import io.element.android.features.location.api.internal.rememberTileStyleUrl
 import io.element.android.features.location.impl.common.MapDefaults
 import io.element.android.libraries.core.data.tryOrNull
 import io.element.android.libraries.designsystem.text.toDp
@@ -130,16 +130,13 @@ fun MapBottomSheetScaffold(
             val ornamentOptions = mapOptions.ornamentOptions.copy(padding = sheetPadding)
             val mapOptions = mapOptions.copy(ornamentOptions = ornamentOptions)
             Box {
-                val styleJson = rememberTileStyleJson()
-                if (styleJson != null) {
-                    MaplibreMap(
-                        options = mapOptions,
-                        baseStyle = BaseStyle.Json(styleJson),
-                        modifier = Modifier.fillMaxSize(),
-                        cameraState = cameraState,
-                        content = mapContent,
-                    )
-                }
+                MaplibreMap(
+                    options = mapOptions,
+                    baseStyle = BaseStyle.Uri(rememberTileStyleUrl()),
+                    modifier = Modifier.fillMaxSize(),
+                    cameraState = cameraState,
+                    content = mapContent,
+                )
                 overlayContent(sheetPadding)
             }
         }
