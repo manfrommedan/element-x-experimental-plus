@@ -323,10 +323,13 @@ class TimelinePresenter(
         }.collectAsState(initial = false)
         val visibleTimelineItems = remember(timelineItems, hideRedactedEvents) {
             if (hideRedactedEvents) {
-                timelineItems.filterNot { item ->
-                    item is io.element.android.features.messages.impl.timeline.model.TimelineItem.Event &&
-                        item.content is io.element.android.features.messages.impl.timeline.model.event.TimelineItemRedactedContent
-                }.toImmutableList()
+                timelineItems
+                    .filterNot { item ->
+                        item is io.element.android.features.messages.impl.timeline.model.TimelineItem.Event &&
+                            item.content is io.element.android.features.messages.impl.timeline.model.event.TimelineItemRedactedContent
+                    }
+                    .dropOrphanDaySeparators()
+                    .toImmutableList()
             } else {
                 timelineItems
             }
@@ -473,6 +476,30 @@ private fun FocusRequestState.onFocusEventRender(): FocusRequestState {
         is FocusRequestState.Success -> copy(rendered = true)
         else -> this
     }
+}
+
+private fun List<TimelineItem>.dropOrphanDaySeparators(): List<TimelineItem> {
+    val result = mutableListOf<TimelineItem>()
+    for ((index, item) in this.withIndex()) {
+        val isDaySeparator = item is TimelineItem.Virtual &&
+            item.model is io.element.android.features.messages.impl.timeline.model.virtual.TimelineItemDaySeparatorModel
+        if (!isDaySeparator) {
+            result.add(item)
+            continue
+        }
+        val hasEvent = (index + 1 until size).asSequence()
+            .takeWhile { i ->
+                val next = this[i]
+                !(next is TimelineItem.Virtual &&
+                    next.model is io.element.android.features.messages.impl.timeline.model.virtual.TimelineItemDaySeparatorModel)
+            }
+            .any { i ->
+                val next = this[i]
+                next is TimelineItem.Event || next is TimelineItem.GroupedEvents
+            }
+        if (hasEvent) result.add(item)
+    }
+    return result
 }
 
 // Workaround for not having the server names available, get possible server names from the user ids of the room members
