@@ -29,6 +29,7 @@ import io.element.android.libraries.roomselect.api.RoomSelectMode
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.toImmutableList
+import kotlinx.collections.immutable.toPersistentList
 import kotlinx.coroutines.launch
 
 @AssistedInject
@@ -70,16 +71,16 @@ class RoomSelectPresenter(
         fun handleEvent(event: RoomSelectEvents) {
             when (event) {
                 is RoomSelectEvents.SetSelectedRoom -> {
-                    selectedRooms = persistentListOf(event.room)
-                    // Restore for multi-selection
-//                    val index = selectedRooms.indexOfFirst { it.roomId == event.room.roomId }
-//                    selectedRooms = if (index >= 0) {
-//                        selectedRooms.removeAt(index)
-//                    } else {
-//                        selectedRooms.add(event.room)
-//                    }
+                    val index = selectedRooms.indexOfFirst { it.roomId == event.room.roomId }
+                    selectedRooms = if (index >= 0) {
+                        selectedRooms.removeAt(index)
+                    } else {
+                        selectedRooms.add(event.room)
+                    }
                 }
-                RoomSelectEvents.RemoveSelectedRoom -> selectedRooms = persistentListOf()
+                is RoomSelectEvents.RemoveSelectedRoom -> {
+                    selectedRooms = selectedRooms.removeAll { it.roomId == event.roomId }.toPersistentList()
+                }
                 RoomSelectEvents.ToggleSearchActive -> isSearchActive = !isSearchActive
                 is RoomSelectEvents.UpdateVisibleRange -> coroutineScope.launch {
                     dataSource.updateVisibleRange(event.range)

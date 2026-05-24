@@ -73,13 +73,12 @@ fun RoomSelectView(
 ) {
     @Suppress("UNUSED_PARAMETER")
     fun onRoomRemoved(roomInfo: SelectRoomInfo) {
-        // TODO toggle selection when multi-selection is enabled
-        state.eventSink(RoomSelectEvents.RemoveSelectedRoom)
+        state.eventSink(RoomSelectEvents.RemoveSelectedRoom(roomInfo.roomId))
     }
 
     @Composable
-    fun SelectedRoomsHelper(isForwarding: Boolean, selectedRooms: ImmutableList<SelectRoomInfo>) {
-        if (isForwarding) return
+    fun SelectedRoomsHelper(selectedRooms: ImmutableList<SelectRoomInfo>) {
+        if (selectedRooms.isEmpty()) return
         SelectedRooms(
             selectedRooms = selectedRooms,
             onRemoveRoom = ::onRoomRemoved,
@@ -147,11 +146,7 @@ fun RoomSelectView(
             ) { summaries ->
                 LazyColumn(state = lazyListState) {
                     item {
-                        SelectedRoomsHelper(
-                            // TODO state.isForwarding
-                            isForwarding = false,
-                            selectedRooms = state.selectedRooms
-                        )
+                        SelectedRoomsHelper(selectedRooms = state.selectedRooms)
                     }
                     items(summaries, key = { it.roomId.value }) { roomSummary ->
                         Column {
@@ -169,11 +164,7 @@ fun RoomSelectView(
             }
 
             if (!state.isSearchActive) {
-                // TODO restore for multi-selection
-//                SelectedRoomsHelper(
-//                    isForwarding = state.isForwarding,
-//                    selectedRooms = state.selectedRooms
-//                )
+                SelectedRoomsHelper(selectedRooms = state.selectedRooms)
                 Spacer(modifier = Modifier.height(20.dp))
 
                 if (state.resultState is SearchBarResultState.Results) {

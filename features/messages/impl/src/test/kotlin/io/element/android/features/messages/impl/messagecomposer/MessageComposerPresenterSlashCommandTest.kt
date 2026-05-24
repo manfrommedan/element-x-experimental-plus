@@ -311,6 +311,7 @@ class MessageComposerPresenterSlashCommandTest {
         mediaOptimizationConfigProvider = mediaOptimizationConfigProvider,
         notificationConversationService = notificationConversationService,
         slashCommandService = slashCommandService,
+        featureFlagService = io.element.android.libraries.featureflag.test.FakeFeatureFlagService(),
     ).apply {
         isTesting = true
         showTextFormatting = isRichTextEditorEnabled

@@ -595,6 +595,7 @@ class AttachmentsPreviewPresenterTest {
             timelineMode = timelineMode,
             inReplyToEventId = null,
             mediaOptimizationConfigProvider = mediaOptimizationConfigProvider,
+            localMediaFactory = io.element.android.libraries.mediaviewer.test.FakeLocalMediaFactory(localMediaUri = android.net.Uri.EMPTY),
         )
     }
 

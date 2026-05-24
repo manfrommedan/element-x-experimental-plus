@@ -85,6 +85,7 @@ class DefaultMessagesEntryPointTest {
                 knockRequestsListEntryPoint = FakeKnockRequestsListEntryPoint(),
                 dateFormatter = FakeDateFormatter(),
                 coroutineDispatchers = testCoroutineDispatchers(),
+                snackbarDispatcher = io.element.android.libraries.designsystem.utils.snackbar.SnackbarDispatcher(),
             )
         }
         val callback = object : MessagesEntryPoint.Callback {
