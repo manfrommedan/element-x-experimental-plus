@@ -53,6 +53,8 @@ import kotlinx.collections.immutable.toImmutableList
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import timber.log.Timber
@@ -117,10 +119,14 @@ class AttachmentsPreviewPresenter(
             // Reload caption for the new slide so the editor reflects what the user previously
             // typed there. true = treat as user-edited (no auto-formatting interference).
             markdownTextEditorState.text.update(captions[media.localMedia.uri].orEmpty(), true)
-            // Continuously persist every keystroke under THIS slide's URI. Cancelling on
-            // currentIndex change (keyed LaunchedEffect) stops collection - the previous slide
-            // already had its latest text saved, so no flush is needed on Send.
+            // Continuously persist every keystroke under THIS slide's URI. drop(1) skips the
+            // baseline emission, which can be the stale prior-slide text if the update() above
+            // has not propagated through Compose's snapshot system yet - without this guard,
+            // swiping to a new slide right after typing on the previous one would copy that
+            // typing onto the new slide's URI. distinctUntilChanged keeps work to a minimum.
             snapshotFlow { markdownTextEditorState.text.value().toString() }
+                .distinctUntilChanged()
+                .drop(1)
                 .collect { text ->
                     if (text.isEmpty()) captions.remove(media.localMedia.uri)
                     else captions[media.localMedia.uri] = text

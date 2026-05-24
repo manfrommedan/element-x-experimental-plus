@@ -45,7 +45,10 @@ import io.element.android.tests.testutils.testCoroutineDispatchers
 import kotlinx.coroutines.test.runTest
 import org.junit.Rule
 import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
 
+@RunWith(RobolectricTestRunner::class)
 class DefaultMessagesEntryPointTest {
     @get:Rule
     val instantTaskExecutorRule = InstantTaskExecutorRule()
