@@ -12,7 +12,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.getValue
+import android.net.Uri
 import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -107,6 +109,22 @@ class AttachmentsPreviewPresenter(
             currentIndex = attachmentList.lastIndex.coerceAtLeast(0)
         }
         val current = attachmentList[currentIndex]
+
+        // Per-image caption store keyed by URI (stable across reorder; survives index shifts on Remove).
+        val captions = remember { mutableStateMapOf<Uri, String>() }
+        val lastShownIndex = remember { mutableStateOf(currentIndex) }
+        LaunchedEffect(currentIndex) {
+            val previous = lastShownIndex.value
+            if (previous != currentIndex) {
+                (attachmentList.getOrNull(previous) as? Attachment.Media)?.let { old ->
+                    captions[old.localMedia.uri] = markdownTextEditorState.text.value().toString()
+                }
+                val newAttachment = attachmentList.getOrNull(currentIndex) as? Attachment.Media
+                val saved = newAttachment?.let { captions[it.localMedia.uri] }.orEmpty()
+                markdownTextEditorState.text.update(saved, true)
+                lastShownIndex.value = currentIndex
+            }
+        }
         val mediaAttachment = current as Attachment.Media
         val mediaOptimizationSelectorPresenter = remember(currentIndex) {
             mediaOptimizationSelectorPresenterFactory.create(mediaAttachment.localMedia)
@@ -184,7 +202,10 @@ class AttachmentsPreviewPresenter(
                         return
                     }
                     val removed = attachmentList.removeAt(event.index)
-                    (removed as? Attachment.Media)?.let { temporaryUriDeleter.delete(it.localMedia.uri) }
+                    (removed as? Attachment.Media)?.let {
+                        temporaryUriDeleter.delete(it.localMedia.uri)
+                        captions.remove(it.localMedia.uri)
+                    }
                     when {
                         currentIndex >= attachmentList.size -> currentIndex = attachmentList.lastIndex
                         event.index < currentIndex -> currentIndex -= 1
@@ -243,20 +264,28 @@ class AttachmentsPreviewPresenter(
                             }
                         } else {
                             // Multi-attachment (bulk) flow: dismiss immediately, then send all in
-                            // original 0..N-1 order from the session scope. Caption + reply attach to the
-                            // message backing the page the user was viewing when they tapped Send -
-                            // matches WhatsApp where "type caption on slide N, send" lands the caption on slide N.
+                            // original 0..N-1 order from the session scope. Each image carries its own
+                            // caption (entered while viewing that slide); the reply target lands on the
+                            // first slide that has a caption, or slide 0 if none were typed.
+                            // Flush current editor text into the captions map under the active slide URI.
+                            (current as? Attachment.Media)?.let { media ->
+                                val text = caption.orEmpty()
+                                if (text.isEmpty()) captions.remove(media.localMedia.uri) else captions[media.localMedia.uri] = text
+                            }
                             if (coroutineContext.isActive) {
                                 onDoneListener()
                             }
                             val snapshot = attachmentList.toList()
-                            val captionIndex = currentIndex.coerceIn(0, snapshot.lastIndex)
+                            val captionsSnapshot = captions.toMap()
+                            val firstWithCaption = snapshot.indexOfFirst {
+                                (it as? Attachment.Media)?.localMedia?.uri?.let { uri -> captionsSnapshot[uri]?.isNotEmpty() == true } == true
+                            }.coerceAtLeast(0)
                             sessionCoroutineScope.launch(dispatchers.io) {
                                 sendAllSequentially(
                                     items = snapshot,
                                     mediaOptimizationConfig = config,
-                                    caption = caption,
-                                    captionIndex = captionIndex,
+                                    captionsByUri = captionsSnapshot,
+                                    replyIndex = firstWithCaption,
                                 )
                             }
                         }
@@ -355,17 +384,18 @@ class AttachmentsPreviewPresenter(
     private suspend fun sendAllSequentially(
         items: List<Attachment>,
         mediaOptimizationConfig: MediaOptimizationConfig,
-        caption: String?,
-        captionIndex: Int = 0,
+        captionsByUri: Map<Uri, String>,
+        replyIndex: Int,
     ) {
         for ((index, attach) in items.withIndex()) {
             val media = attach as? Attachment.Media ?: continue
+            val perItemCaption = captionsByUri[media.localMedia.uri]?.takeIf { it.isNotEmpty() }
             runCatchingExceptions {
                 mediaSender.sendMedia(
                     uri = media.localMedia.uri,
                     mimeType = media.localMedia.info.mimeType,
-                    caption = if (index == captionIndex) caption else null,
-                    inReplyToEventId = if (index == captionIndex) inReplyToEventId else null,
+                    caption = perItemCaption,
+                    inReplyToEventId = if (index == replyIndex) inReplyToEventId else null,
                     mediaOptimizationConfig = mediaOptimizationConfig,
                 ).getOrThrow()
             }.onFailure { cause ->
