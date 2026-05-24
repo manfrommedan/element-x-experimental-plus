@@ -32,6 +32,8 @@ import io.element.android.features.messages.impl.timeline.model.event.TimelineIt
 import io.element.android.features.messages.impl.timeline.model.event.TimelineItemVoiceContent
 import io.element.android.features.messages.impl.timeline.model.event.ensureActiveLiveLocation
 import io.element.android.libraries.architecture.Presenter
+import io.element.android.libraries.matrix.api.core.TransactionId
+import io.element.android.libraries.matrix.api.timeline.item.event.LocalEventSendState
 import io.element.android.libraries.voiceplayer.api.VoiceMessageState
 import io.element.android.wysiwyg.link.Link
 
@@ -47,7 +49,13 @@ fun TimelineItemEventContentView(
     eventSink: (TimelineEvent.TimelineItemEvent) -> Unit,
     modifier: Modifier = Modifier,
     onContentLayoutChange: (ContentAvoidingLayoutData) -> Unit = {},
+    localSendState: LocalEventSendState? = null,
+    transactionId: TransactionId? = null,
 ) {
+    val mediaUploadProgress = localSendState as? LocalEventSendState.Sending.MediaWithProgress
+    val onCancelUpload: (() -> Unit)? = transactionId?.takeIf { mediaUploadProgress != null }?.let { txn ->
+        { eventSink(TimelineEvent.CancelMediaUpload(txn)) }
+    }
     val presenterFactories = LocalTimelineItemPresenterFactories.current
     when (content) {
         is TimelineItemEncryptedContent -> TimelineItemEncryptedView(
@@ -88,6 +96,8 @@ fun TimelineItemEventContentView(
             onLinkClick = onLinkClick,
             onLinkLongClick = onLinkLongClick,
             onContentLayoutChange = onContentLayoutChange,
+            uploadProgress = mediaUploadProgress,
+            onCancelUpload = onCancelUpload,
             modifier = modifier,
         )
         is TimelineItemStickerContent -> TimelineItemStickerView(
@@ -107,6 +117,8 @@ fun TimelineItemEventContentView(
             onLinkClick = onLinkClick,
             onLinkLongClick = onLinkLongClick,
             onContentLayoutChange = onContentLayoutChange,
+            uploadProgress = mediaUploadProgress,
+            onCancelUpload = onCancelUpload,
             modifier = modifier
         )
         is TimelineItemFileContent -> TimelineItemFileView(

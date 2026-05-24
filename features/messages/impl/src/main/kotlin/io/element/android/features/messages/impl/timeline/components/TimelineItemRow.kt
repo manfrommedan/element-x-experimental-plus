@@ -99,7 +99,9 @@ internal fun TimelineItemRow(
                 onLinkLongClick = onLinkLongClick,
                 eventSink = eventSink,
                 modifier = contentModifier,
-                onContentLayoutChange = onContentLayoutChange
+                onContentLayoutChange = onContentLayoutChange,
+                localSendState = event.localSendState,
+                transactionId = event.transactionId,
             )
         },
 ) {

@@ -206,6 +206,11 @@ class TimelinePresenter(
                 is TimelineEvent.StopLiveLocationShare -> sessionCoroutineScope.launch {
                     liveLocationShareManager.stopShare(room.roomId)
                 }
+                is TimelineEvent.CancelMediaUpload -> sessionCoroutineScope.launch {
+                    timelineController.invokeOnCurrentTimeline {
+                        cancelSend(event.transactionId)
+                    }
+                }
                 is TimelineEvent.FocusOnEvent -> sessionCoroutineScope.launch {
                     focusRequestState.value = FocusRequestState.Requested(event.eventId, event.debounce)
                     delay(event.debounce)

@@ -79,6 +79,8 @@ fun TimelineItemVideoView(
     onLinkLongClick: (Link) -> Unit,
     onContentLayoutChange: (ContentAvoidingLayoutData) -> Unit,
     modifier: Modifier = Modifier,
+    uploadProgress: io.element.android.libraries.matrix.api.timeline.item.event.LocalEventSendState.Sending.MediaWithProgress? = null,
+    onCancelUpload: (() -> Unit)? = null,
 ) {
     val isTalkbackActive = isTalkbackActive()
     val a11yLabel = stringResource(CommonStrings.common_video)
@@ -130,16 +132,24 @@ fun TimelineItemVideoView(
                     onState = { isLoaded = it is AsyncImagePainter.State.Success },
                 )
 
-                Box(
-                    modifier = Modifier.roundedBackground(),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Image(
-                        imageVector = CompoundIcons.PlaySolid(),
-                        contentDescription = stringResource(id = CommonStrings.a11y_play),
-                        colorFilter = ColorFilter.tint(Color.White),
-                        modifier = Modifier.semantics { hideFromAccessibility() }
+                if (uploadProgress != null && onCancelUpload != null) {
+                    MediaUploadOverlay(
+                        progress = uploadProgress.progress,
+                        total = uploadProgress.total,
+                        onCancel = onCancelUpload,
                     )
+                } else {
+                    Box(
+                        modifier = Modifier.roundedBackground(),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Image(
+                            imageVector = CompoundIcons.PlaySolid(),
+                            contentDescription = stringResource(id = CommonStrings.a11y_play),
+                            colorFilter = ColorFilter.tint(Color.White),
+                            modifier = Modifier.semantics { hideFromAccessibility() }
+                        )
+                    }
                 }
             }
         }

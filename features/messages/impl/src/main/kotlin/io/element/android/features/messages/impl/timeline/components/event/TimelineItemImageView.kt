@@ -70,6 +70,8 @@ fun TimelineItemImageView(
     onShowContentClick: () -> Unit,
     onContentLayoutChange: (ContentAvoidingLayoutData) -> Unit,
     modifier: Modifier = Modifier,
+    uploadProgress: io.element.android.libraries.matrix.api.timeline.item.event.LocalEventSendState.Sending.MediaWithProgress? = null,
+    onCancelUpload: (() -> Unit)? = null,
 ) {
     val a11yLabel = stringResource(CommonStrings.common_image)
     val description = content.caption?.let { "$a11yLabel: $it" } ?: a11yLabel
@@ -110,6 +112,13 @@ fun TimelineItemImageView(
                     contentDescription = description,
                     onState = { isLoaded = it is AsyncImagePainter.State.Success },
                 )
+                if (uploadProgress != null && onCancelUpload != null) {
+                    MediaUploadOverlay(
+                        progress = uploadProgress.progress,
+                        total = uploadProgress.total,
+                        onCancel = onCancelUpload,
+                    )
+                }
             }
         }
 
