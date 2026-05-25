@@ -108,7 +108,13 @@ internal class CoilMediaFetcher(
                 fileSystem = FileSystem.SYSTEM,
             ),
             mimeType = null,
-            dataSource = DataSource.MEMORY
+            // NETWORK (not MEMORY) so Coil persists the bytes to its disk cache.
+            // Upstream tagged MEMORY because matrix-rust-sdk already caches, but
+            // that prevented Coil's disk cache from being populated - so on app
+            // restart (memory cache lost) the wifi-only fetcher gate had no
+            // cached path to fall back to and every thumbnail surfaced the
+            // tap-to-download overlay again.
+            dataSource = DataSource.NETWORK
         )
     }
 }
