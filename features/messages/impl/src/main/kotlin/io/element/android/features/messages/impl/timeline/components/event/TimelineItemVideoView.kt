@@ -30,6 +30,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
@@ -106,6 +107,7 @@ fun TimelineItemVideoView(
                 AsyncImage(
                     modifier = Modifier
                         .fillMaxWidth()
+                        .then(if (uploadProgress != null) Modifier.blur(12.dp) else Modifier)
                         .then(if (isLoaded) Modifier.background(Color.White) else Modifier)
                         .then(
                             if (!isTalkbackActive && onContentClick != null) {

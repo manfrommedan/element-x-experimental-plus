@@ -124,11 +124,15 @@ fun TimelineItemEventContentView(
         is TimelineItemFileContent -> TimelineItemFileView(
             content = content,
             onContentLayoutChange = onContentLayoutChange,
+            uploadProgress = mediaUploadProgress,
+            onCancelUpload = onCancelUpload,
             modifier = modifier
         )
         is TimelineItemAudioContent -> TimelineItemAudioView(
             content = content,
             onContentLayoutChange = onContentLayoutChange,
+            uploadProgress = mediaUploadProgress,
+            onCancelUpload = onCancelUpload,
             modifier = modifier
         )
         is TimelineItemLegacyCallInviteContent -> TimelineItemLegacyCallInviteView(modifier = modifier)
@@ -147,6 +151,8 @@ fun TimelineItemEventContentView(
                 state = presenter.present(),
                 content = content,
                 onContentLayoutChange = onContentLayoutChange,
+                uploadProgress = mediaUploadProgress,
+                onCancelUpload = onCancelUpload,
                 modifier = modifier
             )
         }
