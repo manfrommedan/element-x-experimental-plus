@@ -45,7 +45,6 @@ fun aAdvancedSettingsState(
     setTimelineMediaPreviewAction: AsyncAction<Unit> = AsyncAction.Uninitialized,
     setHideInviteAvatarsAction: AsyncAction<Unit> = AsyncAction.Uninitialized,
     hideRedactedEvents: Boolean = false,
-    geoapifyApiKey: String? = null,
     eventSink: (AdvancedSettingsEvents) -> Unit = {},
 ) = AdvancedSettingsState(
     isDeveloperModeEnabled = isDeveloperModeEnabled,
@@ -61,6 +60,5 @@ fun aAdvancedSettingsState(
     ),
     liveLocationMinimumDistanceUpdate = liveLocationMinimumDistanceUpdate,
     hideRedactedEvents = hideRedactedEvents,
-    geoapifyApiKey = geoapifyApiKey,
     eventSink = eventSink
 )

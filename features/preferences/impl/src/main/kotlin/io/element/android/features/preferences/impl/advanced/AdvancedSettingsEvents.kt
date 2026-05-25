@@ -20,7 +20,6 @@ sealed interface AdvancedSettingsEvents {
     data class SetTheme(val theme: ThemeOption) : AdvancedSettingsEvents
     data class SetTimelineMediaPreviewValue(val value: MediaPreviewValue) : AdvancedSettingsEvents
     data class SetHideInviteAvatars(val value: Boolean) : AdvancedSettingsEvents
-    data class SetHideRedactedEvents(val value: Boolean) : AdvancedSettingsEvents
-    data class SetGeoapifyApiKey(val value: String?) : AdvancedSettingsEvents
     data class SetLiveLocationMinimumDistanceUpdate(val value: Int) : AdvancedSettingsEvents
+    data class SetHideRedactedEvents(val value: Boolean) : AdvancedSettingsEvents
 }

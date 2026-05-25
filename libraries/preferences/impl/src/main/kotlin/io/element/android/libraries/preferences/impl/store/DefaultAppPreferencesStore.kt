@@ -31,7 +31,6 @@ private val hideInviteAvatarsKey = booleanPreferencesKey("hideInviteAvatars")
 private val timelineMediaPreviewValueKey = stringPreferencesKey("timelineMediaPreviewValue")
 private val liveLocationMinimumDistanceUpdateKey = intPreferencesKey("liveLocationMinimumDistanceUpdate")
 private val hideRedactedEventsKey = booleanPreferencesKey("hideRedactedEvents")
-private val geoapifyApiKeyKey = stringPreferencesKey("geoapifyApiKey")
 private val logLevelKey = stringPreferencesKey("logLevel")
 private val traceLogPacksKey = stringPreferencesKey("traceLogPacks")
 
@@ -132,32 +131,11 @@ class DefaultAppPreferencesStore(
     }
 
     override suspend fun setHideRedactedEvents(value: Boolean) {
-        store.edit { prefs ->
-            prefs[hideRedactedEventsKey] = value
-        }
+        store.edit { prefs -> prefs[hideRedactedEventsKey] = value }
     }
 
     override fun getHideRedactedEventsFlow(): Flow<Boolean> {
-        return store.data.map { prefs ->
-            prefs[hideRedactedEventsKey] ?: false
-        }
-    }
-
-    override suspend fun setGeoapifyApiKey(value: String?) {
-        store.edit { prefs ->
-            val trimmed = value?.trim()
-            if (trimmed.isNullOrEmpty()) {
-                prefs.remove(geoapifyApiKeyKey)
-            } else {
-                prefs[geoapifyApiKeyKey] = trimmed
-            }
-        }
-    }
-
-    override fun getGeoapifyApiKeyFlow(): Flow<String?> {
-        return store.data.map { prefs ->
-            prefs[geoapifyApiKeyKey]
-        }
+        return store.data.map { prefs -> prefs[hideRedactedEventsKey] ?: false }
     }
 
     override suspend fun setTracingLogLevel(logLevel: LogLevel) {

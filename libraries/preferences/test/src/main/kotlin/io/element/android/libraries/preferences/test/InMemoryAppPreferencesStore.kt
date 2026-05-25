@@ -34,7 +34,6 @@ class InMemoryAppPreferencesStore(
     private val hideInviteAvatars = MutableStateFlow(hideInviteAvatars)
     private val timelineMediaPreviewValue = MutableStateFlow(timelineMediaPreviewValue)
     private val hideRedactedEvents = MutableStateFlow(false)
-    private val geoapifyApiKey = MutableStateFlow<String?>(null)
 
     override suspend fun setDeveloperModeEnabled(enabled: Boolean) {
         isDeveloperModeEnabled.value = enabled
@@ -88,21 +87,8 @@ class InMemoryAppPreferencesStore(
         timelineMediaPreviewValue.value = mediaPreviewValue
     }
 
-    override suspend fun setHideRedactedEvents(value: Boolean) {
-        hideRedactedEvents.value = value
-    }
-
-    override fun getHideRedactedEventsFlow(): Flow<Boolean> {
-        return hideRedactedEvents
-    }
-
-    override suspend fun setGeoapifyApiKey(value: String?) {
-        geoapifyApiKey.value = value?.trim()?.takeIf { it.isNotEmpty() }
-    }
-
-    override fun getGeoapifyApiKeyFlow(): Flow<String?> {
-        return geoapifyApiKey
-    }
+    override suspend fun setHideRedactedEvents(value: Boolean) { hideRedactedEvents.value = value }
+    override fun getHideRedactedEventsFlow(): Flow<Boolean> = hideRedactedEvents
 
     override suspend fun setTracingLogLevel(logLevel: LogLevel) {
         this.logLevel.value = logLevel

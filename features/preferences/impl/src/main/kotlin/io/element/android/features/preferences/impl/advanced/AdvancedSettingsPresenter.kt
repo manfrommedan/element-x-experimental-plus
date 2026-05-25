@@ -61,10 +61,6 @@ class AdvancedSettingsPresenter(
             appPreferencesStore.getHideRedactedEventsFlow()
         }.collectAsState(initial = false)
 
-        val geoapifyApiKey by remember {
-            appPreferencesStore.getGeoapifyApiKeyFlow()
-        }.collectAsState(initial = null)
-
         val mediaPreviewConfigState = mediaPreviewConfigStateStore.state()
 
         val themeOption by remember {
@@ -128,15 +124,12 @@ class AdvancedSettingsPresenter(
                     }
                 }
                 is AdvancedSettingsEvents.SetHideInviteAvatars -> mediaPreviewConfigStateStore.setHideInviteAvatars(event.value)
-                is AdvancedSettingsEvents.SetHideRedactedEvents -> sessionCoroutineScope.launch {
-                    appPreferencesStore.setHideRedactedEvents(event.value)
-                }
-                is AdvancedSettingsEvents.SetGeoapifyApiKey -> sessionCoroutineScope.launch {
-                    appPreferencesStore.setGeoapifyApiKey(event.value)
-                }
                 is AdvancedSettingsEvents.SetTimelineMediaPreviewValue -> mediaPreviewConfigStateStore.setTimelineMediaPreviewValue(event.value)
                 is AdvancedSettingsEvents.SetLiveLocationMinimumDistanceUpdate -> sessionCoroutineScope.launch {
                     appPreferencesStore.setLiveLocationMinimumDistanceInMetersUpdate(event.value)
+                }
+                is AdvancedSettingsEvents.SetHideRedactedEvents -> sessionCoroutineScope.launch {
+                    appPreferencesStore.setHideRedactedEvents(event.value)
                 }
                 is AdvancedSettingsEvents.SetCompressImages -> sessionCoroutineScope.launch {
                     sessionPreferencesStore.setOptimizeImages(event.compress)
@@ -156,7 +149,6 @@ class AdvancedSettingsPresenter(
             mediaPreviewConfigState = mediaPreviewConfigState,
             liveLocationMinimumDistanceUpdate = liveLocationMinimumDistanceUpdate,
             hideRedactedEvents = hideRedactedEvents,
-            geoapifyApiKey = geoapifyApiKey,
             eventSink = ::handleEvent,
         )
     }

@@ -18,13 +18,13 @@ import kotlin.math.roundToInt
  */
 internal class MapTilerStaticMapUrlBuilder(
     private val baseUrl: String,
-    private val apiKeyProvider: () -> String,
+    private val apiKey: String,
     private val lightMapId: String,
     private val darkMapId: String,
 ) : StaticMapUrlBuilder {
     constructor() : this(
         baseUrl = BuildConfig.MAPTILER_BASE_URL.removeSuffix("/"),
-        apiKeyProvider = { MapTilerKeyHolder.current() },
+        apiKey = BuildConfig.MAPTILER_API_KEY,
         lightMapId = BuildConfig.MAPTILER_LIGHT_MAP_ID,
         darkMapId = BuildConfig.MAPTILER_DARK_MAP_ID,
     )
@@ -58,10 +58,10 @@ internal class MapTilerStaticMapUrlBuilder(
         // image smaller than the available space in pixels.
         // The resulting image will have to be scaled to fit the available space in order
         // to keep the perceived content size constant at the expense of sharpness.
-        return "$baseUrl/$mapId/static/$lon,$lat,$finalZoom/${finalWidth}x${finalHeight}$scale.webp?key=${apiKeyProvider()}&attribution=topright"
+        return "$baseUrl/$mapId/static/$lon,$lat,$finalZoom/${finalWidth}x${finalHeight}$scale.webp?key=$apiKey&attribution=topright"
     }
 
-    override fun isServiceAvailable() = apiKeyProvider().isNotEmpty()
+    override fun isServiceAvailable() = apiKey.isNotEmpty()
 }
 
 private fun coerceWidthAndHeight(width: Int, height: Int, is2x: Boolean): Pair<Int, Int> {

@@ -25,7 +25,6 @@ data class AdvancedSettingsState(
     val mediaPreviewConfigState: MediaPreviewConfigState,
     val liveLocationMinimumDistanceUpdate: Int?,
     val hideRedactedEvents: Boolean,
-    val geoapifyApiKey: String?,
     val eventSink: (AdvancedSettingsEvents) -> Unit
 )
 
