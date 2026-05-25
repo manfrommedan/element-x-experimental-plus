@@ -53,8 +53,7 @@ import kotlinx.collections.immutable.toImmutableList
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlinx.coroutines.flow.drop
+import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import timber.log.Timber
@@ -116,21 +115,26 @@ class AttachmentsPreviewPresenter(
         val captions = remember { mutableStateMapOf<Uri, String>() }
         LaunchedEffect(currentIndex) {
             val media = attachmentList.getOrNull(currentIndex) as? Attachment.Media ?: return@LaunchedEffect
-            // Reload caption for the new slide so the editor reflects what the user previously
-            // typed there. true = treat as user-edited (no auto-formatting interference).
-            markdownTextEditorState.text.update(captions[media.localMedia.uri].orEmpty(), true)
-            // Continuously persist every keystroke under THIS slide's URI. drop(1) skips the
-            // baseline emission, which can be the stale prior-slide text if the update() above
-            // has not propagated through Compose's snapshot system yet - without this guard,
-            // swiping to a new slide right after typing on the previous one would copy that
-            // typing onto the new slide's URI. distinctUntilChanged keeps work to a minimum.
-            snapshotFlow { markdownTextEditorState.text.value().toString() }
-                .distinctUntilChanged()
-                .drop(1)
-                .collect { text ->
-                    if (text.isEmpty()) captions.remove(media.localMedia.uri)
-                    else captions[media.localMedia.uri] = text
+            val uri = media.localMedia.uri
+            val loaded = captions[uri].orEmpty()
+            // Load this slide's draft into the editor on entry.
+            markdownTextEditorState.text.update(loaded, true)
+            try {
+                awaitCancellation()
+            } finally {
+                // Commit exactly once on swipe-away (or unmount). Snapshotting the
+                // editor text per-keystroke caused a race: update("") from the
+                // incoming slide's LE propagated to this slide's still-suspended
+                // collector before cancellation aborted it, wiping freshly-typed
+                // captions and occasionally leaking text across slides. Persisting
+                // only at the cancellation boundary eliminates the cross-slide
+                // contamination. Guarded by `text != loaded` so a pure visit
+                // (no typing) leaves the existing draft untouched.
+                val text = markdownTextEditorState.text.value().toString()
+                if (text != loaded) {
+                    if (text.isEmpty()) captions.remove(uri) else captions[uri] = text
                 }
+            }
         }
         val mediaAttachment = current as Attachment.Media
         val mediaOptimizationSelectorPresenter = remember(currentIndex) {
