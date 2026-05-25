@@ -478,7 +478,7 @@ private fun FocusRequestState.onFocusEventRender(): FocusRequestState {
     }
 }
 
-private fun List<TimelineItem>.dropOrphanDaySeparators(): List<TimelineItem> {
+internal fun List<TimelineItem>.dropOrphanDaySeparators(): List<TimelineItem> {
     val result = mutableListOf<TimelineItem>()
     for ((index, item) in this.withIndex()) {
         val isDaySeparator = item is TimelineItem.Virtual &&

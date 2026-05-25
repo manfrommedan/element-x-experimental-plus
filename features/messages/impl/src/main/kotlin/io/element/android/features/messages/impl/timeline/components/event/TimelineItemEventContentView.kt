@@ -38,6 +38,15 @@ import io.element.android.libraries.matrix.api.timeline.item.event.LocalEventSen
 import io.element.android.libraries.voiceplayer.api.VoiceMessageState
 import io.element.android.wysiwyg.link.Link
 
+/**
+ * True iff the cancel-X overlay should be shown on a media bubble: there must be a
+ * transactionId to address `Timeline.cancelSend(...)`, AND the item must still be
+ * in any `Sending` substate (queued `Sending.Event` or active `Sending.MediaWithProgress`).
+ * Extracted from the Composable so it can be unit-tested.
+ */
+internal fun canCancelUpload(transactionId: TransactionId?, localSendState: LocalEventSendState?): Boolean =
+    transactionId != null && localSendState is LocalEventSendState.Sending
+
 @Composable
 fun TimelineItemEventContentView(
     content: TimelineItemEventContent,
@@ -56,10 +65,10 @@ fun TimelineItemEventContentView(
     // Show the cancel-X for ANY pending media (queued or actively uploading).
     // Queued items report Sending.Event (no progress) - we still render the
     // overlay so the whole batch can be aborted, not just the active one.
-    val isSending = localSendState is LocalEventSendState.Sending
+    val canCancelUpload = canCancelUpload(transactionId, localSendState)
     val mediaUploadProgress = localSendState as? LocalEventSendState.Sending.MediaWithProgress
-    val onCancelUpload: (() -> Unit)? = remember(transactionId, isSending, eventSink) {
-        if (transactionId != null && isSending) {
+    val onCancelUpload: (() -> Unit)? = remember(transactionId, canCancelUpload, eventSink) {
+        if (canCancelUpload && transactionId != null) {
             { eventSink(TimelineEvent.CancelMediaUpload(transactionId)) }
         } else {
             null
