@@ -101,6 +101,8 @@ import kotlinx.coroutines.withContext
 import timber.log.Timber
 import java.util.concurrent.atomic.AtomicBoolean
 
+private const val BULK_REDACT_THROTTLE_MS = 200L
+
 @AssistedInject
 class MessagesPresenter(
     @Assisted private val navigator: MessagesNavigator,
@@ -289,7 +291,6 @@ class MessagesPresenter(
                 MessagesEvent.BulkRedactSelected -> {
                     val targets = selectionState.selectedIds.toList()
                     if (targets.isEmpty()) return@handleEvent
-                    val snapshot = selectionState
                     selectionState = io.element.android.features.messages.impl.selection.TimelineSelectionState()
                     sessionCoroutineScope.launch {
                         var failures = 0
@@ -299,9 +300,14 @@ class MessagesPresenter(
                                 reason = null,
                             )
                             if (res.isFailure) failures += 1
-                            kotlinx.coroutines.delay(200) // throttle against Synapse per-room redact rate-limit
+                            // Throttle against Synapse's per-room redact rate limit
+                            // (homeservers reject bursts of redact requests). 200 ms
+                            // gives 5 ops/sec which stays under the default limit and
+                            // still lets a 30-message batch finish in ~6 s.
+                            kotlinx.coroutines.delay(BULK_REDACT_THROTTLE_MS)
                         }
                         if (failures > 0) {
+                            Timber.w("BulkRedact: $failures of ${targets.size} redact requests failed")
                             snackbarDispatcher.post(SnackbarMessage(CommonStrings.common_error))
                         }
                     }
@@ -328,9 +334,13 @@ class MessagesPresenter(
                     navigator.forwardEvents(orderedTargets)
                 }
                 MessagesEvent.SelectAllVisible -> {
-                    // Take loaded timeline events with a resolved eventId, skipping redacted
-                    // (deleted) ones, capped at maxSelection.
+                    // timelineItems is oldest-first; the LazyColumn renders with
+                    // reverseLayout=true so the user is looking at the NEWEST end.
+                    // Walk from the end so SelectAll picks the newest maxSelection
+                    // items the user actually has in front of them, not the oldest
+                    // window of loaded history.
                     val ids = timelineState.timelineItems
+                        .asReversed()
                         .asSequence()
                         .filterIsInstance<io.element.android.features.messages.impl.timeline.model.TimelineItem.Event>()
                         .filterNot { it.content is io.element.android.features.messages.impl.timeline.model.event.TimelineItemRedactedContent }
