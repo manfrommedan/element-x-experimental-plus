@@ -117,7 +117,8 @@ fun TimelineItemImageView(
                 val painter = rememberAsyncImagePainter(model = request)
                 val painterState by painter.state.collectAsState()
                 val isLoaded = painterState is AsyncImagePainter.State.Success
-                val showTapToDownload = shouldShowTapToDownload(networkAllowed, painterState)
+                // Wifi-only + not yet cached -> show the prompt.
+                val showTapToDownload = !networkAllowed && painterState is AsyncImagePainter.State.Error
                 if (!showTapToDownload) {
                     androidx.compose.foundation.Image(
                         modifier = Modifier
