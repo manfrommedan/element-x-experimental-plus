@@ -83,15 +83,17 @@ class MessagesPresenterSelectionTest {
 
     @Test
     fun `SelectAllVisible picks the NEWEST maxSelection events, not the oldest`() = runTest {
-        // timelineItems is oldest-first; LazyColumn renders reverseLayout=true. The user
-        // sees the newest end at the bottom. Cap = 30; build a 40-event window with the
-        // oldest 10 having distinctly-recognisable ids ("OLD-*") and the newest 30 ("NEW-*").
+        // timelineItems is newest-first (TimelineItemsFactory emits items via the
+        // diff cache walked in reverse). LazyColumn renders reverseLayout=true so
+        // the first list item draws at the bottom of the screen - which is the
+        // newest event. Cap = 30; oldest 10 in the tail of the list, newest 30 in
+        // the head.
         val cap = TimelineSelectionState.MAX_SELECTION
-        val oldIds = (0 until 10).map { EventId("\$OLD-$it") }
         val newIds = (0 until cap).map { EventId("\$NEW-$it") }
-        val orderedOldestFirst = (oldIds + newIds).map { aTimelineItemEvent(eventId = it) }
+        val oldIds = (0 until 10).map { EventId("\$OLD-$it") }
+        val orderedNewestFirst = (newIds + oldIds).map { aTimelineItemEvent(eventId = it) }
         val presenter = createMessagesPresenter(
-            timelineItems = orderedOldestFirst.toImmutableList(),
+            timelineItems = orderedNewestFirst.toImmutableList(),
         )
         presenter.testWithLifecycleOwner {
             val state = awaitItem()

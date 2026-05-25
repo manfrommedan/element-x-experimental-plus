@@ -334,13 +334,12 @@ class MessagesPresenter(
                     navigator.forwardEvents(orderedTargets)
                 }
                 MessagesEvent.SelectAllVisible -> {
-                    // timelineItems is oldest-first; the LazyColumn renders with
-                    // reverseLayout=true so the user is looking at the NEWEST end.
-                    // Walk from the end so SelectAll picks the newest maxSelection
-                    // items the user actually has in front of them, not the oldest
-                    // window of loaded history.
+                    // timelineItems is newest-first (TimelineItemsFactory walks the
+                    // diff cache in reverse before emitting). LazyColumn renders
+                    // reverseLayout=true so the first item in the list draws at the
+                    // BOTTOM of the screen, which is exactly where the user is
+                    // looking. Just take from the head - that's the newest N events.
                     val ids = timelineState.timelineItems
-                        .asReversed()
                         .asSequence()
                         .filterIsInstance<io.element.android.features.messages.impl.timeline.model.TimelineItem.Event>()
                         .filterNot { it.content is io.element.android.features.messages.impl.timeline.model.event.TimelineItemRedactedContent }
