@@ -24,6 +24,7 @@ import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.LocalTextStyle
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -107,10 +108,29 @@ fun TimelineItemVideoView(
             ) {
                 val autoLoad = LocalAutoLoadMedia.current
                 var userTapped by rememberSaveable { mutableStateOf(false) }
-                val shouldLoad = autoLoad || userTapped || onCancelUpload != null
-                var isLoaded by remember { mutableStateOf(false) }
-                if (shouldLoad) {
-                    AsyncImage(
+                val networkAllowed = autoLoad || userTapped || onCancelUpload != null
+                val context = coil3.compose.LocalPlatformContext.current
+                val mediaRequestData = MediaRequestData(
+                    source = content.thumbnailSource,
+                    kind = MediaRequestData.Kind.Thumbnail(
+                        width = content.thumbnailWidth?.toLong() ?: MAX_THUMBNAIL_WIDTH,
+                        height = content.thumbnailHeight?.toLong() ?: MAX_THUMBNAIL_HEIGHT,
+                    )
+                )
+                val request = remember(mediaRequestData, networkAllowed) {
+                    coil3.request.ImageRequest.Builder(context)
+                        .data(mediaRequestData)
+                        .apply {
+                            if (!networkAllowed) networkCachePolicy(coil3.request.CachePolicy.DISABLED)
+                        }
+                        .build()
+                }
+                val painter = coil3.compose.rememberAsyncImagePainter(model = request)
+                val painterState by painter.state.collectAsState()
+                val isLoaded = painterState is AsyncImagePainter.State.Success
+                val showTapToDownload = !networkAllowed && painterState is AsyncImagePainter.State.Error
+                if (!showTapToDownload) {
+                    androidx.compose.foundation.Image(
                         modifier = Modifier
                             .fillMaxWidth()
                             .then(if (onCancelUpload != null) Modifier.blur(12.dp) else Modifier)
@@ -127,17 +147,10 @@ fun TimelineItemVideoView(
                                     Modifier
                                 }
                             ),
-                        model = MediaRequestData(
-                            source = content.thumbnailSource,
-                            kind = MediaRequestData.Kind.Thumbnail(
-                                width = content.thumbnailWidth?.toLong() ?: MAX_THUMBNAIL_WIDTH,
-                                height = content.thumbnailHeight?.toLong() ?: MAX_THUMBNAIL_HEIGHT,
-                            )
-                        ),
+                        painter = painter,
                         contentScale = ContentScale.Crop,
                         alignment = Alignment.Center,
                         contentDescription = description,
-                        onState = { isLoaded = it is AsyncImagePainter.State.Success },
                     )
                 } else {
                     TapToDownloadOverlay(
@@ -156,7 +169,7 @@ fun TimelineItemVideoView(
                         total = uploadProgress?.total ?: 0L,
                         onCancel = onCancelUpload,
                     )
-                } else if (shouldLoad) {
+                } else if (!showTapToDownload) {
                     Box(
                         modifier = Modifier.roundedBackground(),
                         contentAlignment = Alignment.Center,

@@ -22,6 +22,7 @@ import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.LocalTextStyle
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -33,12 +34,17 @@ import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalInspectionMode
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.PreviewParameter
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import coil3.compose.AsyncImagePainter
+import coil3.compose.rememberAsyncImagePainter
+import coil3.compose.LocalPlatformContext
+import coil3.request.CachePolicy
+import coil3.request.ImageRequest
 import io.element.android.compound.theme.ElementTheme
 import io.element.android.features.messages.impl.timeline.aTimelineItemEvent
 import io.element.android.features.messages.impl.timeline.components.ATimelineItemEventRow
@@ -94,10 +100,27 @@ fun TimelineItemImageView(
             ) {
                 val autoLoad = LocalAutoLoadMedia.current
                 var userTapped by rememberSaveable { mutableStateOf(false) }
-                val shouldLoad = autoLoad || userTapped || onCancelUpload != null
-                var isLoaded by remember { mutableStateOf(false) }
-                if (shouldLoad) {
-                    AsyncImage(
+                val networkAllowed = autoLoad || userTapped || onCancelUpload != null
+                val context = LocalPlatformContext.current
+                // Always issue the request, but disable the network leg when wifi-only
+                // is on and the user hasn't asked. Memory + disk cache still satisfy it,
+                // so a thumbnail Coil already has stays visible across scrolls instead of
+                // reverting to the tap-to-download placeholder.
+                val request = remember(content.thumbnailMediaRequestData, networkAllowed) {
+                    ImageRequest.Builder(context)
+                        .data(content.thumbnailMediaRequestData)
+                        .apply {
+                            if (!networkAllowed) networkCachePolicy(CachePolicy.DISABLED)
+                        }
+                        .build()
+                }
+                val painter = rememberAsyncImagePainter(model = request)
+                val painterState by painter.state.collectAsState()
+                val isLoaded = painterState is AsyncImagePainter.State.Success
+                // Wifi-only + not yet cached -> show the prompt.
+                val showTapToDownload = !networkAllowed && painterState is AsyncImagePainter.State.Error
+                if (!showTapToDownload) {
+                    androidx.compose.foundation.Image(
                         modifier = Modifier
                             .fillMaxWidth()
                             .then(if (onCancelUpload != null) Modifier.blur(12.dp) else Modifier)
@@ -114,11 +137,10 @@ fun TimelineItemImageView(
                                     Modifier
                                 }
                             ),
-                        model = content.thumbnailMediaRequestData,
+                        painter = painter,
                         contentScale = ContentScale.Crop,
                         alignment = Alignment.Center,
                         contentDescription = description,
-                        onState = { isLoaded = it is AsyncImagePainter.State.Success },
                     )
                 } else {
                     TapToDownloadOverlay(
