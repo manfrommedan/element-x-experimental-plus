@@ -94,9 +94,22 @@ fun TimelineItemImageView(
             ) {
                 val autoLoad = LocalAutoLoadMedia.current
                 var userTapped by rememberSaveable { mutableStateOf(false) }
-                val shouldLoad = autoLoad || userTapped || onCancelUpload != null
-                var isLoaded by remember { mutableStateOf(false) }
-                if (shouldLoad) {
+                val networkAllowed = autoLoad || userTapped || onCancelUpload != null
+                // Always issue the request; the fetcher honors allowNetwork to
+                // refuse new fetches in wifi-only mode, but Coil's memory + disk
+                // caches are checked first - so previously loaded thumbnails
+                // render instantly even on mobile data. Tap-to-download only
+                // appears on the painter's Error state (cache miss + can't fetch).
+                val model = remember(content.thumbnailMediaRequestData, networkAllowed) {
+                    if (networkAllowed) content.thumbnailMediaRequestData
+                    else content.thumbnailMediaRequestData.copy(allowNetwork = false)
+                }
+                var painterState by remember(model) {
+                    mutableStateOf<AsyncImagePainter.State>(AsyncImagePainter.State.Empty)
+                }
+                val isLoaded = painterState is AsyncImagePainter.State.Success
+                val showTapToDownload = !networkAllowed && painterState is AsyncImagePainter.State.Error
+                if (!showTapToDownload) {
                     AsyncImage(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -114,11 +127,11 @@ fun TimelineItemImageView(
                                     Modifier
                                 }
                             ),
-                        model = content.thumbnailMediaRequestData,
+                        model = model,
                         contentScale = ContentScale.Crop,
                         alignment = Alignment.Center,
                         contentDescription = description,
-                        onState = { isLoaded = it is AsyncImagePainter.State.Success },
+                        onState = { painterState = it },
                     )
                 } else {
                     TapToDownloadOverlay(

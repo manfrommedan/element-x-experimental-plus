@@ -32,6 +32,15 @@ internal class CoilMediaFetcher(
             Timber.e("MediaData source is null")
             return null
         }
+        if (!mediaData.allowNetwork) {
+            // Wifi-only auto-download gate: refuse to invoke the matrix media
+            // loader (which would fetch over the wire). Coil's memory and disk
+            // caches were checked before us, so anything previously loaded is
+            // already rendered; the painter only reaches Error if neither cache
+            // had it, which is exactly when the UI wants to surface the
+            // tap-to-download prompt.
+            return null
+        }
         return when (val kind = mediaData.kind) {
             is MediaRequestData.Kind.Content -> fetchContent(mediaSource)
             is MediaRequestData.Kind.Thumbnail -> fetchThumbnail(mediaSource, kind)

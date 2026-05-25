@@ -107,9 +107,23 @@ fun TimelineItemVideoView(
             ) {
                 val autoLoad = LocalAutoLoadMedia.current
                 var userTapped by rememberSaveable { mutableStateOf(false) }
-                val shouldLoad = autoLoad || userTapped || onCancelUpload != null
-                var isLoaded by remember { mutableStateOf(false) }
-                if (shouldLoad) {
+                val networkAllowed = autoLoad || userTapped || onCancelUpload != null
+                val model = remember(content.thumbnailSource, content.thumbnailWidth, content.thumbnailHeight, networkAllowed) {
+                    MediaRequestData(
+                        source = content.thumbnailSource,
+                        kind = MediaRequestData.Kind.Thumbnail(
+                            width = content.thumbnailWidth?.toLong() ?: MAX_THUMBNAIL_WIDTH,
+                            height = content.thumbnailHeight?.toLong() ?: MAX_THUMBNAIL_HEIGHT,
+                        ),
+                        allowNetwork = networkAllowed,
+                    )
+                }
+                var painterState by remember(model) {
+                    mutableStateOf<AsyncImagePainter.State>(AsyncImagePainter.State.Empty)
+                }
+                val isLoaded = painterState is AsyncImagePainter.State.Success
+                val showTapToDownload = !networkAllowed && painterState is AsyncImagePainter.State.Error
+                if (!showTapToDownload) {
                     AsyncImage(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -127,17 +141,11 @@ fun TimelineItemVideoView(
                                     Modifier
                                 }
                             ),
-                        model = MediaRequestData(
-                            source = content.thumbnailSource,
-                            kind = MediaRequestData.Kind.Thumbnail(
-                                width = content.thumbnailWidth?.toLong() ?: MAX_THUMBNAIL_WIDTH,
-                                height = content.thumbnailHeight?.toLong() ?: MAX_THUMBNAIL_HEIGHT,
-                            )
-                        ),
+                        model = model,
                         contentScale = ContentScale.Crop,
                         alignment = Alignment.Center,
                         contentDescription = description,
-                        onState = { isLoaded = it is AsyncImagePainter.State.Success },
+                        onState = { painterState = it },
                     )
                 } else {
                     TapToDownloadOverlay(
@@ -156,7 +164,7 @@ fun TimelineItemVideoView(
                         total = uploadProgress?.total ?: 0L,
                         onCancel = onCancelUpload,
                     )
-                } else if (shouldLoad) {
+                } else if (!showTapToDownload) {
                     Box(
                         modifier = Modifier.roundedBackground(),
                         contentAlignment = Alignment.Center,
