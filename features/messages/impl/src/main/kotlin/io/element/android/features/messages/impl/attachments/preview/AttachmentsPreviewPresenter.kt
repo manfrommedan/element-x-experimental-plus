@@ -53,7 +53,6 @@ import kotlinx.collections.immutable.toImmutableList
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import timber.log.Timber
@@ -113,28 +112,26 @@ class AttachmentsPreviewPresenter(
 
         // Per-image caption store keyed by URI (stable across reorder; survives index shifts on Remove).
         val captions = remember { mutableStateMapOf<Uri, String>() }
+        // Load the slide's draft into the editor whenever the index changes.
+        // The companion commit (persist editor text under the OUTGOING slide's
+        // URI) is performed by the NavigateToPage handler BEFORE currentIndex
+        // changes - that ordering is reliable. Doing the commit inside this
+        // LaunchedEffect's finally block was unreliable: Compose runs the new
+        // LE's update("") before the old LE's finally, wiping the text we
+        // tried to capture.
         LaunchedEffect(currentIndex) {
             val media = attachmentList.getOrNull(currentIndex) as? Attachment.Media ?: return@LaunchedEffect
-            val uri = media.localMedia.uri
-            val loaded = captions[uri].orEmpty()
-            // Load this slide's draft into the editor on entry.
-            markdownTextEditorState.text.update(loaded, true)
-            try {
-                awaitCancellation()
-            } finally {
-                // Commit exactly once on swipe-away (or unmount). Snapshotting the
-                // editor text per-keystroke caused a race: update("") from the
-                // incoming slide's LE propagated to this slide's still-suspended
-                // collector before cancellation aborted it, wiping freshly-typed
-                // captions and occasionally leaking text across slides. Persisting
-                // only at the cancellation boundary eliminates the cross-slide
-                // contamination. Guarded by `text != loaded` so a pure visit
-                // (no typing) leaves the existing draft untouched.
-                val text = markdownTextEditorState.text.value().toString()
-                if (text != loaded) {
-                    if (text.isEmpty()) captions.remove(uri) else captions[uri] = text
-                }
-            }
+            markdownTextEditorState.text.update(captions[media.localMedia.uri].orEmpty(), true)
+        }
+
+        // Flush the editor text into [captions] under the currently active slide.
+        // Called before changing currentIndex (in NavigateToPage) and right before
+        // multi-attachment send.
+        fun commitCurrentDraft() {
+            val media = attachmentList.getOrNull(currentIndex) as? Attachment.Media ?: return
+            val text = markdownTextEditorState.text.value().toString()
+            if (text.isEmpty()) captions.remove(media.localMedia.uri)
+            else captions[media.localMedia.uri] = text
         }
         val mediaAttachment = current as Attachment.Media
         val mediaOptimizationSelectorPresenter = remember(currentIndex) {
@@ -202,6 +199,10 @@ class AttachmentsPreviewPresenter(
                 is AttachmentsPreviewEvent.NavigateToPage -> {
                     val target = event.index.coerceIn(0, attachmentList.lastIndex)
                     if (target != currentIndex) {
+                        // Persist this slide's draft BEFORE changing the index so the
+                        // LaunchedEffect(currentIndex) doesn't wipe it via update("")
+                        // for the new slide.
+                        commitCurrentDraft()
                         currentIndex = target
                     }
                 }
@@ -212,6 +213,9 @@ class AttachmentsPreviewPresenter(
                         cancelAndDismiss()
                         return
                     }
+                    // If the user is removing a slide other than the current one, the
+                    // current slide's draft must be preserved across the index shift.
+                    if (event.index != currentIndex) commitCurrentDraft()
                     val removed = attachmentList.removeAt(event.index)
                     (removed as? Attachment.Media)?.let {
                         temporaryUriDeleter.delete(it.localMedia.uri)

@@ -146,6 +146,39 @@ class AttachmentsPreviewCaptionTest {
     }
 
     @Test
+    fun `captioning slides 2, 3, and 10 in a 10-image batch lands each caption on its own slide`() = runTest {
+        // User's real scenario: large batch, captions on a few non-adjacent slides.
+        // Each caption must land on the right slide, untouched slides stay null.
+        val captionsInOrder = mutableListOf<String?>()
+        val presenter = createMultiAttachmentPresenter(
+            attachmentCount = 10,
+            sendImage = recordCaptions(captionsInOrder),
+        )
+        presenter.test {
+            val initial = awaitItem()
+            initial.eventSink(AttachmentsPreviewEvent.NavigateToPage(1))
+            val onSlide2 = consumeItemsUntilPredicate { it.currentIndex == 1 }.last()
+            onSlide2.textEditorState.setMarkdown("two")
+            onSlide2.eventSink(AttachmentsPreviewEvent.NavigateToPage(2))
+            val onSlide3 = consumeItemsUntilPredicate { it.currentIndex == 2 }.last()
+            // Editor must reload empty for slide 3 (no draft yet) - no leak from slide 2.
+            assertThat(onSlide3.textEditorState.messageMarkdown(FakePermalinkBuilder())).isEmpty()
+            onSlide3.textEditorState.setMarkdown("three")
+            onSlide3.eventSink(AttachmentsPreviewEvent.NavigateToPage(9))
+            val onSlide10 = consumeItemsUntilPredicate { it.currentIndex == 9 }.last()
+            assertThat(onSlide10.textEditorState.messageMarkdown(FakePermalinkBuilder())).isEmpty()
+            onSlide10.textEditorState.setMarkdown("ten")
+            onSlide10.eventSink(AttachmentsPreviewEvent.SendAttachment)
+            consumeItemsUntilTimeout(2.seconds)
+            advanceUntilIdle()
+            assertThat(captionsInOrder).containsExactly(
+                null, "two", "three", null, null, null, null, null, null, "ten",
+            ).inOrder()
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
     fun `untouched slides never get a caption even when other slides are captioned`() = runTest {
         // Tightest regression: jump straight to slide 5, type "only five", send.
         // Slide 1 must NOT inherit anything.
