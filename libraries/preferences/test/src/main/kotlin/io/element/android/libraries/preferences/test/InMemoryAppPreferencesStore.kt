@@ -34,6 +34,7 @@ class InMemoryAppPreferencesStore(
     private val hideInviteAvatars = MutableStateFlow(hideInviteAvatars)
     private val timelineMediaPreviewValue = MutableStateFlow(timelineMediaPreviewValue)
     private val hideRedactedEvents = MutableStateFlow(false)
+    private val mediaAutoDownloadOnWifiOnly = MutableStateFlow(false)
 
     override suspend fun setDeveloperModeEnabled(enabled: Boolean) {
         isDeveloperModeEnabled.value = enabled
@@ -89,6 +90,9 @@ class InMemoryAppPreferencesStore(
 
     override suspend fun setHideRedactedEvents(value: Boolean) { hideRedactedEvents.value = value }
     override fun getHideRedactedEventsFlow(): Flow<Boolean> = hideRedactedEvents
+
+    override suspend fun setMediaAutoDownloadOnWifiOnly(value: Boolean) { mediaAutoDownloadOnWifiOnly.value = value }
+    override fun getMediaAutoDownloadOnWifiOnlyFlow(): Flow<Boolean> = mediaAutoDownloadOnWifiOnly
 
     override suspend fun setTracingLogLevel(logLevel: LogLevel) {
         this.logLevel.value = logLevel

@@ -77,10 +77,16 @@ open class MainActivity : NodeActivity() {
             compoundDark = colors.dark,
             buildMeta = appBindings.buildMeta()
         ) {
+            val wifiOnly by remember {
+                appBindings.preferencesStore().getMediaAutoDownloadOnWifiOnlyFlow()
+            }.collectAsState(initial = false)
+            val isWifi = io.element.android.libraries.designsystem.components.media.rememberIsConnectedToWifi()
+            val autoLoadMedia = !wifiOnly || isWifi
             CompositionLocalProvider(
                 LocalSnackbarDispatcher provides appBindings.snackbarDispatcher(),
                 LocalUriHandler provides SafeUriHandler(this),
                 LocalAnalyticsService provides appBindings.analyticsService(),
+                io.element.android.libraries.designsystem.components.media.LocalAutoLoadMedia provides autoLoadMedia,
             ) {
                 Box(
                     modifier = Modifier

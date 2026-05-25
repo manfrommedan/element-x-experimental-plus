@@ -25,6 +25,7 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -50,6 +51,7 @@ import io.element.android.features.messages.impl.timeline.model.event.aTimelineI
 import io.element.android.features.messages.impl.timeline.protection.ProtectedView
 import io.element.android.features.messages.impl.timeline.protection.coerceRatioWhenHidingContent
 import io.element.android.libraries.designsystem.components.blurhash.blurHashBackground
+import io.element.android.libraries.designsystem.components.media.LocalAutoLoadMedia
 import io.element.android.libraries.designsystem.modifiers.onKeyboardContextMenuAction
 import io.element.android.libraries.designsystem.preview.ElementPreview
 import io.element.android.libraries.designsystem.preview.PreviewsDayNight
@@ -90,34 +92,48 @@ fun TimelineItemImageView(
                 hideContent = hideMediaContent,
                 onShowClick = onShowContentClick,
             ) {
+                val autoLoad = LocalAutoLoadMedia.current
+                var userTapped by rememberSaveable { mutableStateOf(false) }
+                val shouldLoad = autoLoad || userTapped || onCancelUpload != null
                 var isLoaded by remember { mutableStateOf(false) }
-                AsyncImage(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .then(if (uploadProgress != null) Modifier.blur(12.dp) else Modifier)
-                        .then(if (isLoaded) Modifier.background(Color.White) else Modifier)
-                        .then(
-                            if (!isTalkbackActive() && onContentClick != null) {
-                                Modifier
-                                    .combinedClickable(
-                                        onClick = onContentClick,
-                                        onLongClick = onLongClick,
-                                    )
-                                    .onKeyboardContextMenuAction(onLongClick)
-                            } else {
-                                Modifier
-                            }
-                        ),
-                    model = content.thumbnailMediaRequestData,
-                    contentScale = ContentScale.Crop,
-                    alignment = Alignment.Center,
-                    contentDescription = description,
-                    onState = { isLoaded = it is AsyncImagePainter.State.Success },
-                )
-                if (uploadProgress != null && onCancelUpload != null) {
+                if (shouldLoad) {
+                    AsyncImage(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .then(if (onCancelUpload != null) Modifier.blur(12.dp) else Modifier)
+                            .then(if (isLoaded) Modifier.background(Color.White) else Modifier)
+                            .then(
+                                if (!isTalkbackActive() && onContentClick != null) {
+                                    Modifier
+                                        .combinedClickable(
+                                            onClick = onContentClick,
+                                            onLongClick = onLongClick,
+                                        )
+                                        .onKeyboardContextMenuAction(onLongClick)
+                                } else {
+                                    Modifier
+                                }
+                            ),
+                        model = content.thumbnailMediaRequestData,
+                        contentScale = ContentScale.Crop,
+                        alignment = Alignment.Center,
+                        contentDescription = description,
+                        onState = { isLoaded = it is AsyncImagePainter.State.Success },
+                    )
+                } else {
+                    TapToDownloadOverlay(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .combinedClickable(
+                                onClick = { userTapped = true },
+                                onLongClick = onLongClick,
+                            ),
+                    )
+                }
+                if (onCancelUpload != null) {
                     MediaUploadOverlay(
-                        progress = uploadProgress.progress,
-                        total = uploadProgress.total,
+                        progress = uploadProgress?.progress ?: 0L,
+                        total = uploadProgress?.total ?: 0L,
                         onCancel = onCancelUpload,
                     )
                 }

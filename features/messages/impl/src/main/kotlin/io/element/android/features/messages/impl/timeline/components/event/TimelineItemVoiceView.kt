@@ -145,10 +145,10 @@ fun TimelineItemVoiceView(
             onSeek = { state.eventSink(VoiceMessageEvent.Seek(it)) },
         )
     }
-        if (uploadProgress != null && onCancelUpload != null) {
+        if (onCancelUpload != null) {
             MediaUploadOverlay(
-                progress = uploadProgress.progress,
-                total = uploadProgress.total,
+                progress = uploadProgress?.progress ?: 0L,
+                total = uploadProgress?.total ?: 0L,
                 onCancel = onCancelUpload,
             )
         }

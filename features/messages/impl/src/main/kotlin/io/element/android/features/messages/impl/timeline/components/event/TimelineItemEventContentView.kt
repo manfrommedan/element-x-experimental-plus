@@ -52,8 +52,12 @@ fun TimelineItemEventContentView(
     localSendState: LocalEventSendState? = null,
     transactionId: TransactionId? = null,
 ) {
+    // Show the cancel-X for ANY pending media (queued or actively uploading).
+    // Queued items report Sending.Event (no progress) - we still render the
+    // overlay so the whole batch can be aborted, not just the active one.
+    val isSending = localSendState is LocalEventSendState.Sending
     val mediaUploadProgress = localSendState as? LocalEventSendState.Sending.MediaWithProgress
-    val onCancelUpload: (() -> Unit)? = transactionId?.takeIf { mediaUploadProgress != null }?.let { txn ->
+    val onCancelUpload: (() -> Unit)? = transactionId?.takeIf { isSending }?.let { txn ->
         { eventSink(TimelineEvent.CancelMediaUpload(txn)) }
     }
     val presenterFactories = LocalTimelineItemPresenterFactories.current

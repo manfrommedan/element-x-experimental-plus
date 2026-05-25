@@ -17,7 +17,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -37,6 +39,7 @@ import io.element.android.features.location.api.internal.StaticMapUrlBuilder
 import io.element.android.features.location.api.internal.centerBottomEdge
 import io.element.android.libraries.designsystem.components.LocationPin
 import io.element.android.libraries.designsystem.components.PinVariant
+import io.element.android.libraries.designsystem.components.media.LocalAutoLoadMedia
 import io.element.android.libraries.designsystem.preview.ElementPreview
 import io.element.android.libraries.designsystem.preview.PreviewsDayNight
 
@@ -127,10 +130,16 @@ private fun BoxWithConstraintsScope.LoadableMapContent(
     val context = LocalContext.current
     var retryHash by remember { mutableIntStateOf(0) }
     val builder = remember { StaticMapUrlBuilder() }
+    val autoLoad = LocalAutoLoadMedia.current
+    var userTapped by rememberSaveable { mutableStateOf(false) }
+    val shouldLoad = autoLoad || userTapped
 
     val painter = rememberAsyncImagePainter(
-        model = if (constraints.isZero) {
-            // Avoid building a URL if any of the size constraints is zero
+        model = if (constraints.isZero || !shouldLoad) {
+            // Avoid building a URL if any of the size constraints is zero,
+            // or if wifi-only auto-download is on and we're not on wifi yet
+            // (the StaticMapPlaceholder below renders with canReload=true so
+            // the user can opt in per-message).
             null
         } else {
             ImageRequest.Builder(context)
@@ -169,11 +178,13 @@ private fun BoxWithConstraintsScope.LoadableMapContent(
         else -> {
             StaticMapPlaceholder(
                 painter = painterResource(R.drawable.blurred_map),
-                canReload = builder.isServiceAvailable() && state is AsyncImagePainter.State.Error,
+                canReload = builder.isServiceAvailable() && (!shouldLoad || state is AsyncImagePainter.State.Error),
                 contentDescription = contentDescription,
                 width = maxWidth,
                 height = maxHeight,
-                onLoadMapClick = { retryHash++ }
+                onLoadMapClick = {
+                    if (!shouldLoad) userTapped = true else retryHash++
+                }
             )
         }
     }

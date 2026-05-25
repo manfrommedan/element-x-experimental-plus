@@ -24,6 +24,9 @@
     <!-- Advanced settings toggle: hide redacted (deleted) events in timelines. -->
     <string name="screen_advanced_settings_hide_redacted_events_toggle_title">"Hide deleted messages"</string>
     <string name="screen_advanced_settings_hide_redacted_events_toggle_subtitle">"Hide redacted events from the timeline entirely. They still exist on the server, but you won't see the tombstone."</string>
+    <!-- Advanced settings toggle: do not auto-download thumbnails/previews on mobile data; user taps to load each one. -->
+    <string name="screen_advanced_settings_media_wifi_only_title">"Auto-download media on Wi-Fi only"</string>
+    <string name="screen_advanced_settings_media_wifi_only_subtitle">"On mobile data, image/video thumbnails and map previews aren't fetched automatically. Tap each one to download it."</string>
     <!-- Advanced settings field: user-supplied Geoapify API key for the Location attachment. -->
     <string name="screen_advanced_settings_geoapify_api_key_title">"Geoapify API key (Location)"</string>
     <string name="screen_advanced_settings_geoapify_api_key_description">"Paste a free Geoapify API key (geoapify.com, 3000 requests/day) to enable the Location attachment and render maps in chat. The key is stored locally on this device and overrides the bundled one. Leave empty to use the bundled key."</string>

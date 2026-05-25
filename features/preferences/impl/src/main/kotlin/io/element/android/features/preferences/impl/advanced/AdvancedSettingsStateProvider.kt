@@ -45,6 +45,7 @@ fun aAdvancedSettingsState(
     setTimelineMediaPreviewAction: AsyncAction<Unit> = AsyncAction.Uninitialized,
     setHideInviteAvatarsAction: AsyncAction<Unit> = AsyncAction.Uninitialized,
     hideRedactedEvents: Boolean = false,
+    mediaAutoDownloadOnWifiOnly: Boolean = false,
     eventSink: (AdvancedSettingsEvents) -> Unit = {},
 ) = AdvancedSettingsState(
     isDeveloperModeEnabled = isDeveloperModeEnabled,
@@ -60,5 +61,6 @@ fun aAdvancedSettingsState(
     ),
     liveLocationMinimumDistanceUpdate = liveLocationMinimumDistanceUpdate,
     hideRedactedEvents = hideRedactedEvents,
+    mediaAutoDownloadOnWifiOnly = mediaAutoDownloadOnWifiOnly,
     eventSink = eventSink
 )

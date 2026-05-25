@@ -298,6 +298,14 @@ private fun ModerationAndSafety(
                 state.eventSink(AdvancedSettingsEvents.SetHideRedactedEvents(it))
             },
         )
+        PreferenceSwitch(
+            title = stringResource(R.string.screen_advanced_settings_media_wifi_only_title),
+            subtitle = stringResource(R.string.screen_advanced_settings_media_wifi_only_subtitle),
+            isChecked = state.mediaAutoDownloadOnWifiOnly,
+            onCheckedChange = {
+                state.eventSink(AdvancedSettingsEvents.SetMediaAutoDownloadOnWifiOnly(it))
+            },
+        )
         ListSectionHeader(
             title = stringResource(R.string.screen_advanced_settings_show_media_timeline_title),
             hasDivider = false,

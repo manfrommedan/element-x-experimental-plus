@@ -61,6 +61,10 @@ class AdvancedSettingsPresenter(
             appPreferencesStore.getHideRedactedEventsFlow()
         }.collectAsState(initial = false)
 
+        val mediaAutoDownloadOnWifiOnly by remember {
+            appPreferencesStore.getMediaAutoDownloadOnWifiOnlyFlow()
+        }.collectAsState(initial = false)
+
         val mediaPreviewConfigState = mediaPreviewConfigStateStore.state()
 
         val themeOption by remember {
@@ -131,6 +135,9 @@ class AdvancedSettingsPresenter(
                 is AdvancedSettingsEvents.SetHideRedactedEvents -> sessionCoroutineScope.launch {
                     appPreferencesStore.setHideRedactedEvents(event.value)
                 }
+                is AdvancedSettingsEvents.SetMediaAutoDownloadOnWifiOnly -> sessionCoroutineScope.launch {
+                    appPreferencesStore.setMediaAutoDownloadOnWifiOnly(event.value)
+                }
                 is AdvancedSettingsEvents.SetCompressImages -> sessionCoroutineScope.launch {
                     sessionPreferencesStore.setOptimizeImages(event.compress)
                 }
@@ -149,6 +156,7 @@ class AdvancedSettingsPresenter(
             mediaPreviewConfigState = mediaPreviewConfigState,
             liveLocationMinimumDistanceUpdate = liveLocationMinimumDistanceUpdate,
             hideRedactedEvents = hideRedactedEvents,
+            mediaAutoDownloadOnWifiOnly = mediaAutoDownloadOnWifiOnly,
             eventSink = ::handleEvent,
         )
     }

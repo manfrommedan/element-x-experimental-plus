@@ -29,6 +29,9 @@ interface AppPreferencesStore {
     suspend fun setHideRedactedEvents(value: Boolean)
     fun getHideRedactedEventsFlow(): Flow<Boolean>
 
+    suspend fun setMediaAutoDownloadOnWifiOnly(value: Boolean)
+    fun getMediaAutoDownloadOnWifiOnlyFlow(): Flow<Boolean>
+
     @Deprecated("Use MediaPreviewService instead. Kept only for migration.")
     suspend fun setHideInviteAvatars(hide: Boolean?)
     @Deprecated("Use MediaPreviewService instead. Kept only for migration.")

@@ -94,6 +94,8 @@
   <string name="screen_labs_enable_favorites_pinned_to_top_description">"Избранные чаты показываются отдельным разделом над остальным списком, как в SchildiChat или закреплённых чатах Telegram."</string>
   <string name="screen_advanced_settings_hide_redacted_events_toggle_title">"Скрывать удалённые сообщения"</string>
   <string name="screen_advanced_settings_hide_redacted_events_toggle_subtitle">"Удалённые сообщения не показываются в чате. На сервере они остаются, но плашку 'Сообщение удалено' видно не будет."</string>
+  <string name="screen_advanced_settings_media_wifi_only_title">"Подгружать медиа только по Wi-Fi"</string>
+  <string name="screen_advanced_settings_media_wifi_only_subtitle">"На мобильной сети превью картинок, видео и карт не качаются автоматом. Тапни по каждому чтобы догрузить."</string>
   <string name="screen_advanced_settings_geoapify_api_key_title">"Geoapify API ключ (Локация)"</string>
   <string name="screen_advanced_settings_geoapify_api_key_description">"Свой API ключ с geoapify.com (бесплатно, 3000 запросов в день) - вставь сюда чтобы перекрыть встроенный. Оставь пустым чтобы использовать встроенный. Ключ хранится локально на устройстве."</string>
   <string name="screen_advanced_settings_geoapify_api_key_set">"Используется личный ключ. Локация работает."</string>

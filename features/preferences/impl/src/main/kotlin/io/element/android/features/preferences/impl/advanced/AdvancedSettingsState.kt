@@ -25,6 +25,7 @@ data class AdvancedSettingsState(
     val mediaPreviewConfigState: MediaPreviewConfigState,
     val liveLocationMinimumDistanceUpdate: Int?,
     val hideRedactedEvents: Boolean,
+    val mediaAutoDownloadOnWifiOnly: Boolean,
     val eventSink: (AdvancedSettingsEvents) -> Unit
 )
 

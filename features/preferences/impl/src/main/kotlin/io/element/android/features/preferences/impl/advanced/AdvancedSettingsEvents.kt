@@ -22,4 +22,5 @@ sealed interface AdvancedSettingsEvents {
     data class SetHideInviteAvatars(val value: Boolean) : AdvancedSettingsEvents
     data class SetLiveLocationMinimumDistanceUpdate(val value: Int) : AdvancedSettingsEvents
     data class SetHideRedactedEvents(val value: Boolean) : AdvancedSettingsEvents
+    data class SetMediaAutoDownloadOnWifiOnly(val value: Boolean) : AdvancedSettingsEvents
 }

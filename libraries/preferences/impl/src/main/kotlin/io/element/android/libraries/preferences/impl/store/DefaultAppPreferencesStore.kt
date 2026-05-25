@@ -31,6 +31,7 @@ private val hideInviteAvatarsKey = booleanPreferencesKey("hideInviteAvatars")
 private val timelineMediaPreviewValueKey = stringPreferencesKey("timelineMediaPreviewValue")
 private val liveLocationMinimumDistanceUpdateKey = intPreferencesKey("liveLocationMinimumDistanceUpdate")
 private val hideRedactedEventsKey = booleanPreferencesKey("hideRedactedEvents")
+private val mediaAutoDownloadOnWifiOnlyKey = booleanPreferencesKey("mediaAutoDownloadOnWifiOnly")
 private val logLevelKey = stringPreferencesKey("logLevel")
 private val traceLogPacksKey = stringPreferencesKey("traceLogPacks")
 
@@ -136,6 +137,14 @@ class DefaultAppPreferencesStore(
 
     override fun getHideRedactedEventsFlow(): Flow<Boolean> {
         return store.data.map { prefs -> prefs[hideRedactedEventsKey] ?: false }
+    }
+
+    override suspend fun setMediaAutoDownloadOnWifiOnly(value: Boolean) {
+        store.edit { prefs -> prefs[mediaAutoDownloadOnWifiOnlyKey] = value }
+    }
+
+    override fun getMediaAutoDownloadOnWifiOnlyFlow(): Flow<Boolean> {
+        return store.data.map { prefs -> prefs[mediaAutoDownloadOnWifiOnlyKey] ?: false }
     }
 
     override suspend fun setTracingLogLevel(logLevel: LogLevel) {
