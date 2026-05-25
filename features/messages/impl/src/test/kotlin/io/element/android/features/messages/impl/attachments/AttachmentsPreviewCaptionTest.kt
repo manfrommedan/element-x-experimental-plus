@@ -179,6 +179,56 @@ class AttachmentsPreviewCaptionTest {
     }
 
     @Test
+    fun `user scenario - type on slide 1 and slide 3 of 6, send from slide 3, captions land correctly`() = runTest {
+        // Exact user-reported scenario: 6 pictures, type '1' on the first slide,
+        // jump to slide 3, type '3', send while still on slide 3. Bug report:
+        // slide 1 ended up with caption '3' instead of '1'. Lock that down.
+        val captionsInOrder = mutableListOf<String?>()
+        val presenter = createMultiAttachmentPresenter(
+            attachmentCount = 6,
+            sendImage = recordCaptions(captionsInOrder),
+        )
+        presenter.test {
+            val initial = awaitItem()
+            assertThat(initial.currentIndex).isEqualTo(0)
+            initial.textEditorState.setMarkdown("1")
+            initial.eventSink(AttachmentsPreviewEvent.NavigateToPage(2))
+            val onSlide3 = consumeItemsUntilPredicate { it.currentIndex == 2 }.last()
+            assertThat(onSlide3.textEditorState.messageMarkdown(FakePermalinkBuilder())).isEmpty()
+            onSlide3.textEditorState.setMarkdown("3")
+            onSlide3.eventSink(AttachmentsPreviewEvent.SendAttachment)
+            consumeItemsUntilTimeout(2.seconds)
+            advanceUntilIdle()
+            assertThat(captionsInOrder).containsExactly("1", null, "3", null, null, null).inOrder()
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `user scenario - type on slide 1 and slide 6 of 6, send from slide 6`() = runTest {
+        // The other concrete report: '1' on slide 1, '6' on slide 6, send from
+        // slide 6. Result must be slide 1='1', slide 6='6'.
+        val captionsInOrder = mutableListOf<String?>()
+        val presenter = createMultiAttachmentPresenter(
+            attachmentCount = 6,
+            sendImage = recordCaptions(captionsInOrder),
+        )
+        presenter.test {
+            val initial = awaitItem()
+            initial.textEditorState.setMarkdown("1")
+            initial.eventSink(AttachmentsPreviewEvent.NavigateToPage(5))
+            val onSlide6 = consumeItemsUntilPredicate { it.currentIndex == 5 }.last()
+            assertThat(onSlide6.textEditorState.messageMarkdown(FakePermalinkBuilder())).isEmpty()
+            onSlide6.textEditorState.setMarkdown("6")
+            onSlide6.eventSink(AttachmentsPreviewEvent.SendAttachment)
+            consumeItemsUntilTimeout(2.seconds)
+            advanceUntilIdle()
+            assertThat(captionsInOrder).containsExactly("1", null, null, null, null, "6").inOrder()
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
     fun `untouched slides never get a caption even when other slides are captioned`() = runTest {
         // Tightest regression: jump straight to slide 5, type "only five", send.
         // Slide 1 must NOT inherit anything.
