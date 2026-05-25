@@ -128,7 +128,7 @@ fun TimelineItemVideoView(
                 val painter = coil3.compose.rememberAsyncImagePainter(model = request)
                 val painterState by painter.state.collectAsState()
                 val isLoaded = painterState is AsyncImagePainter.State.Success
-                val showTapToDownload = !networkAllowed && painterState is AsyncImagePainter.State.Error
+                val showTapToDownload = shouldShowTapToDownload(networkAllowed, painterState)
                 if (!showTapToDownload) {
                     androidx.compose.foundation.Image(
                         modifier = Modifier
