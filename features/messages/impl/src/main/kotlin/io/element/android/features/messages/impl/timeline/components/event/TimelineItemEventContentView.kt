@@ -9,6 +9,7 @@
 package io.element.android.features.messages.impl.timeline.components.event
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import io.element.android.features.messages.impl.timeline.TimelineEvent
 import io.element.android.features.messages.impl.timeline.components.layout.ContentAvoidingLayoutData
@@ -57,8 +58,12 @@ fun TimelineItemEventContentView(
     // overlay so the whole batch can be aborted, not just the active one.
     val isSending = localSendState is LocalEventSendState.Sending
     val mediaUploadProgress = localSendState as? LocalEventSendState.Sending.MediaWithProgress
-    val onCancelUpload: (() -> Unit)? = transactionId?.takeIf { isSending }?.let { txn ->
-        { eventSink(TimelineEvent.CancelMediaUpload(txn)) }
+    val onCancelUpload: (() -> Unit)? = remember(transactionId, isSending, eventSink) {
+        if (transactionId != null && isSending) {
+            { eventSink(TimelineEvent.CancelMediaUpload(transactionId)) }
+        } else {
+            null
+        }
     }
     val presenterFactories = LocalTimelineItemPresenterFactories.current
     when (content) {
