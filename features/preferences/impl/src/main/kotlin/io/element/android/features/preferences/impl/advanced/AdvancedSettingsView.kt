@@ -298,14 +298,11 @@ private fun ModerationAndSafety(
                 state.eventSink(AdvancedSettingsEvents.SetHideRedactedEvents(it))
             },
         )
-        PreferenceSwitch(
-            title = stringResource(R.string.screen_advanced_settings_media_wifi_only_title),
-            subtitle = stringResource(R.string.screen_advanced_settings_media_wifi_only_subtitle),
-            isChecked = state.mediaAutoDownloadOnWifiOnly,
-            onCheckedChange = {
-                state.eventSink(AdvancedSettingsEvents.SetMediaAutoDownloadOnWifiOnly(it))
-            },
-        )
+        // Wifi-only auto-download toggle is hidden until the matrix media cache
+        // story is fully sorted - on app restart Coil's disk cache isn't reliably
+        // populated for matrix thumbnails, which made the gate surface the
+        // tap-to-download prompt for every image again. The preference plumbing
+        // stays so re-enabling is just uncommenting this block.
         ListSectionHeader(
             title = stringResource(R.string.screen_advanced_settings_show_media_timeline_title),
             hasDivider = false,

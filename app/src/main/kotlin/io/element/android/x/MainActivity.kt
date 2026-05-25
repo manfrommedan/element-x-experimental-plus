@@ -77,11 +77,12 @@ open class MainActivity : NodeActivity() {
             compoundDark = colors.dark,
             buildMeta = appBindings.buildMeta()
         ) {
-            val wifiOnly by remember {
-                appBindings.preferencesStore().getMediaAutoDownloadOnWifiOnlyFlow()
-            }.collectAsState(initial = false)
-            val isWifi = io.element.android.libraries.designsystem.components.media.rememberIsConnectedToWifi()
-            val autoLoadMedia = !wifiOnly || isWifi
+            // Wifi-only auto-download is force-disabled while the matrix media
+            // cache survival across app restarts is being sorted out. The
+            // toggle UI is also hidden in AdvancedSettingsView. Any preference
+            // value previously toggled on in earlier builds is ignored here -
+            // existing users won't see their old setting still gate downloads.
+            val autoLoadMedia = true
             CompositionLocalProvider(
                 LocalSnackbarDispatcher provides appBindings.snackbarDispatcher(),
                 LocalUriHandler provides SafeUriHandler(this),
