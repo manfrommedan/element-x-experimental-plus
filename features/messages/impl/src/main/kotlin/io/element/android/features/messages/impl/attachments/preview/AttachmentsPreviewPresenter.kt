@@ -110,29 +110,13 @@ class AttachmentsPreviewPresenter(
         }
         val current = attachmentList[currentIndex]
 
-        // Per-image caption store keyed by URI (stable across reorder; survives index shifts on Remove).
-        val captions = remember { mutableStateMapOf<Uri, String>() }
-        // Load the slide's draft into the editor whenever the index changes.
-        // The companion commit (persist editor text under the OUTGOING slide's
-        // URI) is performed by the NavigateToPage handler BEFORE currentIndex
-        // changes - that ordering is reliable. Doing the commit inside this
-        // LaunchedEffect's finally block was unreliable: Compose runs the new
-        // LE's update("") before the old LE's finally, wiping the text we
-        // tried to capture.
-        LaunchedEffect(currentIndex) {
-            val media = attachmentList.getOrNull(currentIndex) as? Attachment.Media ?: return@LaunchedEffect
-            markdownTextEditorState.text.update(captions[media.localMedia.uri].orEmpty(), true)
-        }
-
-        // Flush the editor text into [captions] under the currently active slide.
-        // Called before changing currentIndex (in NavigateToPage) and right before
-        // multi-attachment send.
-        fun commitCurrentDraft() {
-            val media = attachmentList.getOrNull(currentIndex) as? Attachment.Media ?: return
-            val text = markdownTextEditorState.text.value().toString()
-            if (text.isEmpty()) captions.remove(media.localMedia.uri)
-            else captions[media.localMedia.uri] = text
-        }
+        // WhatsApp-style single caption for the whole batch. Per-image drafts were
+        // attempted (per-URI map, commit-on-NavigateToPage) but real-device timing
+        // between IME input + HorizontalPager.currentPage emissions could still
+        // swap captions across slides in ways the unit tests didn't reproduce.
+        // Switched to one shared caption attached to the first attachment of the
+        // batch - that's how WhatsApp/Signal handle it. Eliminates the whole
+        // class of swap bugs.
         val mediaAttachment = current as Attachment.Media
         val mediaOptimizationSelectorPresenter = remember(currentIndex) {
             mediaOptimizationSelectorPresenterFactory.create(mediaAttachment.localMedia)
@@ -199,10 +183,6 @@ class AttachmentsPreviewPresenter(
                 is AttachmentsPreviewEvent.NavigateToPage -> {
                     val target = event.index.coerceIn(0, attachmentList.lastIndex)
                     if (target != currentIndex) {
-                        // Persist this slide's draft BEFORE changing the index so the
-                        // LaunchedEffect(currentIndex) doesn't wipe it via update("")
-                        // for the new slide.
-                        commitCurrentDraft()
                         currentIndex = target
                     }
                 }
@@ -213,13 +193,9 @@ class AttachmentsPreviewPresenter(
                         cancelAndDismiss()
                         return
                     }
-                    // If the user is removing a slide other than the current one, the
-                    // current slide's draft must be preserved across the index shift.
-                    if (event.index != currentIndex) commitCurrentDraft()
                     val removed = attachmentList.removeAt(event.index)
                     (removed as? Attachment.Media)?.let {
                         temporaryUriDeleter.delete(it.localMedia.uri)
-                        captions.remove(it.localMedia.uri)
                     }
                     when {
                         currentIndex >= attachmentList.size -> currentIndex = attachmentList.lastIndex
@@ -278,29 +254,19 @@ class AttachmentsPreviewPresenter(
                                 mediaSender.cleanUp()
                             }
                         } else {
-                            // Multi-attachment (bulk) flow: dismiss immediately, then send all in
-                            // original 0..N-1 order from the session scope. Each image carries its own
-                            // caption (entered while viewing that slide); the reply target lands on the
-                            // first slide that has a caption, or slide 0 if none were typed.
-                            // Flush current editor text into the captions map under the active slide URI.
-                            (current as? Attachment.Media)?.let { media ->
-                                val text = caption.orEmpty()
-                                if (text.isEmpty()) captions.remove(media.localMedia.uri) else captions[media.localMedia.uri] = text
-                            }
+                            // Multi-attachment (bulk) flow: WhatsApp-style single caption attached
+                            // to the FIRST attachment of the batch. Reply target also lands on the
+                            // first attachment. Per-image captions were tried and rolled back -
+                            // see the comment near `captions` removal above for why.
                             if (coroutineContext.isActive) {
                                 onDoneListener()
                             }
                             val snapshot = attachmentList.toList()
-                            val captionsSnapshot = captions.toMap()
-                            val firstWithCaption = snapshot.indexOfFirst {
-                                (it as? Attachment.Media)?.localMedia?.uri?.let { uri -> captionsSnapshot[uri]?.isNotEmpty() == true } == true
-                            }.coerceAtLeast(0)
                             sessionCoroutineScope.launch(dispatchers.io) {
                                 sendAllSequentially(
                                     items = snapshot,
                                     mediaOptimizationConfig = config,
-                                    captionsByUri = captionsSnapshot,
-                                    replyIndex = firstWithCaption,
+                                    batchCaption = caption,
                                 )
                             }
                         }
@@ -390,8 +356,8 @@ class AttachmentsPreviewPresenter(
 
     /**
      * Bulk-pick send. Iterates attachments in their original 0..N-1 order so the room timeline
-     * preserves selection order. Caption + inReplyToEventId attach to the first message only,
-     * matching WhatsApp / Telegram batched-share behaviour.
+     * preserves selection order. The single shared [batchCaption] and [inReplyToEventId] attach
+     * to the first attachment only - WhatsApp/Telegram batched-share semantics.
      *
      * Throttle between sends is provided by mediaSender's internal send pipeline; we add no extra
      * delay here. Failures are logged per-item but do not abort the batch.
@@ -399,18 +365,16 @@ class AttachmentsPreviewPresenter(
     private suspend fun sendAllSequentially(
         items: List<Attachment>,
         mediaOptimizationConfig: MediaOptimizationConfig,
-        captionsByUri: Map<Uri, String>,
-        replyIndex: Int,
+        batchCaption: String?,
     ) {
         for ((index, attach) in items.withIndex()) {
             val media = attach as? Attachment.Media ?: continue
-            val perItemCaption = captionsByUri[media.localMedia.uri]?.takeIf { it.isNotEmpty() }
             runCatchingExceptions {
                 mediaSender.sendMedia(
                     uri = media.localMedia.uri,
                     mimeType = media.localMedia.info.mimeType,
-                    caption = perItemCaption,
-                    inReplyToEventId = if (index == replyIndex) inReplyToEventId else null,
+                    caption = if (index == 0) batchCaption else null,
+                    inReplyToEventId = if (index == 0) inReplyToEventId else null,
                     mediaOptimizationConfig = mediaOptimizationConfig,
                 ).getOrThrow()
             }.onFailure { cause ->
