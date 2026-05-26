@@ -9,6 +9,7 @@ on:
 
 permissions:
   contents: write
+  actions: write
 
 env:
   GRADLE_OPTS: -Dorg.gradle.jvmargs=-Xmx8g -XX:MaxMetaspaceSize=512m -Dfile.encoding=UTF-8 -XX:+HeapDumpOnOutOfMemoryError -XX:+UseG1GC -Dkotlin.daemon.jvm.options=-Xmx4g
@@ -143,7 +144,7 @@ jobs:
             done
 
       - name: Publish GitHub Release
-        uses: softprops/action-gh-release@72f2c25fcb47643c292f7107632f7a47c1df5cd8 # v2.3.2
+        uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2.6.2
         with:
           tag_name: experimental-${{ steps.meta.outputs.short_sha }}
           name: Element X+ ${{ steps.meta.outputs.short_sha }}
