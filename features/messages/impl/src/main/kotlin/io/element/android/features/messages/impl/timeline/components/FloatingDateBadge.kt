@@ -29,7 +29,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import io.element.android.compound.theme.ElementTheme
@@ -40,6 +39,7 @@ import io.element.android.libraries.designsystem.preview.PreviewsDayNight
 import io.element.android.libraries.designsystem.theme.components.Surface
 import io.element.android.libraries.designsystem.theme.components.Text
 import io.element.android.libraries.designsystem.theme.floatingDateBadgeBackground
+import io.element.android.libraries.designsystem.utils.animateScrollToItemCenter
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
@@ -56,7 +56,6 @@ internal fun BoxScope.FloatingDateBadgeOverlay(
     // This needs to be a state to trigger a `derivedState` recalculation
     val updatedTimelineItems by rememberUpdatedState(timelineItems)
     val scope = rememberCoroutineScope()
-    val approxDividerHeightPx = with(LocalDensity.current) { 56.dp.roundToPx() }
 
     // Look for the last visible item with a timestamp, starting from the last visible item and going backwards until we find one or reach the start of the list
     val lastVisibleItemWithTimestamp by remember {
@@ -124,17 +123,13 @@ internal fun BoxScope.FloatingDateBadgeOverlay(
                 onClick = {
                     val divider = findDayDividerIndex(updatedTimelineItems, dateText)
                     if (divider >= 0) {
-                        // Pixel-based offset so the divider lands at the TOP of the viewport in
-                        // one smooth animation, independent of item-height variance between the
-                        // current and target screens. In reverseLayout=true, scrollOffset is the
-                        // distance from the viewport's BOTTOM edge to the item's bottom, so
-                        // viewportHeight - dividerHeight pins the divider against the top edge.
-                        val viewportHeight = lazyListState.layoutInfo.viewportSize.height
-                        val targetOffset = (viewportHeight - approxDividerHeightPx).coerceAtLeast(0)
+                        // Use the codebase utility that already handles reverseLayout and
+                        // the item-not-in-viewport case via snap-then-animate. Centres the
+                        // divider in the viewport for predictable on-screen positioning.
                         scope.launch {
                             suppressBadgeUpdates = true
                             try {
-                                lazyListState.animateScrollToItem(divider, scrollOffset = targetOffset)
+                                lazyListState.animateScrollToItemCenter(divider)
                             } finally {
                                 suppressBadgeUpdates = false
                             }
