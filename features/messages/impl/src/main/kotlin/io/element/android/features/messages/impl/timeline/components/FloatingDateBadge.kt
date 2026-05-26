@@ -15,6 +15,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.lazy.LazyListLayoutInfo
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
@@ -39,7 +40,6 @@ import io.element.android.libraries.designsystem.preview.PreviewsDayNight
 import io.element.android.libraries.designsystem.theme.components.Surface
 import io.element.android.libraries.designsystem.theme.components.Text
 import io.element.android.libraries.designsystem.theme.floatingDateBadgeBackground
-import io.element.android.libraries.designsystem.utils.animateScrollToItemCenter
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
@@ -123,13 +123,13 @@ internal fun BoxScope.FloatingDateBadgeOverlay(
                 onClick = {
                     val divider = findDayDividerIndex(updatedTimelineItems, dateText)
                     if (divider >= 0) {
-                        // Use the codebase utility that already handles reverseLayout and
-                        // the item-not-in-viewport case via snap-then-animate. Centres the
-                        // divider in the viewport for predictable on-screen positioning.
+                        // Land the divider at the TOP of the viewport so the topmost-visible
+                        // item equals the divider; the badge then naturally stays anchored on
+                        // the tapped date instead of drifting onto the previous day.
                         scope.launch {
                             suppressBadgeUpdates = true
                             try {
-                                lazyListState.animateScrollToItemCenter(divider)
+                                lazyListState.animateScrollToItemTop(divider)
                             } finally {
                                 suppressBadgeUpdates = false
                             }
@@ -149,6 +149,28 @@ internal fun findDayDividerIndex(items: List<TimelineItem>, formattedDate: Strin
         item is TimelineItem.Virtual &&
             (item.model as? TimelineItemDaySeparatorModel)?.formattedDate == formattedDate
     }
+
+// Mirrors the codebase's animateScrollToItemCenter pattern but lands the item at the TOP of
+// the viewport instead of the centre. In reverseLayout=true the layout-start is at the bottom,
+// so a negative scrollOffset shifts the item up; -(viewport - item) places its top edge at
+// the viewport's top edge. If the item is not currently in the viewport we snap to it first,
+// then measure and animate to the precise offset (same two-phase approach as the centre helper).
+private suspend fun LazyListState.animateScrollToItemTop(index: Int) {
+    fun LazyListLayoutInfo.topOffsetFor(idx: Int): Int? {
+        val info = visibleItemsInfo.firstOrNull { it.index == idx } ?: return null
+        val containerSize = viewportSize.height - beforeContentPadding - afterContentPadding
+        return -(containerSize - info.size).coerceAtLeast(0)
+    }
+    scroll { }
+    layoutInfo.topOffsetFor(index)?.let { offset ->
+        animateScrollToItem(index, offset)
+        return
+    }
+    scrollToItem(index)
+    layoutInfo.topOffsetFor(index)?.let { offset ->
+        animateScrollToItem(index, offset)
+    }
+}
 
 @Composable
 internal fun FloatingDateBadge(
