@@ -29,6 +29,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import io.element.android.compound.theme.ElementTheme
@@ -55,6 +56,7 @@ internal fun BoxScope.FloatingDateBadgeOverlay(
     // This needs to be a state to trigger a `derivedState` recalculation
     val updatedTimelineItems by rememberUpdatedState(timelineItems)
     val scope = rememberCoroutineScope()
+    val approxDividerHeightPx = with(LocalDensity.current) { 56.dp.roundToPx() }
 
     // Look for the last visible item with a timestamp, starting from the last visible item and going backwards until we find one or reach the start of the list
     val lastVisibleItemWithTimestamp by remember {
@@ -75,9 +77,14 @@ internal fun BoxScope.FloatingDateBadgeOverlay(
 
     // Store the formatted date so we recompute it lazily and can keep it around even if we need to dispose the badge because the timeline items changed
     var formattedDate: String? by remember { mutableStateOf(null) }
-    // Update the formatted date when we have a new non-null timestamp
+    // Telegram-style: while the user-initiated tap animation is running, the badge
+    // text stays anchored on the tapped date. Only a real (finger) scroll afterwards
+    // advances the badge as items cross the viewport's top edge.
+    var suppressBadgeUpdates by remember { mutableStateOf(false) }
     LaunchedEffect(lastVisibleItemWithTimestamp) {
-        lastVisibleItemWithTimestamp?.formattedDate()?.let { formattedDate = it }
+        if (!suppressBadgeUpdates) {
+            lastVisibleItemWithTimestamp?.formattedDate()?.let { formattedDate = it }
+        }
     }
 
     val isAtBottom by remember {
@@ -117,15 +124,19 @@ internal fun BoxScope.FloatingDateBadgeOverlay(
                 onClick = {
                     val divider = findDayDividerIndex(updatedTimelineItems, dateText)
                     if (divider >= 0) {
-                        val visibleCount = lazyListState.layoutInfo.visibleItemsInfo.size.coerceAtLeast(1)
-                        val anchor = (divider - visibleCount + 1).coerceAtLeast(0)
+                        // Pixel-based offset so the divider lands at the TOP of the viewport in
+                        // one smooth animation, independent of item-height variance between the
+                        // current and target screens. In reverseLayout=true, scrollOffset is the
+                        // distance from the viewport's BOTTOM edge to the item's bottom, so
+                        // viewportHeight - dividerHeight pins the divider against the top edge.
+                        val viewportHeight = lazyListState.layoutInfo.viewportSize.height
+                        val targetOffset = (viewportHeight - approxDividerHeightPx).coerceAtLeast(0)
                         scope.launch {
-                            lazyListState.animateScrollToItem(anchor)
-                            // Item heights at the destination can differ from the current
-                            // viewport, so the divider may end up clipped above the top edge.
-                            // Pin it back into view in that case.
-                            if (lazyListState.layoutInfo.visibleItemsInfo.none { it.index == divider }) {
-                                lazyListState.animateScrollToItem(divider)
+                            suppressBadgeUpdates = true
+                            try {
+                                lazyListState.animateScrollToItem(divider, scrollOffset = targetOffset)
+                            } finally {
+                                suppressBadgeUpdates = false
                             }
                         }
                     }
