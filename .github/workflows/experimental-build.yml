@@ -111,26 +111,29 @@ jobs:
             done
 
       - name: Prune older workflow runs
-        # Mirror the release-prune policy on the Actions tab: keep only the
-        # currently-running execution, drop everything else. Runs as a
-        # late step so the cleanup happens after the build artefacts and
-        # logs are no longer needed by the rest of the workflow.
+        # Mirror the release-prune policy on the Actions tab: keep the
+        # KEEP_PREVIOUS most recent completed runs plus the currently-running
+        # execution (= KEEP_PREVIOUS + 1 total). Runs as a late step so the
+        # cleanup happens after the build artefacts and logs are no longer
+        # needed by the rest of the workflow.
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          KEEP_PREVIOUS: '2'
         run: |
           set -euo pipefail
           gh run list \
             --repo "${{ github.repository }}" \
             --workflow experimental-build.yml \
             --limit 100 \
-            --json databaseId,status \
+            --json databaseId,status,createdAt \
             --jq '
               [ .[]
                 | select(.status == "completed")
                 | select((.databaseId | tostring) != "${{ github.run_id }}")
-                | .databaseId
               ]
-              | .[]
+              | sort_by(.createdAt) | reverse
+              | .[(env.KEEP_PREVIOUS | tonumber):]
+              | .[].databaseId
             ' \
           | while read -r run_id; do
               [ -z "$run_id" ] && continue
