@@ -11,6 +11,7 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.padding
@@ -22,6 +23,7 @@ import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
@@ -40,6 +42,7 @@ import io.element.android.libraries.designsystem.theme.floatingDateBadgeBackgrou
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.launch
 import kotlin.time.Duration.Companion.milliseconds
 
 @Composable
@@ -51,6 +54,7 @@ internal fun BoxScope.FloatingDateBadgeOverlay(
 ) {
     // This needs to be a state to trigger a `derivedState` recalculation
     val updatedTimelineItems by rememberUpdatedState(timelineItems)
+    val scope = rememberCoroutineScope()
 
     // Look for the last visible item with a timestamp, starting from the last visible item and going backwards until we find one or reach the start of the list
     val lastVisibleItemWithTimestamp by remember {
@@ -110,18 +114,44 @@ internal fun BoxScope.FloatingDateBadgeOverlay(
             FloatingDateBadge(
                 modifier = Modifier.padding(8.dp),
                 dateText = dateText,
+                onClick = {
+                    val divider = findDayDividerIndex(updatedTimelineItems, dateText)
+                    if (divider >= 0) {
+                        val visibleCount = lazyListState.layoutInfo.visibleItemsInfo.size.coerceAtLeast(1)
+                        val anchor = (divider - visibleCount + 1).coerceAtLeast(0)
+                        scope.launch {
+                            lazyListState.animateScrollToItem(anchor)
+                            // Item heights at the destination can differ from the current
+                            // viewport, so the divider may end up clipped above the top edge.
+                            // Pin it back into view in that case.
+                            if (lazyListState.layoutInfo.visibleItemsInfo.none { it.index == divider }) {
+                                lazyListState.animateScrollToItem(divider)
+                            }
+                        }
+                    }
+                },
             )
         }
     }
 }
 
+// matrix-rust-sdk emits one day-divider virtual item per loaded day, so the predicate matches
+// at most once. Returns -1 when no divider for [formattedDate] is loaded (e.g. badge text came
+// from an event at the top of the loaded window and the divider is past the pagination edge).
+internal fun findDayDividerIndex(items: List<TimelineItem>, formattedDate: String): Int =
+    items.indexOfFirst { item ->
+        item is TimelineItem.Virtual &&
+            (item.model as? TimelineItemDaySeparatorModel)?.formattedDate == formattedDate
+    }
+
 @Composable
 internal fun FloatingDateBadge(
     dateText: String,
     modifier: Modifier = Modifier,
+    onClick: (() -> Unit)? = null,
 ) {
     Surface(
-        modifier = modifier,
+        modifier = if (onClick != null) modifier.clickable(onClick = onClick) else modifier,
         shape = RoundedCornerShape(16.dp),
         color = ElementTheme.colors.floatingDateBadgeBackground,
         shadowElevation = 4.dp,
