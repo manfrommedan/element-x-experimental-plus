@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyListLayoutInfo
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
@@ -179,7 +180,11 @@ internal fun FloatingDateBadge(
     onClick: (() -> Unit)? = null,
 ) {
     Surface(
-        modifier = if (onClick != null) modifier.clickable(onClick = onClick) else modifier,
+        modifier = if (onClick != null) {
+            modifier.minimumInteractiveComponentSize().clickable(onClick = onClick)
+        } else {
+            modifier
+        },
         shape = RoundedCornerShape(16.dp),
         color = ElementTheme.colors.floatingDateBadgeBackground,
         shadowElevation = 4.dp,
