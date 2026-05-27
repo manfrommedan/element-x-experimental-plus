@@ -28,6 +28,7 @@ import androidx.compose.ui.tooling.preview.PreviewParameter
 import androidx.compose.ui.unit.dp
 import im.vector.app.features.analytics.plan.Interaction
 import io.element.android.compound.theme.ElementTheme
+import io.element.android.compound.tokens.generated.CompoundIcons
 import io.element.android.features.preferences.impl.R
 import io.element.android.libraries.architecture.coverage.ExcludeFromCoverage
 import io.element.android.libraries.designsystem.components.dialogs.ListDialog
@@ -43,6 +44,7 @@ import io.element.android.libraries.designsystem.preview.ElementPreviewLight
 import io.element.android.libraries.designsystem.preview.PreviewWithLargeHeight
 import io.element.android.libraries.designsystem.preview.PreviewsDayNight
 import io.element.android.libraries.designsystem.text.stringWithLink
+import io.element.android.libraries.designsystem.theme.components.IconSource
 import io.element.android.libraries.designsystem.theme.components.ListItem
 import io.element.android.libraries.designsystem.theme.components.ListSectionHeader
 import io.element.android.libraries.designsystem.theme.components.ListSupportingText
@@ -65,6 +67,7 @@ fun AdvancedSettingsView(
     state: AdvancedSettingsState,
     onBackClick: () -> Unit,
     onOpenAppSettingsClick: () -> Unit,
+    onOpenMxtrSettings: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val analyticsService = LocalAnalyticsService.current
@@ -84,6 +87,16 @@ fun AdvancedSettingsView(
             )
         }
     ) {
+        ListItem(
+            headlineContent = {
+                Text(text = stringResource(id = R.string.screen_advanced_settings_mxtr_title))
+            },
+            supportingContent = {
+                Text(text = stringResource(id = R.string.screen_advanced_settings_mxtr_subtitle))
+            },
+            leadingContent = ListItemContent.Icon(IconSource.Vector(CompoundIcons.LockSolid())),
+            onClick = onOpenMxtrSettings,
+        )
         PreferenceDropdown(
             title = stringResource(id = CommonStrings.common_appearance),
             selectedOption = state.theme,
@@ -442,7 +455,8 @@ private fun ContentToPreview(state: AdvancedSettingsState) {
     AdvancedSettingsView(
         state = state,
         onBackClick = { },
-        onOpenAppSettingsClick = {}
+        onOpenAppSettingsClick = {},
+        onOpenMxtrSettings = {},
     )
 }
 

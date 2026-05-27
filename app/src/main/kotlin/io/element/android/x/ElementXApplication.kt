@@ -14,13 +14,17 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.startup.AppInitializer
 import androidx.work.Configuration
 import dev.zacsweers.metro.createGraphFactory
+import io.element.android.libraries.androidutils.mxtr.MxtrBridge
 import io.element.android.libraries.di.DependencyInjectionGraphOwner
+import io.element.android.libraries.matrix.impl.mxtr.MxtrHttpProxy
+import io.element.android.libraries.matrix.impl.mxtr.MxtrPreferencesStore
 import io.element.android.libraries.workmanager.api.di.MetroWorkerFactory
 import io.element.android.x.di.AppGraph
 import io.element.android.x.info.logApplicationInfo
 import io.element.android.x.initializer.CacheCleanerInitializer
 import io.element.android.x.initializer.CrashInitializer
 import io.element.android.x.initializer.PlatformInitializer
+import io.element.android.x.mxtr.MxtrWebViewProxy
 
 class ElementXApplication : Application(), DependencyInjectionGraphOwner, Configuration.Provider {
     override val graph: AppGraph = createGraphFactory<AppGraph.Factory>().create(this)
@@ -32,6 +36,21 @@ class ElementXApplication : Application(), DependencyInjectionGraphOwner, Config
     @OptIn(ExperimentalMaterial3Api::class)
     override fun onCreate() {
         super.onCreate()
+        // mxtr-proxy boot order is load-bearing:
+        // 1) Warm the DataStore snapshot cache off-main BEFORE anything calls
+        //    snapshotBlocking() (would otherwise do disk IO on main thread).
+        // 2) Register MxtrBridge so libraries/androidutils helpers can dispatch
+        //    URL launches through the in-app WebView when mxtr is on.
+        // 3) Start the local CONNECT listener (no-op if mxtr is off).
+        // 4) Wire a global WebView proxy override.
+        MxtrPreferencesStore.startCacheCollector(this)
+        MxtrBridge.state = object : MxtrBridge.State {
+            override fun isEnabled(context: android.content.Context): Boolean {
+                return MxtrPreferencesStore(context.applicationContext).snapshotBlocking().enabled
+            }
+        }
+        MxtrHttpProxy.start(this)
+        MxtrWebViewProxy.applyGlobally(this)
         AppInitializer.getInstance(this).apply {
             initializeComponent(CrashInitializer::class.java)
             initializeComponent(PlatformInitializer::class.java)

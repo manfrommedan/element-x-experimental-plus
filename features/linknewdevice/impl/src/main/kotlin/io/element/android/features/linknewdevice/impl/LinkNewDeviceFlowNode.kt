@@ -36,7 +36,7 @@ import io.element.android.features.linknewdevice.impl.screens.number.EnterNumber
 import io.element.android.features.linknewdevice.impl.screens.qrcode.ShowQrCodeNode
 import io.element.android.features.linknewdevice.impl.screens.root.LinkNewDeviceRootNode
 import io.element.android.features.linknewdevice.impl.screens.scan.ScanQrCodeNode
-import io.element.android.libraries.androidutils.browser.openUrlInChromeCustomTab
+import io.element.android.libraries.androidutils.browser.openUrlInMxtrAwareCustomTab
 import io.element.android.libraries.architecture.BackstackView
 import io.element.android.libraries.architecture.BaseFlowNode
 import io.element.android.libraries.architecture.callback
@@ -301,7 +301,7 @@ class LinkNewDeviceFlowNode(
     }
 
     private suspend fun navigateToBrowser(url: String) {
-        activity?.openUrlInChromeCustomTab(
+        activity?.openUrlInMxtrAwareCustomTab(
             session = null,
             darkTheme = darkTheme,
             url = sessionEnterpriseService.tweakMasUrl(url),

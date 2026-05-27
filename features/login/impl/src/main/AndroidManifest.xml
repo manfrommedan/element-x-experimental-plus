@@ -7,6 +7,27 @@
   -->
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
+    <application>
+        <!-- In-app WebView used as the OIDC/SSO browser when mxtr-proxy is on,
+             so requests go through the local CONNECT listener instead of
+             escaping via a system Chrome Custom Tab. -->
+        <activity
+            android:name=".mxtr.MxtrBrowserActivity"
+            android:exported="false"
+            android:configChanges="orientation|screenSize|screenLayout|keyboardHidden"
+            android:label="@string/screen_onboarding_mxtr_settings"
+            android:launchMode="singleTop" />
+        <!-- Pre-login mxtr settings screen (full premium UI), reachable from
+             the onboarding screen's lock-icon button before any account
+             exists. Post-login settings live under Advanced settings. -->
+        <activity
+            android:name=".mxtr.MxtrSettingsActivity"
+            android:exported="false"
+            android:configChanges="orientation|screenSize|screenLayout|keyboardHidden"
+            android:label="@string/screen_onboarding_mxtr_settings"
+            android:launchMode="singleTop" />
+    </application>
+
     <queries>
         <!-- To open URL in CustomTab (prefetch, etc.). It makes CustomTabsClient.getPackageName() work
          see https://developer.android.com/training/package-visibility/use-cases#open-urls-custom-tabs -->

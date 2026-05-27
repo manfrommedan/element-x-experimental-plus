@@ -21,7 +21,7 @@ import io.element.android.annotations.ContributesNode
 import io.element.android.compound.theme.ElementTheme
 import io.element.android.features.logout.api.direct.DirectLogoutEvents
 import io.element.android.features.logout.api.direct.DirectLogoutView
-import io.element.android.libraries.androidutils.browser.openUrlInChromeCustomTab
+import io.element.android.libraries.androidutils.browser.openUrlInMxtrAwareCustomTab
 import io.element.android.libraries.architecture.callback
 import io.element.android.libraries.di.SessionScope
 import io.element.android.libraries.matrix.api.user.MatrixUser
@@ -60,7 +60,7 @@ class PreferencesRootNode(
         isDark: Boolean,
     ) {
         url?.let {
-            activity.openUrlInChromeCustomTab(
+            activity.openUrlInMxtrAwareCustomTab(
                 null,
                 darkTheme = isDark,
                 url = it

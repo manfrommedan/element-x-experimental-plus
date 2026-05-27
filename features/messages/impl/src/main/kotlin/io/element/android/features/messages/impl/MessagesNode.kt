@@ -45,7 +45,7 @@ import io.element.android.features.messages.impl.timeline.model.TimelineItem
 import io.element.android.features.roommembermoderation.api.ModerationAction
 import io.element.android.features.roommembermoderation.api.RoomMemberModerationEvents
 import io.element.android.features.roommembermoderation.api.RoomMemberModerationRenderer
-import io.element.android.libraries.androidutils.browser.openUrlInChromeCustomTab
+import io.element.android.libraries.androidutils.browser.openUrlInMxtrAwareCustomTab
 import io.element.android.libraries.androidutils.system.openUrlInExternalApp
 import io.element.android.libraries.androidutils.system.toast
 import io.element.android.libraries.architecture.NodeInputs
@@ -174,13 +174,13 @@ class MessagesNode(
             }
             is PermalinkData.FallbackLink -> {
                 if (customTab) {
-                    activity.openUrlInChromeCustomTab(null, darkTheme, url)
+                    activity.openUrlInMxtrAwareCustomTab(null, darkTheme, url)
                 } else {
                     activity.openUrlInExternalApp(url)
                 }
             }
             is PermalinkData.RoomEmailInviteLink -> {
-                activity.openUrlInChromeCustomTab(null, darkTheme, url)
+                activity.openUrlInMxtrAwareCustomTab(null, darkTheme, url)
             }
         }
     }
