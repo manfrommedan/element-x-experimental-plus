@@ -117,6 +117,20 @@ fun Context.openAppSettingsPage(
     }
 }
 
+@RequiresApi(Build.VERSION_CODES.O)
+fun Context.startInstallFromSourceIntent(
+    activityResultLauncher: ActivityResultLauncher<Intent>,
+    noActivityFoundMessage: String = getString(R.string.error_no_compatible_app_found),
+) {
+    val intent = Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES)
+        .setData("package:$packageName".toUri())
+    try {
+        activityResultLauncher.launch(intent)
+    } catch (_: ActivityNotFoundException) {
+        toast(noActivityFoundMessage)
+    }
+}
+
 fun Context.startSharePlainTextIntent(
     activityResultLauncher: ActivityResultLauncher<Intent>?,
     chooserTitle: String?,
