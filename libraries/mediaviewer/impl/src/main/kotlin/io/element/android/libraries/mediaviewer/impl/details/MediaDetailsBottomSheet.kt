@@ -134,17 +134,8 @@ fun MediaDetailsBottomSheet(
                         onDownload(state.eventId)
                     }
                 )
-                val mimeType = state.mediaInfo.mimeType
-                val icon = when (mimeType) {
-                    MimeTypes.Apk ->
-                        ListItemContent.Icon(IconSource.Resource(R.drawable.ic_apk_install))
-                    else ->
-                        ListItemContent.Icon(IconSource.Vector(CompoundIcons.PopOut()))
-                }
-                val wording = when (mimeType) {
-                    MimeTypes.Apk -> stringResource(id = CommonStrings.common_install_apk_android)
-                    else -> stringResource(id = CommonStrings.action_open_with)
-                }
+                val icon = ListItemContent.Icon(IconSource.Vector(CompoundIcons.PopOut()))
+                val wording = stringResource(id = CommonStrings.action_open_with)
                 ListItem(
                     leadingContent = icon,
                     headlineContent = { Text(wording) },
