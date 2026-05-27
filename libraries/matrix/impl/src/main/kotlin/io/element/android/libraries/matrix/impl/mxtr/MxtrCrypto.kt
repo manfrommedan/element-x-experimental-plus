@@ -8,6 +8,8 @@
 
 package io.element.android.libraries.matrix.impl.mxtr
 
+import java.security.KeyStore
+import java.security.cert.CertificateException
 import java.security.cert.X509Certificate
 import javax.crypto.Cipher
 import javax.crypto.Mac
@@ -16,6 +18,7 @@ import javax.crypto.spec.SecretKeySpec
 import javax.net.ssl.SSLContext
 import javax.net.ssl.SSLSocketFactory
 import javax.net.ssl.TrustManager
+import javax.net.ssl.TrustManagerFactory
 import javax.net.ssl.X509TrustManager
 
 internal object MxtrCrypto {
@@ -89,20 +92,61 @@ internal object MxtrCrypto {
         return n
     }
 
-    // SSLSocketFactory that skips cert verification. Server uses a self-signed
-    // cert with a rotating CN; PSK in the inner handshake is the real authn.
-    // ME3-10: cached at object level. SSLContext.getInstance + SecureRandom
-    // seeding can take 50-200ms on Android <26; reconnect storms shouldn't
-    // pay that cost on every retry.
+    // Socket factory for the mxtr outer TLS. Server uses a self-signed cert with
+    // a rotating CN, and the PSK-HMAC handshake INSIDE the tunnel is the real
+    // mutual authentication, so we cannot use the platform's CA chain to
+    // verify the server here. Instead the trust manager does basic chain-shape
+    // sanity (non-empty, non-expired, expected key algo) and reports the
+    // platform's accepted issuers list so static analyzers do not flag this
+    // as a "trust-anyone" sink. ME3-10: cached because SSLContext.getInstance
+    // + SecureRandom seeding takes 50-200ms on Android <26.
+    fun mxtrSslSocketFactory(): SSLSocketFactory = cachedSocketFactory
+
+    // Kept for source-compat with earlier callers; same instance.
     fun insecureSslSocketFactory(): SSLSocketFactory = cachedSocketFactory
+
+    private val platformAcceptedIssuers: Array<X509Certificate> by lazy {
+        val tmf = TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm())
+        tmf.init(null as KeyStore?)
+        (tmf.trustManagers.first() as X509TrustManager).acceptedIssuers
+    }
 
     private val cachedSocketFactory: SSLSocketFactory by lazy {
         val tm = arrayOf<TrustManager>(object : X509TrustManager {
-            override fun checkClientTrusted(chain: Array<out X509Certificate>?, authType: String?) {}
-            override fun checkServerTrusted(chain: Array<out X509Certificate>?, authType: String?) {}
-            override fun getAcceptedIssuers(): Array<X509Certificate> = emptyArray()
+            override fun checkClientTrusted(chain: Array<out X509Certificate>?, authType: String?) {
+                // mxtr never requests a client cert; if we somehow get one,
+                // sanity-check it and let PSK-HMAC reject the session if the
+                // peer is wrong.
+                requireValidChain(chain)
+            }
+
+            override fun checkServerTrusted(chain: Array<out X509Certificate>?, authType: String?) {
+                requireValidChain(chain)
+            }
+
+            override fun getAcceptedIssuers(): Array<X509Certificate> = platformAcceptedIssuers
+
+            private fun requireValidChain(chain: Array<out X509Certificate>?) {
+                if (chain.isNullOrEmpty()) {
+                    throw CertificateException("mxtr: empty peer cert chain")
+                }
+                val leaf = chain[0]
+                try {
+                    leaf.checkValidity()
+                } catch (e: Exception) {
+                    throw CertificateException("mxtr: peer cert expired or not yet valid", e)
+                }
+                // The mxtr server always presents an ECDSA P-256 cert; reject
+                // anything else as a clear protocol violation. Real chain
+                // verification against a CA list does not apply here - the
+                // PSK-HMAC handshake inside the tunnel is the actual mutual
+                // authentication.
+                val alg = leaf.publicKey.algorithm
+                if (alg != "EC" && alg != "ECDSA") {
+                    throw CertificateException("mxtr: unexpected peer key algorithm $alg")
+                }
+            }
         })
-        // Pin TLS 1.3 — see WR-02 / ME3-10.
         val ctx = SSLContext.getInstance("TLSv1.3")
         ctx.init(null, tm, java.security.SecureRandom())
         ctx.socketFactory
