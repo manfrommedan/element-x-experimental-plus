@@ -246,10 +246,15 @@ android {
             }
             create("plus") {
                 dimension = "fork"
-                applicationIdSuffix = ".plus"
+                // applicationIdSuffix bumped from .plus to .plusng (2026-05-27)
+                // to escape Google Play Protect verdict cache that flagged the
+                // previous package id as 'potentially harmful' under a server-
+                // side ML rule update. New package = fresh reputation bucket.
+                // Cannot upgrade-in-place; users must reinstall.
+                applicationIdSuffix = ".plusng"
                 versionNameSuffix = "-plus"
                 resValue("string", "app_name", "Element X+")
-                resValue("string", "login_redirect_scheme", "$oAuthRedirectSchemeBase.plus")
+                resValue("string", "login_redirect_scheme", "$oAuthRedirectSchemeBase.plusng")
             }
         }
     }
