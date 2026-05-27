@@ -54,7 +54,7 @@ jobs:
         with:
           cache-read-only: ${{ github.ref != 'refs/heads/develop' }}
       - name: Assemble debug APK
-        run: ./gradlew :app:assembleGplayDebug $CI_GRADLE_ARG_PROPERTIES
+        run: ./gradlew :app:assembleGplayPlusDebug $CI_GRADLE_ARG_PROPERTIES
         env:
           ELEMENT_ANDROID_MAPTILER_API_KEY: ${{ secrets.MAPTILER_KEY }}
           ELEMENT_ANDROID_MAPTILER_LIGHT_MAP_ID: ${{ secrets.MAPTILER_LIGHT_MAP_ID }}
@@ -64,7 +64,7 @@ jobs:
         with:
           name: elementx-apk-maestro
           path: |
-            app/build/outputs/apk/gplay/debug/app-gplay-x86_64-debug.apk
+            app/build/outputs/apk/gplayPlus/debug/app-gplay-plus-x86_64-debug.apk
           retention-days: 5
           overwrite: true
           if-no-files-found: error
@@ -107,7 +107,7 @@ jobs:
           MAESTRO_ROOM_NAME: MyRoom
           MAESTRO_INVITEE1_MXID: "@maestroelement2:matrix.org"
           MAESTRO_INVITEE2_MXID: "@maestroelement3:matrix.org"
-          MAESTRO_APP_ID: io.element.android.x.debug
+          MAESTRO_APP_ID: io.element.android.x.plus.debug
         with:
           api-level: ${{ env.API_LEVEL }}
           arch: ${{ env.ARCH }}
@@ -117,7 +117,7 @@ jobs:
           disable-animations: true
           disk-size: 3G
           script: |
-            .github/workflows/scripts/maestro/maestro-local-with-screen-recording.sh app-gplay-x86_64-debug.apk
+            .github/workflows/scripts/maestro/maestro-local-with-screen-recording.sh app-gplay-plus-x86_64-debug.apk
       - name: Upload test results
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
