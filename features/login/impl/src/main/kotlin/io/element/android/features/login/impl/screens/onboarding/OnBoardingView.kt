@@ -73,6 +73,7 @@ fun OnBoardingView(
     onLearnMoreClick: () -> Unit,
     onCreateAccountContinue: (url: String) -> Unit,
     onReportProblem: () -> Unit,
+    onMxtrSettingsClick: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     val loginView = @Composable {
@@ -112,6 +113,7 @@ fun OnBoardingView(
             buttons = buttons,
             onBackClick = onBackClick,
             onDeveloperSettingsClick = onDeveloperSettingsClick,
+            onMxtrSettingsClick = onMxtrSettingsClick,
         )
     }
 }
@@ -123,6 +125,7 @@ private fun AddFirstAccountScaffold(
     buttons: @Composable () -> Unit,
     onBackClick: () -> Unit,
     onDeveloperSettingsClick: () -> Unit,
+    onMxtrSettingsClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     OnBoardingPage(
@@ -150,6 +153,17 @@ private fun AddFirstAccountScaffold(
                             contentDescription = stringResource(CommonStrings.common_developer_options),
                         )
                     }
+                }
+                IconButton(
+                    onClick = onMxtrSettingsClick,
+                    modifier = Modifier
+                        .align(Alignment.TopStart)
+                        .padding(start = if (state.showDeveloperSettings) 48.dp else 0.dp),
+                ) {
+                    Icon(
+                        imageVector = CompoundIcons.Lock(),
+                        contentDescription = stringResource(R.string.screen_onboarding_mxtr_settings),
+                    )
                 }
                 if (state.showBackButton) {
                     // Add icon button to "navigate back"

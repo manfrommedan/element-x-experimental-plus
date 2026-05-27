@@ -38,4 +38,8 @@
     <string name="screen_labs_section_make_element_better">"Like ElementX, but better"</string>
     <string name="screen_labs_section_calls">"Calls"</string>
     <string name="screen_labs_section_upstream">"Element Labs"</string>
+
+    <!-- mxtr-proxy entry under Advanced settings. -->
+    <string name="screen_advanced_settings_mxtr_title">"Anti-censorship proxy"</string>
+    <string name="screen_advanced_settings_mxtr_subtitle">"DPI &amp; TSPU bypass via your own server"</string>
 </resources>

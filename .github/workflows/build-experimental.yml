@@ -47,6 +47,24 @@ jobs:
         with:
           cache-read-only: false
 
+      - name: Decode release keystore
+        # Pulls the PKCS12 keystore from a base64-encoded GitHub Secret and
+        # writes it to a workflow-scoped temp path that the gradle release
+        # signingConfig reads via ELEMENT_PLUS_KEYSTORE_PATH. Avoids signing
+        # release APKs with the debug keystore - Google Play Protect flags
+        # the shared debug SHA-1 as a known low-trust signer and blocks
+        # install on user devices ("Вредоносное приложение заблокировано").
+        env:
+          KS_B64: ${{ secrets.ELEMENT_PLUS_KEYSTORE_BASE64 }}
+        run: |
+          if [ -z "${KS_B64:-}" ]; then
+            echo "::warning::ELEMENT_PLUS_KEYSTORE_BASE64 not set; falling back to debug keystore"
+          else
+            mkdir -p "$RUNNER_TEMP/keystore"
+            printf '%s' "$KS_B64" | base64 -d > "$RUNNER_TEMP/keystore/mxtr-release.keystore"
+            echo "ELEMENT_PLUS_KEYSTORE_PATH=$RUNNER_TEMP/keystore/mxtr-release.keystore" >> "$GITHUB_ENV"
+          fi
+
       - name: Assemble F-Droid Plus release APKs
         # CI has 16 GB RAM so we keep R8 enabled here for ~60% smaller APKs.
         # Local builds still pass -PdisableR8 because the dev host only has
@@ -65,6 +83,8 @@ jobs:
           ELEMENT_ANDROID_MAPTILER_API_KEY: ${{ secrets.ELEMENT_ANDROID_MAPTILER_API_KEY }}
           ELEMENT_ANDROID_MAPTILER_LIGHT_MAP_ID: ${{ secrets.ELEMENT_ANDROID_MAPTILER_LIGHT_MAP_ID }}
           ELEMENT_ANDROID_MAPTILER_DARK_MAP_ID: ${{ secrets.ELEMENT_ANDROID_MAPTILER_DARK_MAP_ID }}
+          ELEMENT_PLUS_KEYSTORE_PASSWORD: ${{ secrets.ELEMENT_PLUS_KEYSTORE_PASSWORD }}
+          ELEMENT_PLUS_KEY_ALIAS: ${{ secrets.ELEMENT_PLUS_KEY_ALIAS }}
         run: ./gradlew :app:assembleFdroidPlusRelease --stacktrace --no-configuration-cache
 
       - name: Collect build metadata

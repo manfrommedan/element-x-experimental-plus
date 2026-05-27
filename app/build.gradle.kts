@@ -96,6 +96,20 @@ android {
             storePassword = System.getenv("ELEMENT_ANDROID_NIGHTLY_STOREPASSWORD")
                 ?: project.property("signing.element.nightly.storePassword") as? String?
         }
+        // Real release keystore for Plus builds. Decoded from a GitHub Secret
+        // in the experimental-build workflow; locally falls through to debug
+        // (so `assembleGplayPlusDebug` / `assembleGplayPlusRelease` still work
+        // on a dev machine without setting up the keystore).
+        register("release") {
+            val storePathEnv = System.getenv("ELEMENT_PLUS_KEYSTORE_PATH")
+            if (!storePathEnv.isNullOrBlank() && file(storePathEnv).exists()) {
+                storeFile = file(storePathEnv)
+                storePassword = System.getenv("ELEMENT_PLUS_KEYSTORE_PASSWORD")
+                keyAlias = System.getenv("ELEMENT_PLUS_KEY_ALIAS") ?: "mxtr-release"
+                keyPassword = System.getenv("ELEMENT_PLUS_KEY_PASSWORD")
+                    ?: System.getenv("ELEMENT_PLUS_KEYSTORE_PASSWORD")
+            }
+        }
     }
 
     val baseAppName = BuildTimeConfig.APPLICATION_NAME
@@ -127,7 +141,15 @@ android {
                     oAuthRedirectSchemeBase,
                 )
             }
-            signingConfig = signingConfigs.getByName("debug")
+            // Use the real release keystore when the workflow set it up;
+            // otherwise fall back to debug for local dev. The release config
+            // has storeFile=null when env was missing, which Gradle interprets
+            // as "no signing" — so we explicitly fall through.
+            signingConfig = if (signingConfigs.getByName("release").storeFile != null) {
+                signingConfigs.getByName("release")
+            } else {
+                signingConfigs.getByName("debug")
+            }
 
             optimization {
                 // Toggle minification off for low-RAM build hosts: pass
@@ -224,10 +246,15 @@ android {
             }
             create("plus") {
                 dimension = "fork"
-                applicationIdSuffix = ".plus"
+                // applicationIdSuffix bumped from .plus to .plusng (2026-05-27)
+                // to escape Google Play Protect verdict cache that flagged the
+                // previous package id as 'potentially harmful' under a server-
+                // side ML rule update. New package = fresh reputation bucket.
+                // Cannot upgrade-in-place; users must reinstall.
+                applicationIdSuffix = ".plusng"
                 versionNameSuffix = "-plus"
                 resValue("string", "app_name", "Element X+")
-                resValue("string", "login_redirect_scheme", "$oAuthRedirectSchemeBase.plus")
+                resValue("string", "login_redirect_scheme", "$oAuthRedirectSchemeBase.plusng")
             }
         }
     }
@@ -312,6 +339,7 @@ dependencies {
     implementation(libs.androidx.activity.compose)
     implementation(libs.androidx.startup)
     implementation(libs.androidx.preference)
+    implementation(libs.androidx.webkit)
     implementation(libs.coil)
 
     implementation(platform(libs.network.okhttp.bom))
