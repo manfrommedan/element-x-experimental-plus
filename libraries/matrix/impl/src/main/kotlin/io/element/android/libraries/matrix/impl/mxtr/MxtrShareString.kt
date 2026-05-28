@@ -126,7 +126,7 @@ object MxtrShareString {
         return true
     }
 
-    fun fromHex(host: String, port: Int, pskHex: String): MxtrShareData {
+    fun fromHex(host: String, port: Int, pskHex: String, sni: String? = null): MxtrShareData {
         // LO3-10: 32-byte PSK == 64 hex chars exactly; reject odd length and
         // any non-hex character so the caller doesn't get a silently-garbled
         // PSK out of the decoder.
@@ -138,6 +138,21 @@ object MxtrShareString {
             require(hi >= 0 && lo >= 0) { "PSK hex contains non-hex character at position ${i * 2}" }
             bytes[i] = ((hi shl 4) or lo).toByte()
         }
-        return MxtrShareData(host = host, port = port, pskBase58 = Base58.encode(bytes))
+        val cleanSni = sni?.takeIf { it.isNotBlank() }?.let {
+            require(isValidHostname(it)) { "SNI must be a DNS hostname, not $it" }
+            it
+        }
+        return MxtrShareData(host = host, port = port, pskBase58 = Base58.encode(bytes), sni = cleanSni)
     }
+
+    /**
+     * True iff [input] is a syntactically valid share-string. Cheap; safe to
+     * call on every keystroke for inline UI validation. Does NOT verify the
+     * server is reachable - only that we'd accept it at connect-time.
+     */
+    fun isValid(input: String): Boolean = parse(input) != null
+
+    fun isValidIpLiteral(host: String): Boolean = isIpLiteral(host)
+
+    fun isValidHostnamePublic(s: String): Boolean = isValidHostname(s)
 }

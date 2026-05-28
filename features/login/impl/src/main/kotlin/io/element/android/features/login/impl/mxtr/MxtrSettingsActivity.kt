@@ -279,14 +279,21 @@ private fun ConfigCard(
         OutlinedTextField(
             value = shareString,
             onValueChange = onShareStringChange,
-            placeholder = { Text("mxtr://psk@host:port") },
+            placeholder = { Text("mxtr://<psk>@<ip>:<port>?sni=<hostname>") },
             isError = shareString.isNotEmpty() && !parseValid,
             textStyle = ElementTheme.typography.fontBodySmMedium.copy(fontFamily = FontFamily.Monospace),
             supportingText = {
+                val parsed = MxtrShareString.parse(shareString)
                 val (text, isErr) = when {
                     shareString.isEmpty() -> "Вставьте строку подключения от вашего сервера" to false
-                    parseValid -> "Формат корректен" to false
-                    else -> "Неверный формат. Ожидается mxtr://<base58-psk>@<host>:<port>" to true
+                    parsed != null -> buildString {
+                        append("Сервер ")
+                        append(parsed.host)
+                        append(':')
+                        append(parsed.port)
+                        if (!parsed.sni.isNullOrEmpty()) append(", SNI=").append(parsed.sni)
+                    } to false
+                    else -> "Неверный формат. Ожидается mxtr://<base58-32B-psk>@<ipv4-или-ipv6>:<port>?sni=<имя>. host обязан быть IP-литералом, hostname отвергается." to true
                 }
                 Text(
                     text,
