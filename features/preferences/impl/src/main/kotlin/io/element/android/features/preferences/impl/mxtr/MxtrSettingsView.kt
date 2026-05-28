@@ -164,7 +164,7 @@ fun MxtrSettingsView(
                 RestartHintCard()
             }
 
-            DiagnosticsCard(snap = snap, expanded = diagExpanded, onToggleExpand = { diagExpanded = !diagExpanded })
+            DiagnosticsCard(snap = snap, sni = MxtrShareString.parse(shareString)?.sni, expanded = diagExpanded, onToggleExpand = { diagExpanded = !diagExpanded })
 
             Spacer(modifier = Modifier.height(24.dp))
         }
@@ -384,6 +384,7 @@ private fun RestartHintCard() {
 @Composable
 private fun DiagnosticsCard(
     snap: MxtrStatsSnapshot,
+    sni: String?,
     expanded: Boolean,
     onToggleExpand: () -> Unit,
 ) {
@@ -429,9 +430,7 @@ private fun DiagnosticsCard(
                 )
                 DiagRow("Перезапусков", snap.acceptLoopRestarts.toString())
                 DiagRow("Сервер", snap.currentServer ?: "—")
-                MxtrShareString.parse(shareString)?.let { parsed ->
-                    parsed.sni?.let { DiagRow("SNI отправляем", it) }
-                }
+                if (!sni.isNullOrEmpty()) DiagRow("SNI отправляем", sni)
                 DiagRow("Активных", snap.active.toString())
                 DiagRow("Всего соединений", snap.total.toString())
                 DiagRow("Успешных", snap.succeeded.toString())
