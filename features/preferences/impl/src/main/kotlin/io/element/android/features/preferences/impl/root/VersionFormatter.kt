@@ -29,11 +29,18 @@ class DefaultVersionFormatter(
             buildMeta.versionName,
             buildMeta.versionCode.toString()
         )
-        return if (buildMeta.gitBranchName == "main") {
+        val withBranch = if (buildMeta.gitBranchName == "main") {
             base
         } else {
             // In case of a build not from main, we display the branch name and the revision
             "$base\n${buildMeta.gitBranchName} (${buildMeta.gitRevision})"
         }
+        return "$withBranch\n$MXTR_PROXY_LABEL"
+    }
+
+    companion object {
+        // Brand line shown under the version in Settings -> About.
+        // mxtr = Matrix Transport, our anti-DPI tunnel protocol.
+        private const val MXTR_PROXY_LABEL = "mxtrproxy-antidpi"
     }
 }
