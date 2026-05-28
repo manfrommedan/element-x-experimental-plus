@@ -88,9 +88,8 @@ object MxtrHttpProxy {
     }
 
     private fun runAcceptLoop() {
-        ServerSocket().use { ss ->
-            ss.reuseAddress = true
-            val boundPort = bindWithFallback(ss, MxtrConfig.LOCAL_PROXY_HOST, MxtrConfig.PREFERRED_LOCAL_PROXY_PORT)
+        bindServerSocketWithFallback(MxtrConfig.LOCAL_PROXY_HOST, MxtrConfig.PREFERRED_LOCAL_PROXY_PORT).use { ss ->
+            val boundPort = ss.localPort
             MxtrConfig.setActiveLocalPort(boundPort)
             val cfg = activeConfig.get()
             Timber.tag(TAG).i(
@@ -258,23 +257,29 @@ object MxtrHttpProxy {
     }
 
     // Walk preferred..preferred+PROBE_PORT_RANGE-1 looking for a free port on
-    // the loopback host. First success wins. Throws BindException only when
-    // the whole window is occupied — at which point the device almost
-    // certainly has something seriously wrong with its networking, and a
-    // hand-configured override is the only reasonable next step.
-    private fun bindWithFallback(ss: ServerSocket, host: String, preferred: Int): Int {
+    // the loopback host. Returns the first ServerSocket that successfully
+    // bound. Each attempt uses a fresh ServerSocket because retrying bind()
+    // on the same instance after BindException is not safe on every JVM /
+    // Android version (the underlying fd can be left in a state where the
+    // next bind throws SocketException instead of recovering). Fd from a
+    // failed attempt is closed before moving to the next port, so probe
+    // storms cannot leak descriptors.
+    private fun bindServerSocketWithFallback(host: String, preferred: Int): ServerSocket {
         val addr = InetAddress.getByName(host)
         var last: Throwable? = null
         for (offset in 0 until MxtrConfig.PROBE_PORT_RANGE) {
             val candidate = preferred + offset
+            val ss = ServerSocket()
             try {
+                ss.reuseAddress = true
                 ss.bind(InetSocketAddress(addr, candidate))
                 if (offset > 0) {
                     Timber.tag(TAG).w("port %d busy; bound %d instead", preferred, candidate)
                 }
-                return candidate
+                return ss
             } catch (e: java.net.BindException) {
                 last = e
+                try { ss.close() } catch (_: Throwable) {}
             }
         }
         throw IOException("no free local port in $preferred..${preferred + MxtrConfig.PROBE_PORT_RANGE - 1}", last)

@@ -66,6 +66,7 @@ import io.element.android.libraries.designsystem.theme.components.Switch
 import io.element.android.libraries.designsystem.theme.components.Text
 import io.element.android.libraries.designsystem.theme.components.TopAppBar
 import io.element.android.libraries.matrix.impl.mxtr.MxtrPreferencesStore
+import io.element.android.libraries.matrix.impl.mxtr.MxtrConfig
 import io.element.android.libraries.matrix.impl.mxtr.MxtrShareString
 import io.element.android.libraries.matrix.impl.mxtr.MxtrStats
 import kotlinx.coroutines.delay
@@ -431,9 +432,15 @@ private fun DiagnosticsCard(
             Column(modifier = Modifier.padding(top = 12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 HorizontalDivider(color = ElementTheme.colors.borderDisabled)
                 Spacer(modifier = Modifier.height(4.dp))
-                DiagRow("Статус приёмки", if (snap.acceptLoopAlive) "слушает" else "не запущен")
+                DiagRow(
+                    "Статус приёмки",
+                    if (snap.acceptLoopAlive) "слушает 127.0.0.1:${MxtrConfig.activeLocalPort()}" else "не запущен",
+                )
                 DiagRow("Перезапусков", snap.acceptLoopRestarts.toString())
                 DiagRow("Сервер", snap.currentServer ?: "—")
+                MxtrShareString.parse(shareString)?.let { parsed ->
+                    parsed.sni?.let { DiagRow("SNI отправляем", it) }
+                }
                 DiagRow("Активных", snap.active.toString())
                 DiagRow("Всего соединений", snap.total.toString())
                 DiagRow("Успешных", snap.succeeded.toString())
