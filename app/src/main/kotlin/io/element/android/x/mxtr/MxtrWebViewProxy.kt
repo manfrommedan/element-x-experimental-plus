@@ -37,7 +37,7 @@ object MxtrWebViewProxy {
             ProxyController.getInstance().clearProxyOverride(executor) {}
             return
         }
-        val proxy = "${MxtrConfig.LOCAL_PROXY_HOST}:${MxtrConfig.LOCAL_PROXY_PORT}"
+        val proxy = "${MxtrConfig.LOCAL_PROXY_HOST}:${MxtrConfig.activeLocalPort()}"
         val config = ProxyConfig.Builder()
             .addProxyRule(proxy)
             // Bypass private / link-local addresses so WebRTC LAN/internal ICE

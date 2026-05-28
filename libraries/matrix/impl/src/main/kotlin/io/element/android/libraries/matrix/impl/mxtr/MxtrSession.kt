@@ -226,7 +226,7 @@ internal class MxtrSession private constructor(
     }
 
     private fun writePaddedAead(out: OutputStream, key: ByteArray, seq: Long, plaintext: ByteArray) {
-        val padSize = nextPadSize(plaintext.size + 2)
+        val padSize = pickPadRung(plaintext.size + 2)
         val padded = ByteArray(padSize)
         padded[0] = (plaintext.size ushr 8).toByte()
         padded[1] = plaintext.size.toByte()
@@ -288,7 +288,14 @@ internal class MxtrSession private constructor(
         private const val MAX_PADDED = 16384
         private const val MAX_CIPHERTEXT = MAX_PADDED + 16
 
-        private val PAD_SIZES = intArrayOf(256, 512, 1024, 2048, 4096, 8192, 16384)
+        // PADME-style ladder symmetric with the Go server's padSizes. 13 rungs
+        // with 1.5x half-steps blur the size histogram across more buckets,
+        // and pickPadRung picks the next rung up with a size-scaled
+        // probability so small signaling frames blend bucket counts where it
+        // matters most. Both ends apply this independently — the wire only
+        // ever sees the encrypted ciphertext length, so client and server
+        // need not synchronise rung choice.
+        private val PAD_SIZES = intArrayOf(256, 384, 512, 768, 1024, 1536, 2048, 3072, 4096, 6144, 8192, 12288, 16384)
         private val RNG = SecureRandom()
 
         private fun nextPadSize(n: Int): Int {
@@ -296,10 +303,26 @@ internal class MxtrSession private constructor(
             return PAD_SIZES.last()
         }
 
+        private fun bumpProbability(minSize: Int): Int = when {
+            minSize < 1024 -> 30
+            minSize < 4096 -> 18
+            else -> 8
+        }
+
+        private fun pickPadRung(minSize: Int): Int {
+            val base = nextPadSize(minSize)
+            if (RNG.nextInt(100) >= bumpProbability(minSize)) return base
+            for (i in PAD_SIZES.indices) {
+                if (PAD_SIZES[i] == base && i + 1 < PAD_SIZES.size) return PAD_SIZES[i + 1]
+            }
+            return base
+        }
+
         fun connect(
             serverHost: String,
             serverPort: Int,
             psk: ByteArray,
+            sni: String? = null,
             connectTimeoutMs: Int = 10_000,
         ): MxtrSession {
             // HI-02: every early-return throw path must close `raw`, otherwise
@@ -311,10 +334,21 @@ internal class MxtrSession private constructor(
             var ownsSocket = true
             try {
                 raw.tcpNoDelay = true
+                // InetSocketAddress(literalIp, port) does NOT trigger DNS when
+                // the host string is a numeric literal — verified at parse time
+                // by MxtrShareString.parse refusing hostnames. createSocket
+                // below is then layered onto the already-connected raw socket
+                // with serverName=sni so the SNI extension in ClientHello is
+                // the persisted CDN hostname, not the IP.
                 raw.connect(InetSocketAddress(serverHost, serverPort), connectTimeoutMs)
 
                 val sslFactory = MxtrCrypto.insecureSslSocketFactory()
-                val tls = sslFactory.createSocket(raw, serverHost, serverPort, true) as SSLSocket
+                // SNI host: prefer the explicit value from the share-string,
+                // fall back to the IP literal. Falling back to IP makes JSSE
+                // emit no SNI (TLS forbids IP-literal SNI) which is itself a
+                // tell — operators should always provide -sni on the server.
+                val sniHost = if (!sni.isNullOrEmpty()) sni else serverHost
+                val tls = sslFactory.createSocket(raw, sniHost, serverPort, true) as SSLSocket
                 tls.enabledProtocols = arrayOf("TLSv1.3")
                 tls.startHandshake()
                 // ME3-01: bound silent NAT-teardown detection. A 3G/4G drop

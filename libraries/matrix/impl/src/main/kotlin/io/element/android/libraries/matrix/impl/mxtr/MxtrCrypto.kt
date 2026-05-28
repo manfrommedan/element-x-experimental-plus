@@ -136,13 +136,11 @@ internal object MxtrCrypto {
                 } catch (e: Exception) {
                     throw CertificateException("mxtr: peer cert expired or not yet valid", e)
                 }
-                // The mxtr server always presents an ECDSA P-256 cert; reject
-                // anything else as a clear protocol violation. Real chain
-                // verification against a CA list does not apply here - the
-                // PSK-HMAC handshake inside the tunnel is the actual mutual
-                // authentication.
+                // Self-signed default is ECDSA P-256; a real LE cert deployed
+                // via -cert can also be RSA-2048 (default certbot). Accept
+                // both. PSK-HMAC inside the tunnel is the real mutual auth.
                 val alg = leaf.publicKey.algorithm
-                if (alg != "EC" && alg != "ECDSA") {
+                if (alg != "EC" && alg != "ECDSA" && alg != "RSA") {
                     throw CertificateException("mxtr: unexpected peer key algorithm $alg")
                 }
             }

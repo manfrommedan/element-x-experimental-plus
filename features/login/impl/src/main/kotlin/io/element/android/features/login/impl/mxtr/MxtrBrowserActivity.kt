@@ -291,7 +291,7 @@ private fun configureProxyThenLoad(webView: WebView, url: String) {
     // to an in-app browser tab would re-set the process-wide proxy without
     // <local> / RFC1918 / link-local bypasses and break Element Call media
     // for the rest of the process lifetime.
-    val proxy = "${MxtrConfig.LOCAL_PROXY_HOST}:${MxtrConfig.LOCAL_PROXY_PORT}"
+    val proxy = "${MxtrConfig.LOCAL_PROXY_HOST}:${MxtrConfig.activeLocalPort()}"
     val config = ProxyConfig.Builder()
         .addProxyRule(proxy)
         .addBypassRule("<local>")

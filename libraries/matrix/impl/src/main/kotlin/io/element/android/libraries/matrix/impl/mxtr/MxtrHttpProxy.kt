@@ -90,11 +90,12 @@ object MxtrHttpProxy {
     private fun runAcceptLoop() {
         ServerSocket().use { ss ->
             ss.reuseAddress = true
-            ss.bind(InetSocketAddress(InetAddress.getByName(MxtrConfig.LOCAL_PROXY_HOST), MxtrConfig.LOCAL_PROXY_PORT))
+            val boundPort = bindWithFallback(ss, MxtrConfig.LOCAL_PROXY_HOST, MxtrConfig.PREFERRED_LOCAL_PROXY_PORT)
+            MxtrConfig.setActiveLocalPort(boundPort)
             val cfg = activeConfig.get()
             Timber.tag(TAG).i(
                 "listening on %s:%d -> %s:%d (v2 stream mux)",
-                MxtrConfig.LOCAL_PROXY_HOST, MxtrConfig.LOCAL_PROXY_PORT,
+                MxtrConfig.LOCAL_PROXY_HOST, boundPort,
                 cfg?.data?.host, cfg?.data?.port,
             )
             MxtrStats.setAcceptLoopAlive(true)
@@ -121,6 +122,7 @@ object MxtrHttpProxy {
                 serverHost = data.host,
                 serverPort = data.port,
                 psk = data.pskBytes(),
+                sni = data.sni,
                 connectTimeoutMs = 15_000,
             )
             session = fresh
@@ -253,6 +255,29 @@ object MxtrHttpProxy {
         } catch (_: IOException) {
             // peer hung up - normal
         }
+    }
+
+    // Walk preferred..preferred+PROBE_PORT_RANGE-1 looking for a free port on
+    // the loopback host. First success wins. Throws BindException only when
+    // the whole window is occupied — at which point the device almost
+    // certainly has something seriously wrong with its networking, and a
+    // hand-configured override is the only reasonable next step.
+    private fun bindWithFallback(ss: ServerSocket, host: String, preferred: Int): Int {
+        val addr = InetAddress.getByName(host)
+        var last: Throwable? = null
+        for (offset in 0 until MxtrConfig.PROBE_PORT_RANGE) {
+            val candidate = preferred + offset
+            try {
+                ss.bind(InetSocketAddress(addr, candidate))
+                if (offset > 0) {
+                    Timber.tag(TAG).w("port %d busy; bound %d instead", preferred, candidate)
+                }
+                return candidate
+            } catch (e: java.net.BindException) {
+                last = e
+            }
+        }
+        throw IOException("no free local port in $preferred..${preferred + MxtrConfig.PROBE_PORT_RANGE - 1}", last)
     }
 
     private class CategorizedError(val kind: MxtrErrorKind, cause: Throwable) : Exception(cause)
