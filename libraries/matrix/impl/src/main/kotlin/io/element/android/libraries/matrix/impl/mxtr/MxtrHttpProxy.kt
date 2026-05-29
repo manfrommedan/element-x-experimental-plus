@@ -88,7 +88,7 @@ object MxtrHttpProxy {
     }
 
     private fun runAcceptLoop() {
-        bindServerSocketWithFallback(MxtrConfig.LOCAL_PROXY_HOST, MxtrConfig.PREFERRED_LOCAL_PROXY_PORT).use { ss ->
+        bindServerSocketEphemeral(MxtrConfig.LOCAL_PROXY_HOST).use { ss ->
             val boundPort = ss.localPort
             MxtrConfig.setActiveLocalPort(boundPort)
             val cfg = activeConfig.get()
@@ -256,33 +256,21 @@ object MxtrHttpProxy {
         }
     }
 
-    // Walk preferred..preferred+PROBE_PORT_RANGE-1 looking for a free port on
-    // the loopback host. Returns the first ServerSocket that successfully
-    // bound. Each attempt uses a fresh ServerSocket because retrying bind()
-    // on the same instance after BindException is not safe on every JVM /
-    // Android version (the underlying fd can be left in a state where the
-    // next bind throws SocketException instead of recovering). Fd from a
-    // failed attempt is closed before moving to the next port, so probe
-    // storms cannot leak descriptors.
-    private fun bindServerSocketWithFallback(host: String, preferred: Int): ServerSocket {
-        val addr = InetAddress.getByName(host)
-        var last: Throwable? = null
-        for (offset in 0 until MxtrConfig.PROBE_PORT_RANGE) {
-            val candidate = preferred + offset
-            val ss = ServerSocket()
-            try {
-                ss.reuseAddress = true
-                ss.bind(InetSocketAddress(addr, candidate))
-                if (offset > 0) {
-                    Timber.tag(TAG).w("port %d busy; bound %d instead", preferred, candidate)
-                }
-                return ss
-            } catch (e: java.net.BindException) {
-                last = e
-                try { ss.close() } catch (_: Throwable) {}
-            }
+    // Bind an OS-assigned ephemeral port on the loopback host. Passing port 0
+    // lets the kernel pick a free port at random, so there is no predictable
+    // port (1984/1993/...) for a local app to scan and abuse. The chosen port
+    // is read back via ServerSocket.localPort at the call site and published
+    // to consumers via MxtrConfig.setActiveLocalPort().
+    private fun bindServerSocketEphemeral(host: String): ServerSocket {
+        val ss = ServerSocket()
+        try {
+            ss.reuseAddress = true
+            ss.bind(InetSocketAddress(InetAddress.getByName(host), 0))
+            return ss
+        } catch (e: Throwable) {
+            try { ss.close() } catch (_: Throwable) {}
+            throw IOException("could not bind local proxy on $host", e)
         }
-        throw IOException("no free local port in $preferred..${preferred + MxtrConfig.PROBE_PORT_RANGE - 1}", last)
     }
 
     private class CategorizedError(val kind: MxtrErrorKind, cause: Throwable) : Exception(cause)

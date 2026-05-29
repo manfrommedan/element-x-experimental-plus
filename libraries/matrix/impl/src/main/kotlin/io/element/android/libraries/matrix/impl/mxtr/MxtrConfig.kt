@@ -13,16 +13,14 @@ import java.util.concurrent.atomic.AtomicInteger
 object MxtrConfig {
     const val LOCAL_PROXY_HOST = "127.0.0.1"
 
-    // Preferred bind port. If taken by another local app at startup, the
-    // accept loop walks PROBE_PORT_RANGE upward until it lands on a free
-    // port and stores it in activeLocalPort. All consumers (matrix-rust-sdk
-    // proxy URL, WebView ProxyController, ProxySelector) must read through
-    // proxyUrl() / activeLocalPort() so they observe the actually-bound
-    // value rather than the constant.
-    const val PREFERRED_LOCAL_PROXY_PORT = 1984
-    const val PROBE_PORT_RANGE = 10
-
-    private val active = AtomicInteger(PREFERRED_LOCAL_PROXY_PORT)
+    // The listener binds an OS-assigned ephemeral port (a different one every
+    // time the config is applied), not a fixed/predictable one. A local app
+    // can't scan a known port (1984/1993/...) to discover or abuse the proxy.
+    // The bound value is published via setActiveLocalPort() right after bind;
+    // all consumers (matrix-rust-sdk proxy URL, WebView ProxyController,
+    // ProxySelector) must read it through proxyUrl() / activeLocalPort()
+    // rather than any constant. 0 means "not bound yet".
+    private val active = AtomicInteger(0)
 
     fun setActiveLocalPort(port: Int) { active.set(port) }
     fun activeLocalPort(): Int = active.get()
