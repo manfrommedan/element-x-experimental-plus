@@ -36,7 +36,9 @@ fun UserPreferences(
             {
                 context.copyToClipboard(text = matrixUser.userId.value, toastMessage = toastMessage)
             }
-        } else null,
+        } else {
+            null
+        },
     )
 }
 

@@ -63,8 +63,8 @@ import io.element.android.libraries.designsystem.theme.components.Scaffold
 import io.element.android.libraries.designsystem.theme.components.Switch
 import io.element.android.libraries.designsystem.theme.components.Text
 import io.element.android.libraries.designsystem.theme.components.TopAppBar
-import io.element.android.libraries.matrix.impl.mxtr.MxtrPreferencesStore
 import io.element.android.libraries.matrix.impl.mxtr.MxtrConfig
+import io.element.android.libraries.matrix.impl.mxtr.MxtrPreferencesStore
 import io.element.android.libraries.matrix.impl.mxtr.MxtrShareString
 import io.element.android.libraries.matrix.impl.mxtr.MxtrStats
 import io.element.android.libraries.matrix.impl.mxtr.MxtrStatsSnapshot
@@ -164,7 +164,12 @@ fun MxtrSettingsView(
                 RestartHintCard()
             }
 
-            DiagnosticsCard(snap = snap, sni = MxtrShareString.parse(shareString)?.sni, expanded = diagExpanded, onToggleExpand = { diagExpanded = !diagExpanded })
+            DiagnosticsCard(
+                snap = snap,
+                sni = MxtrShareString.parse(shareString)?.sni,
+                expanded = diagExpanded,
+                onToggleExpand = { diagExpanded = !diagExpanded }
+            )
 
             Spacer(modifier = Modifier.height(24.dp))
         }
@@ -285,7 +290,10 @@ private fun ConfigCard(
                         append(parsed.port)
                         if (!parsed.sni.isNullOrEmpty()) append(", SNI=").append(parsed.sni)
                     } to false
-                    else -> "Неверный формат. Ожидается mxtr://<base58-32B-psk>@<ipv4-или-ipv6>:<port>?sni=<имя>. host обязан быть IP-литералом, hostname отвергается." to true
+                    else -> (
+                        "Неверный формат. Ожидается mxtr://<base58-32B-psk>@<ipv4-или-ipv6>:<port>?sni=<имя>. " +
+                            "host обязан быть IP-литералом, hostname отвергается."
+                        ) to true
                 }
                 Text(
                     text,

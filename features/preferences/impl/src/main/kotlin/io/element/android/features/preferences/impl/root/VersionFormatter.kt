@@ -29,16 +29,16 @@ class DefaultVersionFormatter(
             buildMeta.versionName,
             buildMeta.versionCode.toString()
         )
-        val withBranch = if (buildMeta.gitBranchName == "main") {
-            base
-        } else {
-            // In case of a build not from main, we display the branch name and the revision
-            "$base\n${buildMeta.gitBranchName} (${buildMeta.gitRevision})"
-        }
-        return "$withBranch\n$MXTR_PROXY_LABEL"
+        // Show the upstream Element X base version plus the short revision (kept for bug reports).
+        // The working branch name (buildMeta.gitBranchName) is intentionally not displayed here -
+        // it stays available in BuildMeta, it is just hidden from the About screen.
+        return "$base\n$ELEMENT_BASE_LABEL ${buildMeta.versionName} · ${buildMeta.gitRevision}\n$MXTR_PROXY_LABEL"
     }
 
     companion object {
+        // Upstream version this fork is built on, shown in Settings -> About.
+        private const val ELEMENT_BASE_LABEL = "Element X"
+
         // Brand line shown under the version in Settings -> About.
         // mxtr = Matrix Transport, our anti-DPI tunnel protocol.
         private const val MXTR_PROXY_LABEL = "mxtrproxy-antidpi"
