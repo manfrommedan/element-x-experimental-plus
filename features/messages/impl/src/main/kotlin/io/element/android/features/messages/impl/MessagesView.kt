@@ -310,7 +310,11 @@ fun MessagesView(
                     if (state.selectionState.isActive) {
                         io.element.android.features.messages.impl.selection.MessagesSelectionTopBar(
                             state = state.selectionState,
-                            userEventPermissions = state.userEventPermissions,
+                            canDeleteSelection = io.element.android.features.messages.impl.selection.canDeleteSelection(
+                                timelineItems = state.timelineState.timelineItems,
+                                selectedIds = state.selectionState.selectedIds,
+                                userEventPermissions = state.userEventPermissions,
+                            ),
                             onCancelClick = { state.eventSink(MessagesEvent.ClearSelection) },
                             // Clipboard write + snackbar are handled in the presenter.
                             onCopyClick = { state.eventSink(MessagesEvent.BulkCopySelected) },
