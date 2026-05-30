@@ -114,7 +114,7 @@ class CallScreenPresenter(
                 // Sets the call as joined
                 activeCallManager.joinedCall(callData)
                 fetchRoomCallUrl(
-                    inputs = callData,
+                    callData = callData,
                     urlState = urlState,
                     callWidgetDriver = callWidgetDriver,
                     languageTag = languageTag,
@@ -125,10 +125,7 @@ class CallScreenPresenter(
                 appCoroutineScope.launch { activeCallManager.hangUpCall(callData) }
             }
         }
-
         screenTracker.TrackScreen(screen = MobileScreen.ScreenName.RoomCall)
-            
-
         HandleMatrixClientSyncState()
 
         callWidgetDriver.value?.let { driver ->
@@ -199,18 +196,15 @@ class CallScreenPresenter(
                     .launchIn(this)
             }
 
-            if (true) {
-                // Note: For external calls isWidgetLoaded will always be false
-                LaunchedEffect(Unit) {
-                    // Wait for the call to be joined, if it takes too long, we display an error
-                    delay(10.seconds)
+            LaunchedEffect(Unit) {
+                // Wait for the call to be joined, if it takes too long, we display an error
+                delay(10.seconds)
 
-                    if (!isWidgetLoaded) {
-                        Timber.w("The call took too long to load. Displaying an error before exiting.")
+                if (!isWidgetLoaded) {
+                    Timber.w("The call took too long to load. Displaying an error before exiting.")
 
-                        // This will display a simple 'Sorry, an error occurred' dialog and force the user to exit the call
-                        webViewError = ""
-                    }
+                    // This will display a simple 'Sorry, an error occurred' dialog and force the user to exit the call
+                    webViewError = ""
                 }
             }
         }
@@ -263,26 +257,24 @@ class CallScreenPresenter(
     }
 
     private suspend fun fetchRoomCallUrl(
-        inputs: CallData,
+        callData: CallData,
         urlState: MutableState<AsyncData<String>>,
         callWidgetDriver: MutableState<MatrixWidgetDriver?>,
         languageTag: String?,
         theme: String?,
     ) {
         urlState.runCatchingUpdatingState {
-            run {
-val result = callWidgetProvider.getWidget(
-                        sessionId = inputs.sessionId,
-                        roomId = inputs.roomId,
-                        clientId = UUID.randomUUID().toString(),
-                        isAudioCall = inputs.isAudioCall,
-                        languageTag = languageTag,
-                        theme = theme,
-                    ).getOrThrow()
-                    callWidgetDriver.value = result.driver
-                    Timber.d("Call widget driver initialized for sessionId: ${inputs.sessionId}, roomId: ${inputs.roomId}")
-                    result.url
-            }
+            val result = callWidgetProvider.getWidget(
+                sessionId = callData.sessionId,
+                roomId = callData.roomId,
+                clientId = UUID.randomUUID().toString(),
+                isAudioCall = callData.isAudioCall,
+                languageTag = languageTag,
+                theme = theme,
+            ).getOrThrow()
+            callWidgetDriver.value = result.driver
+            Timber.d("Call widget driver initialized for sessionId: ${callData.sessionId}, roomId: ${callData.roomId}")
+            result.url
         }
     }
 
@@ -290,12 +282,11 @@ val result = callWidgetProvider.getWidget(
     private fun HandleMatrixClientSyncState() {
         val coroutineScope = rememberCoroutineScope()
         DisposableEffect(Unit) {
-            val roomCallData = callData
-            val client = matrixClientsProvider.getOrNull(roomCallData.sessionId) ?: return@DisposableEffect onDispose {
-                Timber.w("No MatrixClient found for sessionId, can't send call notification: ${roomCallData.sessionId}")
+            val client = matrixClientsProvider.getOrNull(callData.sessionId) ?: return@DisposableEffect onDispose {
+                Timber.w("No MatrixClient found for sessionId, can't send call notification: ${callData.sessionId}")
             }
             coroutineScope.launch {
-                Timber.d("Observing sync state in-call for sessionId: ${roomCallData.sessionId}")
+                Timber.d("Observing sync state in-call for sessionId: ${callData.sessionId}")
                 client.syncService.syncState
                     .collect { state ->
                         if (state != SyncState.Running) {
@@ -304,7 +295,7 @@ val result = callWidgetProvider.getWidget(
                     }
             }
             onDispose {
-                Timber.d("Stopped observing sync state in-call for sessionId: ${roomCallData.sessionId}")
+                Timber.d("Stopped observing sync state in-call for sessionId: ${callData.sessionId}")
                 // Make sure we mark the call as ended in the app state
                 appForegroundStateService.updateIsInCallState(false)
             }
