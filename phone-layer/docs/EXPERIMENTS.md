@@ -24,35 +24,45 @@ exactly like the official Element X release until the switch is flipped.
 
 ## What's in this build (Element X v26.05.2 base)
 
-This fork tracks upstream Element X (currently **v26.05.2**) and adds a small set
-of opt-in features. Each is additive and, where it changes existing UI, gated
-behind a Labs toggle - with the toggles off the app behaves exactly like
+This fork tracks upstream Element X (currently **v26.05.2**) and adds the
+features below. Each one is optional: where it changes existing UI it sits
+behind a Labs toggle, so with the toggles off the app behaves exactly like
 official Element X.
 
-* **Multi-select messages** (Labs -> "Multi-select messages", off by default).
-  *What:* long-press a message to enter selection, then sweep up/down to select
-  a whole range (the list auto-scrolls at the edges); long-press media opens its
-  menu where "Select" also starts selection; a top bar offers bulk copy /
-  forward / delete. *Why:* selecting many or non-adjacent messages with the
-  stock one-by-one flow is slow and disruptive; this keeps the timeline stable
-  and selection fast even across long histories (upstream issue #6737). *Why
-  this way:* state events, redactions and call notifications are excluded as
-  noise, and the selection is capped so bulk actions stay predictable.
+* **Phone-style calls** (Labs → "Phone-style calls", on by default). Voice calls
+  look like a real phone: a big avatar, an mm:ss timer and four iOS-style buttons.
+  Voice and video buttons sit in every room header, group or DM, and there is no
+  lobby screen to tap through. Synthesised ringback, earpiece-first audio and
+  proper group-call ringing make a call feel like WhatsApp or Signal rather than
+  a meeting grid. Turn it off for stock Element Call.
 
-* **mxtr anti-censorship proxy** (Settings -> Anti-censorship proxy). *What:* an
-  in-app local proxy that tunnels Matrix traffic through your own server using
-  the mxtr protocol. *Why:* direct connections to homeservers are blocked by DPI
-  in some networks; mxtr restores access without a separate VPN app. *Why this
-  way:* it binds an OS-assigned local port (nothing fixed to fingerprint) and
-  falls back to a direct connection when disabled. Settings are available in
-  English and Russian.
+* **mxtr anti-censorship proxy** (Settings → Anti-censorship proxy, off by
+  default). An in-app proxy that tunnels your Matrix traffic through your own
+  server, so the app keeps working on networks that block homeservers by DPI, with
+  no separate VPN. It uses an OS-assigned local port and falls straight back to a
+  direct connection when off. Settings in English and Russian.
 
-* **Other Labs toggles:** phone-style calls (see below), bulk image/video
-  picker, copy Matrix ID from settings, pin favourites to the top, plus
-  hide-redacted-events and Wi-Fi-only media download preferences.
+* **Multi-select messages** (Labs → "Multi-select messages", off by default).
+  Long-press a message, then drag up or down to sweep a whole range; the list
+  scrolls itself at the edges. Bulk copy, forward or delete up to 30 at once.
+  System events and deleted messages stay out of the selection, and it survives a
+  rotation (upstream issue #6737).
 
-The version line in Settings -> About shows the Element X base version; the
-working branch name is not displayed.
+* **Bulk image / video picker** (Labs → "Bulk image / video picker", on by
+  default). Attach several photos or videos in one trip to the gallery, up to 30,
+  the way WhatsApp and Telegram do it. The caption goes on the first one.
+
+* **Pin favourites at the top** (Labs → "Pin favourites at the top", on by
+  default). Your favourite rooms get their own section at the top of the chat
+  list, so the ones you actually use stay in reach.
+
+* **Copy Matrix ID from settings** (Labs → "Copy Matrix ID from settings", on by
+  default). A copy button next to your Matrix ID in settings, so you can share it
+  in one tap.
+
+* **Hide deleted messages** (Settings → Advanced settings, off by default). Drops
+  the "message deleted" placeholders from the timeline so a tidied-up chat reads
+  cleanly.
 
 ## How this fork differs from upstream
 
@@ -159,8 +169,10 @@ difference.
 ### Build and packaging
 
 18. **Side-by-side install.** The release build uses applicationId
-    `io.element.android.x.modified` so the fork installs cleanly next
-    to the official Element X without overwriting it.
+    `io.element.android.x.plusng` so the fork installs cleanly next to
+    the official Element X without overwriting it. The package id changed
+    from an earlier `.plus`, so if you had that build, uninstall it first
+    - the new one cannot upgrade in place.
 
 19. **`-PdisableR8` for low-RAM build hosts.** R8 stays enabled in CI
     (16 GB RAM) for the production size win, but local builds on hosts
