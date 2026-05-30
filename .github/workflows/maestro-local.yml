@@ -107,7 +107,7 @@ jobs:
           MAESTRO_ROOM_NAME: MyRoom
           MAESTRO_INVITEE1_MXID: "@maestroelement2:matrix.org"
           MAESTRO_INVITEE2_MXID: "@maestroelement3:matrix.org"
-          MAESTRO_APP_ID: io.element.android.x.plus.debug
+          MAESTRO_APP_ID: io.element.android.x.plusng.debug
         with:
           api-level: ${{ env.API_LEVEL }}
           arch: ${{ env.ARCH }}

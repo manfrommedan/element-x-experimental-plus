@@ -210,7 +210,9 @@ jobs:
             * `element-x-plus-fdroid-${{ steps.meta.outputs.version }}-x86_64.apk` / `element-x-plus-fdroid-${{ steps.meta.outputs.version }}-x86.apk` for emulators or x86 devices.
             * `element-x-plus-fdroid-${{ steps.meta.outputs.version }}-universal.apk` is a fat APK with every ABI (largest, works everywhere).
 
-            The `applicationId` is `io.element.android.x.plus`, so the build installs side
-            by side with the official Element X without overwriting it.
+            The `applicationId` is `io.element.android.x.plusng`, so the build installs
+            side by side with the official Element X without overwriting it. The package id
+            changed from an earlier `.plus`; if you had that build, uninstall it first - the
+            new one cannot upgrade in place.
           files: |
             dist/element-x-plus-fdroid-*.apk
