@@ -166,8 +166,8 @@ enum class FeatureFlags(
     MessageMultiSelect(
         key = "feature.message_multi_select",
         title = "Multi-select messages",
-        description = "Long-press a message to enter selection mode, then tap others to add to the selection. Bulk delete, copy and forward up to 30 messages at once, like WhatsApp or Telegram.",
-        defaultValue = { true },
+        description = "Long-press a text message to start selecting and drag up or down to sweep a whole range (the list auto-scrolls at the edges). Long-press media for its menu, where \"Select\" also starts selection. Bulk copy, forward and delete up to 30 at once.",
+        defaultValue = { false },
         isFinished = false,
         isInLabs = true,
     ),

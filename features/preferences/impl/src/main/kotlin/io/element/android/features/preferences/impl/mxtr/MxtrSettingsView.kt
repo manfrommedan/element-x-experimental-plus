@@ -51,10 +51,12 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import io.element.android.compound.theme.ElementTheme
 import io.element.android.compound.tokens.generated.CompoundIcons
+import io.element.android.features.preferences.impl.R
 import io.element.android.libraries.designsystem.theme.components.Button
 import io.element.android.libraries.designsystem.theme.components.Icon
 import io.element.android.libraries.designsystem.theme.components.IconButton
@@ -63,8 +65,8 @@ import io.element.android.libraries.designsystem.theme.components.Scaffold
 import io.element.android.libraries.designsystem.theme.components.Switch
 import io.element.android.libraries.designsystem.theme.components.Text
 import io.element.android.libraries.designsystem.theme.components.TopAppBar
-import io.element.android.libraries.matrix.impl.mxtr.MxtrPreferencesStore
 import io.element.android.libraries.matrix.impl.mxtr.MxtrConfig
+import io.element.android.libraries.matrix.impl.mxtr.MxtrPreferencesStore
 import io.element.android.libraries.matrix.impl.mxtr.MxtrShareString
 import io.element.android.libraries.matrix.impl.mxtr.MxtrStats
 import io.element.android.libraries.matrix.impl.mxtr.MxtrStatsSnapshot
@@ -104,10 +106,10 @@ fun MxtrSettingsView(
         modifier = modifier,
         topBar = {
             TopAppBar(
-                title = { Text("АнтиЦензурный прокси", style = ElementTheme.typography.fontHeadingMdBold) },
+                title = { Text(stringResource(R.string.screen_mxtr_settings_title), style = ElementTheme.typography.fontHeadingMdBold) },
                 navigationIcon = {
                     IconButton(onClick = onBackClick) {
-                        Icon(CompoundIcons.ArrowLeft(), contentDescription = "Назад")
+                        Icon(CompoundIcons.ArrowLeft(), contentDescription = stringResource(R.string.screen_mxtr_settings_back))
                     }
                 },
             )
@@ -164,7 +166,12 @@ fun MxtrSettingsView(
                 RestartHintCard()
             }
 
-            DiagnosticsCard(snap = snap, sni = MxtrShareString.parse(shareString)?.sni, expanded = diagExpanded, onToggleExpand = { diagExpanded = !diagExpanded })
+            DiagnosticsCard(
+                snap = snap,
+                sni = MxtrShareString.parse(shareString)?.sni,
+                expanded = diagExpanded,
+                onToggleExpand = { diagExpanded = !diagExpanded }
+            )
 
             Spacer(modifier = Modifier.height(24.dp))
         }
@@ -174,9 +181,9 @@ fun MxtrSettingsView(
 @Composable
 private fun StatusCard(snap: MxtrStatsSnapshot, enabled: Boolean) {
     val statusText = when {
-        !enabled -> "Выключено"
-        snap.acceptLoopAlive -> "Подключено"
-        else -> "Запускается..."
+        !enabled -> stringResource(R.string.screen_mxtr_settings_status_off)
+        snap.acceptLoopAlive -> stringResource(R.string.screen_mxtr_settings_status_connected)
+        else -> stringResource(R.string.screen_mxtr_settings_status_starting)
     }
     val color = when {
         !enabled -> ElementTheme.colors.textSecondary
@@ -208,7 +215,11 @@ private fun StatusCard(snap: MxtrStatsSnapshot, enabled: Boolean) {
             }
             if (enabled && snap.currentServer != null) {
                 Column(horizontalAlignment = Alignment.End) {
-                    Text("Сервер", style = ElementTheme.typography.fontBodyXsRegular, color = ElementTheme.colors.textSecondary)
+                    Text(
+                        stringResource(R.string.screen_mxtr_settings_server),
+                        style = ElementTheme.typography.fontBodyXsRegular,
+                        color = ElementTheme.colors.textSecondary
+                    )
                     Text(
                         snap.currentServer ?: "—",
                         style = ElementTheme.typography.fontBodySmMedium,
@@ -222,7 +233,7 @@ private fun StatusCard(snap: MxtrStatsSnapshot, enabled: Boolean) {
             HorizontalDivider(color = ElementTheme.colors.borderDisabled)
             Spacer(modifier = Modifier.height(12.dp))
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceAround) {
-                MetricColumn(label = "Активных", value = snap.active.toString())
+                MetricColumn(label = stringResource(R.string.screen_mxtr_settings_metric_active), value = snap.active.toString())
                 MetricColumn(label = "↑", value = formatBytes(snap.bytesUp))
                 MetricColumn(label = "↓", value = formatBytes(snap.bytesDown))
             }
@@ -243,10 +254,14 @@ private fun EnableCard(enabled: Boolean, onToggle: (Boolean) -> Unit) {
     PremiumCard {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Column(modifier = Modifier.weight(1f)) {
-                Text("Использовать прокси", style = ElementTheme.typography.fontBodyLgMedium, color = ElementTheme.colors.textPrimary)
+                Text(
+                    stringResource(R.string.screen_mxtr_settings_use_proxy),
+                    style = ElementTheme.typography.fontBodyLgMedium,
+                    color = ElementTheme.colors.textPrimary
+                )
                 Spacer(modifier = Modifier.height(2.dp))
                 Text(
-                    "Защищённое соединение через ваш сервер",
+                    stringResource(R.string.screen_mxtr_settings_use_proxy_description),
                     style = ElementTheme.typography.fontBodySmRegular,
                     color = ElementTheme.colors.textSecondary,
                 )
@@ -266,7 +281,11 @@ private fun ConfigCard(
     onShare: () -> Unit,
 ) {
     PremiumCard {
-        Text("Строка подключения", style = ElementTheme.typography.fontBodyLgMedium, color = ElementTheme.colors.textPrimary)
+        Text(
+            stringResource(R.string.screen_mxtr_settings_connection_string),
+            style = ElementTheme.typography.fontBodyLgMedium,
+            color = ElementTheme.colors.textPrimary
+        )
         Spacer(modifier = Modifier.height(12.dp))
         OutlinedTextField(
             value = shareString,
@@ -276,16 +295,16 @@ private fun ConfigCard(
             textStyle = ElementTheme.typography.fontBodySmMedium.copy(fontFamily = FontFamily.Monospace),
             supportingText = {
                 val parsed = MxtrShareString.parse(shareString)
+                val emptyHint = stringResource(R.string.screen_mxtr_settings_connection_string_hint)
+                val serverPrefix = stringResource(R.string.screen_mxtr_settings_server_summary, parsed?.host.orEmpty(), parsed?.port ?: 0)
+                val formatError = stringResource(R.string.screen_mxtr_settings_format_error)
                 val (text, isErr) = when {
-                    shareString.isEmpty() -> "Вставьте строку подключения от вашего сервера" to false
+                    shareString.isEmpty() -> emptyHint to false
                     parsed != null -> buildString {
-                        append("Сервер ")
-                        append(parsed.host)
-                        append(':')
-                        append(parsed.port)
+                        append(serverPrefix)
                         if (!parsed.sni.isNullOrEmpty()) append(", SNI=").append(parsed.sni)
                     } to false
-                    else -> "Неверный формат. Ожидается mxtr://<base58-32B-psk>@<ipv4-или-ipv6>:<port>?sni=<имя>. host обязан быть IP-литералом, hostname отвергается." to true
+                    else -> formatError to true
                 }
                 Text(
                     text,
@@ -301,13 +320,13 @@ private fun ConfigCard(
         ) {
             ToolButton(
                 icon = CompoundIcons.Copy(),
-                label = "Копировать",
+                label = stringResource(R.string.screen_mxtr_settings_action_copy),
                 onClick = onCopy,
                 modifier = Modifier.weight(1f),
             )
             ToolButton(
                 icon = CompoundIcons.ShareAndroid(),
-                label = "Поделиться",
+                label = stringResource(R.string.screen_mxtr_settings_action_share),
                 onClick = onShare,
                 modifier = Modifier.weight(1f),
             )
@@ -347,13 +366,13 @@ private fun ToolButton(
 private fun ActionsRow(parseValid: Boolean, onApply: () -> Unit, onReset: () -> Unit) {
     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         Button(
-            text = "Применить",
+            text = stringResource(R.string.screen_mxtr_settings_action_apply),
             onClick = onApply,
             enabled = parseValid,
             modifier = Modifier.weight(2f),
         )
         OutlinedButton(
-            text = "Сброс",
+            text = stringResource(R.string.screen_mxtr_settings_action_reset),
             onClick = onReset,
             modifier = Modifier.weight(1f),
         )
@@ -373,7 +392,7 @@ private fun RestartHintCard() {
     ) {
         Icon(CompoundIcons.CheckCircleSolid(), contentDescription = null, tint = ElementTheme.colors.iconSuccessPrimary, modifier = Modifier.size(20.dp))
         Text(
-            "Сохранено. Перезапусти приложение чтобы применить.",
+            stringResource(R.string.screen_mxtr_settings_restart_hint),
             style = ElementTheme.typography.fontBodyMdMedium,
             color = ElementTheme.colors.textSuccessPrimary,
             modifier = Modifier.weight(1f),
@@ -397,10 +416,19 @@ private fun DiagnosticsCard(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Column(modifier = Modifier.weight(1f)) {
-                Text("Диагностика", style = ElementTheme.typography.fontBodyLgMedium, color = ElementTheme.colors.textPrimary)
+                Text(
+                    stringResource(R.string.screen_mxtr_settings_diagnostics),
+                    style = ElementTheme.typography.fontBodyLgMedium,
+                    color = ElementTheme.colors.textPrimary
+                )
                 if (!expanded) {
                     Text(
-                        "Всего ${snap.total} · ошибок ${snap.failed} · рестартов ${snap.acceptLoopRestarts}",
+                        stringResource(
+                            R.string.screen_mxtr_settings_diagnostics_summary,
+                            snap.total,
+                            snap.failed,
+                            snap.acceptLoopRestarts,
+                        ),
                         style = ElementTheme.typography.fontBodySmRegular,
                         color = ElementTheme.colors.textSecondary,
                     )
@@ -410,7 +438,11 @@ private fun DiagnosticsCard(
                 Box(modifier = Modifier.size(24.dp)) {
                     androidx.compose.material3.Icon(
                         imageVector = CompoundIcons.ChevronRight(),
-                        contentDescription = if (expanded) "Свернуть" else "Развернуть",
+                        contentDescription = if (expanded) {
+                            stringResource(R.string.screen_mxtr_settings_collapse)
+                        } else {
+                            stringResource(R.string.screen_mxtr_settings_expand)
+                        },
                         modifier = Modifier
                             .fillMaxSize()
                             .padding(0.dp)
@@ -425,29 +457,41 @@ private fun DiagnosticsCard(
                 HorizontalDivider(color = ElementTheme.colors.borderDisabled)
                 Spacer(modifier = Modifier.height(4.dp))
                 DiagRow(
-                    "Статус приёмки",
-                    if (snap.acceptLoopAlive) "слушает 127.0.0.1:${MxtrConfig.activeLocalPort()}" else "не запущен",
+                    stringResource(R.string.screen_mxtr_settings_diag_accept_status),
+                    if (snap.acceptLoopAlive) {
+                        stringResource(R.string.screen_mxtr_settings_diag_listening, MxtrConfig.activeLocalPort())
+                    } else {
+                        stringResource(R.string.screen_mxtr_settings_diag_not_started)
+                    },
                 )
-                DiagRow("Перезапусков", snap.acceptLoopRestarts.toString())
-                DiagRow("Сервер", snap.currentServer ?: "—")
-                if (!sni.isNullOrEmpty()) DiagRow("SNI отправляем", sni)
-                DiagRow("Активных", snap.active.toString())
-                DiagRow("Всего соединений", snap.total.toString())
-                DiagRow("Успешных", snap.succeeded.toString())
-                DiagRow("Упавших", snap.failed.toString())
-                DiagRow("Отправлено", formatBytes(snap.bytesUp))
-                DiagRow("Принято", formatBytes(snap.bytesDown))
+                DiagRow(stringResource(R.string.screen_mxtr_settings_diag_restarts), snap.acceptLoopRestarts.toString())
+                DiagRow(stringResource(R.string.screen_mxtr_settings_server), snap.currentServer ?: "—")
+                if (!sni.isNullOrEmpty()) DiagRow(stringResource(R.string.screen_mxtr_settings_diag_sni_sent), sni)
+                DiagRow(stringResource(R.string.screen_mxtr_settings_metric_active), snap.active.toString())
+                DiagRow(stringResource(R.string.screen_mxtr_settings_diag_total_connections), snap.total.toString())
+                DiagRow(stringResource(R.string.screen_mxtr_settings_diag_succeeded), snap.succeeded.toString())
+                DiagRow(stringResource(R.string.screen_mxtr_settings_diag_failed), snap.failed.toString())
+                DiagRow(stringResource(R.string.screen_mxtr_settings_diag_sent), formatBytes(snap.bytesUp))
+                DiagRow(stringResource(R.string.screen_mxtr_settings_diag_received), formatBytes(snap.bytesDown))
 
                 val nonzeroErrs = snap.errorsByKind.filterValues { it > 0 }
                 if (nonzeroErrs.isNotEmpty()) {
                     Spacer(modifier = Modifier.height(8.dp))
-                    Text("Ошибки по типу", style = ElementTheme.typography.fontBodyMdMedium, color = ElementTheme.colors.textPrimary)
+                    Text(
+                        stringResource(R.string.screen_mxtr_settings_errors_by_type),
+                        style = ElementTheme.typography.fontBodyMdMedium,
+                        color = ElementTheme.colors.textPrimary
+                    )
                     Spacer(modifier = Modifier.height(4.dp))
                     nonzeroErrs.forEach { (kind, count) -> DiagRow(kind.name, count.toString(), isError = true) }
                 }
                 if (snap.recentErrors.isNotEmpty()) {
                     Spacer(modifier = Modifier.height(8.dp))
-                    Text("Последние ошибки", style = ElementTheme.typography.fontBodyMdMedium, color = ElementTheme.colors.textPrimary)
+                    Text(
+                        stringResource(R.string.screen_mxtr_settings_recent_errors),
+                        style = ElementTheme.typography.fontBodyMdMedium,
+                        color = ElementTheme.colors.textPrimary
+                    )
                     Spacer(modifier = Modifier.height(4.dp))
                     snap.recentErrors.take(5).forEach { ev ->
                         Column(
@@ -506,11 +550,12 @@ private fun Modifier.graphicsRotate(deg: Float): Modifier = this.then(
     Modifier.graphicsLayer { rotationZ = deg }
 )
 
+@Composable
 private fun formatBytes(n: Long): String = when {
-    n < 1024 -> "$n Б"
-    n < 1024 * 1024 -> "${n / 1024} КБ"
-    n < 1024L * 1024 * 1024 -> "${"%.1f".format(n / 1024.0 / 1024)} МБ"
-    else -> "${"%.2f".format(n / 1024.0 / 1024 / 1024)} ГБ"
+    n < 1024 -> stringResource(R.string.screen_mxtr_settings_unit_bytes, n.toString())
+    n < 1024 * 1024 -> stringResource(R.string.screen_mxtr_settings_unit_kib, (n / 1024).toString())
+    n < 1024L * 1024 * 1024 -> stringResource(R.string.screen_mxtr_settings_unit_mib, "%.1f".format(n / 1024.0 / 1024))
+    else -> stringResource(R.string.screen_mxtr_settings_unit_gib, "%.2f".format(n / 1024.0 / 1024 / 1024))
 }
 
 private fun copyToClipboard(context: Context, text: String) {
@@ -523,5 +568,6 @@ private fun shareText(context: Context, text: String) {
         type = "text/plain"
         putExtra(Intent.EXTRA_TEXT, text)
     }
-    context.startActivity(Intent.createChooser(send, "Поделиться mxtr").addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+    val chooserTitle = context.getString(R.string.screen_mxtr_settings_share_chooser_title)
+    context.startActivity(Intent.createChooser(send, chooserTitle).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
 }

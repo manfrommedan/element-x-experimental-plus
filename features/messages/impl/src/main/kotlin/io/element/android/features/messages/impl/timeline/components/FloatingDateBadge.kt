@@ -81,7 +81,7 @@ internal fun BoxScope.FloatingDateBadgeOverlay(
 
     // Store the formatted date so we recompute it lazily and can keep it around even if we need to dispose the badge because the timeline items changed
     var formattedDate: String? by remember { mutableStateOf(null) }
-    // Telegram-style: while a tap-driven scroll is running, the badge text stays
+    // While a tap-driven scroll is running, the badge text stays
     // anchored on the tapped date. Only a real (finger) scroll afterwards advances
     // the badge as items cross the viewport's top edge. A counter (not a flag)
     // avoids a race where the previous tap's `finally` clears the flag while the

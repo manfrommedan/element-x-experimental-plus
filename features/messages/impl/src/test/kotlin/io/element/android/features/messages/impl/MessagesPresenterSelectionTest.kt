@@ -12,7 +12,6 @@ package io.element.android.features.messages.impl
 import com.google.common.truth.Truth.assertThat
 import io.element.android.features.location.test.FakeActiveLiveLocationShareManager
 import io.element.android.features.messages.impl.actionlist.ActionListEvent
-import io.element.android.features.messages.impl.actionlist.ActionListState
 import io.element.android.features.messages.impl.actionlist.anActionListState
 import io.element.android.features.messages.impl.crypto.identity.anIdentityChangeState
 import io.element.android.features.messages.impl.link.aLinkState
@@ -60,72 +59,83 @@ import io.element.android.tests.testutils.WarmUpRule
 import io.element.android.tests.testutils.consumeItemsUntilPredicate
 import io.element.android.tests.testutils.consumeItemsUntilTimeout
 import io.element.android.tests.testutils.lambda.lambdaError
-import io.element.android.tests.testutils.lambda.lambdaRecorder
-import io.element.android.tests.testutils.lambda.value
 import io.element.android.tests.testutils.testCoroutineDispatchers
 import io.element.android.tests.testutils.testWithLifecycleOwner
-import kotlin.time.Duration.Companion.seconds
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.toImmutableList
+import kotlinx.collections.immutable.toImmutableSet
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import org.junit.Rule
 import org.junit.Test
+import kotlin.time.Duration.Companion.seconds
 
 class MessagesPresenterSelectionTest {
     @get:Rule
     val warmUpRule = WarmUpRule()
 
-    // --- SelectAllVisible ---
+    // --- Drag range / SetSelection ---
 
     @Test
-    fun `SelectAllVisible picks the NEWEST maxSelection events, not the oldest`() = runTest {
-        // timelineItems is newest-first (TimelineItemsFactory emits items via the
-        // diff cache walked in reverse). LazyColumn renders reverseLayout=true so
-        // the first list item draws at the bottom of the screen - which is the
-        // newest event. Cap = 30; oldest 10 in the tail of the list, newest 30 in
-        // the head.
+    fun `SetSelection caps the swept range at maxSelection`() = runTest {
+        // A drag can sweep more events than the cap; the presenter is the backstop.
         val cap = TimelineSelectionState.MAX_SELECTION
-        val newIds = (0 until cap).map { EventId("\$NEW-$it") }
-        val oldIds = (0 until 10).map { EventId("\$OLD-$it") }
-        val orderedNewestFirst = (newIds + oldIds).map { aTimelineItemEvent(eventId = it) }
+        val ids = (0 until cap + 5).map { EventId("\$E-$it") }
         val presenter = createMessagesPresenter(
-            timelineItems = orderedNewestFirst.toImmutableList(),
+            timelineItems = ids.map { aTimelineItemEvent(eventId = it) }.toImmutableList(),
         )
         presenter.testWithLifecycleOwner {
-            val state = awaitItem()
-            state.eventSink(MessagesEvent.SelectAllVisible)
-            val updated = consumeItemsUntilPredicate { it.selectionState.isActive }.last()
-            assertThat(updated.selectionState.count).isEqualTo(cap)
-            assertThat(updated.selectionState.selectedIds).containsExactlyElementsIn(newIds)
-            assertThat(updated.selectionState.selectedIds.intersect(oldIds.toSet())).isEmpty()
+            val initial = awaitItem()
+            initial.eventSink(MessagesEvent.SetSelection(ids.toImmutableSet()))
+            val state = consumeItemsUntilPredicate { it.selectionState.isActive }.last()
+            assertThat(state.selectionState.count).isEqualTo(cap)
+            assertThat(state.selectionState.isAtCap).isTrue()
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    // --- Non-selectable events ---
+
+    @Test
+    fun `ToggleSelection ignores events that are not bulk-selectable`() = runTest {
+        // State changes / redacted / call notifications are noise and must never enter the
+        // selection. m1 + m2 are real messages, redacted is not selectable: final count is 2.
+        val m1 = aTimelineItemEvent(eventId = EventId("\$M1"))
+        val redacted = aTimelineItemEvent(eventId = EventId("\$RED"), content = TimelineItemRedactedContent)
+        val m2 = aTimelineItemEvent(eventId = EventId("\$M2"))
+        val presenter = createMessagesPresenter(
+            timelineItems = persistentListOf(m1, redacted, m2),
+        )
+        presenter.testWithLifecycleOwner {
+            val initial = awaitItem()
+            initial.eventSink(MessagesEvent.ToggleSelection(m1))
+            initial.eventSink(MessagesEvent.ToggleSelection(redacted))
+            initial.eventSink(MessagesEvent.ToggleSelection(m2))
+            val state = consumeItemsUntilPredicate { it.selectionState.count == 2 }.last()
+            assertThat(state.selectionState.selectedIds).containsExactly(m1.eventId, m2.eventId)
+            assertThat(state.selectionState.selectedIds).doesNotContain(redacted.eventId)
             cancelAndIgnoreRemainingEvents()
         }
     }
 
     @Test
-    fun `SelectAllVisible skips redacted events`() = runTest {
-        val live = (0 until 5).map { aTimelineItemEvent(eventId = EventId("\$LIVE-$it")) }
-        val redacted = (0 until 3).map {
-            aTimelineItemEvent(
-                eventId = EventId("\$RED-$it"),
-                content = TimelineItemRedactedContent,
-            )
-        }
+    fun `EnterSelection ignores non-bulk-selectable anchors and respects the cap`() = runTest {
+        val redacted = aTimelineItemEvent(eventId = EventId("\$RED"), content = TimelineItemRedactedContent)
+        val msg = aTimelineItemEvent(eventId = EventId("\$MSG"))
         val presenter = createMessagesPresenter(
-            timelineItems = (live + redacted).toImmutableList(),
+            timelineItems = persistentListOf(redacted, msg),
         )
         presenter.testWithLifecycleOwner {
-            val state = awaitItem()
-            state.eventSink(MessagesEvent.SelectAllVisible)
-            val updated = consumeItemsUntilPredicate { it.selectionState.isActive }.last()
-            assertThat(updated.selectionState.count).isEqualTo(5)
-            updated.selectionState.selectedIds.forEach { id ->
-                assertThat(id.value).startsWith("\$LIVE-")
-            }
+            val initial = awaitItem()
+            // A non-selectable anchor must not enter selection...
+            initial.eventSink(MessagesEvent.EnterSelection(redacted))
+            // ...while a real message does.
+            initial.eventSink(MessagesEvent.EnterSelection(msg))
+            val state = consumeItemsUntilPredicate { it.selectionState.isActive }.last()
+            assertThat(state.selectionState.selectedIds).containsExactly(msg.eventId)
             cancelAndIgnoreRemainingEvents()
         }
     }
@@ -227,7 +237,7 @@ class MessagesPresenterSelectionTest {
     // --- Selection cap ---
 
     @Test
-    fun `ToggleSelection rejects the 31st event and posts cap-reached snackbar`() = runTest {
+    fun `ToggleSelection silently rejects beyond the cap - no snackbar, the counter shows the limit`() = runTest {
         val cap = TimelineSelectionState.MAX_SELECTION
         val items = (0 until cap + 1).map { aTimelineItemEvent(eventId = EventId("\$E-$it")) }
         val presenter = createMessagesPresenter(
@@ -238,12 +248,14 @@ class MessagesPresenterSelectionTest {
             items.take(cap).forEach { initial.eventSink(MessagesEvent.ToggleSelection(it)) }
             val full = consumeItemsUntilPredicate { it.selectionState.count == cap }.last()
             assertThat(full.selectionState.isAtCap).isTrue()
+            assertThat(full.snackbarMessage).isNull()
+            // The 31st tap is rejected silently (no state change, no snackbar). Deselect an
+            // existing one to force an observable emission and prove the 31st never made it in.
             full.eventSink(MessagesEvent.ToggleSelection(items.last()))
-            advanceUntilIdle()
-            val afterReject = consumeItemsUntilPredicate { it.snackbarMessage != null }.last()
-            assertThat(afterReject.selectionState.count).isEqualTo(cap)
-            assertThat(afterReject.selectionState.selectedIds).doesNotContain(items.last().eventId)
-            assertThat(afterReject.snackbarMessage?.messageResId).isEqualTo(R.string.screen_messages_selection_cap_reached)
+            full.eventSink(MessagesEvent.ToggleSelection(items.first()))
+            val after = consumeItemsUntilPredicate { it.selectionState.count == cap - 1 }.last()
+            assertThat(after.selectionState.selectedIds).doesNotContain(items.last().eventId)
+            assertThat(after.snackbarMessage).isNull()
             cancelAndIgnoreRemainingEvents()
         }
     }

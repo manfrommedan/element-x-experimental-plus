@@ -13,14 +13,14 @@ import java.util.concurrent.atomic.AtomicLong
 import java.util.concurrent.atomic.AtomicReference
 
 enum class MxtrErrorKind {
-    DNS,            // upstream host DNS failed
-    TCP_REFUSED,    // TCP connect to VPS refused
-    TCP_TIMEOUT,    // TCP connect timed out
-    TLS_HANDSHAKE,  // outer TLS handshake failed
+    DNS, // upstream host DNS failed
+    TCP_REFUSED, // TCP connect to VPS refused
+    TCP_TIMEOUT, // TCP connect timed out
+    TLS_HANDSHAKE, // outer TLS handshake failed
     MXTR_HANDSHAKE, // inner mxtr HMAC mismatch / handshake protocol err
-    TARGET_DIAL,    // VPS could not dial the inner target
-    IO,             // generic I/O after established
-    UNKNOWN,        // catch-all
+    TARGET_DIAL, // VPS could not dial the inner target
+    IO, // generic I/O after established
+    UNKNOWN, // catch-all
 }
 
 data class MxtrErrorEvent(
@@ -81,8 +81,12 @@ object MxtrStats {
         }
     }
 
-    internal fun addBytesUp(n: Long) { bytesUp.addAndGet(n) }
-    internal fun addBytesDown(n: Long) { bytesDown.addAndGet(n) }
+    internal fun addBytesUp(n: Long) {
+        bytesUp.addAndGet(n)
+    }
+    internal fun addBytesDown(n: Long) {
+        bytesDown.addAndGet(n)
+    }
 
     internal fun setAcceptLoopAlive(alive: Boolean) = acceptLoopAlive.set(alive)
     internal fun bumpRestart() = acceptLoopRestarts.incrementAndGet()

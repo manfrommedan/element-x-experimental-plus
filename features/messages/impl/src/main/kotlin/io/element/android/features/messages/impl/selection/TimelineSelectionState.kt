@@ -8,12 +8,15 @@
 package io.element.android.features.messages.impl.selection
 
 import androidx.compose.runtime.Immutable
+import androidx.compose.runtime.saveable.Saver
+import androidx.compose.runtime.saveable.listSaver
 import io.element.android.libraries.matrix.api.core.EventId
 import kotlinx.collections.immutable.ImmutableSet
 import kotlinx.collections.immutable.persistentSetOf
+import kotlinx.collections.immutable.toPersistentSet
 
 /**
- * State of the optional bulk-message selection mode (WhatsApp-style).
+ * State of the optional bulk-message selection mode.
  * `isActive` is true while the user is multi-selecting; tap on a message in this mode
  * toggles its membership in [selectedIds] instead of opening the single-message action sheet.
  */
@@ -28,5 +31,26 @@ data class TimelineSelectionState(
 
     companion object {
         const val MAX_SELECTION = 30
+
+        /**
+         * Persists isActive + maxSelection + the selected event-id strings so a large in-progress
+         * selection survives configuration changes and process death.
+         */
+        val Saver: Saver<TimelineSelectionState, *> = listSaver(
+            save = { state ->
+                buildList {
+                    add(state.isActive.toString())
+                    add(state.maxSelection.toString())
+                    state.selectedIds.forEach { add(it.value) }
+                }
+            },
+            restore = { stored ->
+                TimelineSelectionState(
+                    isActive = stored[0].toBoolean(),
+                    maxSelection = stored[1].toInt(),
+                    selectedIds = stored.drop(2).map { EventId(it) }.toPersistentSet(),
+                )
+            },
+        )
     }
 }

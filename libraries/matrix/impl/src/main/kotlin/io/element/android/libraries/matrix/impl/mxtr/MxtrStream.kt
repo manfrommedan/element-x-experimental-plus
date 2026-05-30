@@ -25,7 +25,6 @@ internal class MxtrStream(
     val id: Int,
     private val session: MxtrSession,
 ) : AutoCloseable {
-
     private val incoming = LinkedBlockingQueue<ByteArray>()
     private val openLatch = CountDownLatch(1)
     @Volatile private var openOk = false
@@ -140,7 +139,10 @@ internal class MxtrStream(
         synchronized(closed) {
             if (!closed.compareAndSet(false, true)) return
         }
-        try { session.writeStreamFrame(id, MxtrSession.TYPE_CLOSE, EMPTY) } catch (_: Throwable) {}
+        try {
+            session.writeStreamFrame(id, MxtrSession.TYPE_CLOSE, EMPTY)
+        } catch (_: Throwable) {
+            }
         session.removeStream(id)
     }
 

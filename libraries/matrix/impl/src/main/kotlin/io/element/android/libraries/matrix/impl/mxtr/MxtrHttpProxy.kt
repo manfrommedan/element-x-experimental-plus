@@ -81,7 +81,11 @@ object MxtrHttpProxy {
                 val upMs = (System.nanoTime() - startNanos) / 1_000_000
                 Timber.tag(TAG).e(t, "accept loop died after %d ms; restart in %d ms", upMs, backoffMs)
                 if (upMs > 60_000) backoffMs = 1_000L
-                try { Thread.sleep(backoffMs) } catch (_: InterruptedException) { return }
+                try {
+                    Thread.sleep(backoffMs)
+                } catch (_: InterruptedException) {
+                    return
+                }
                 backoffMs = (backoffMs * 2).coerceAtMost(60_000L)
             }
         }
@@ -94,8 +98,10 @@ object MxtrHttpProxy {
             val cfg = activeConfig.get()
             Timber.tag(TAG).i(
                 "listening on %s:%d -> %s:%d (v2 stream mux)",
-                MxtrConfig.LOCAL_PROXY_HOST, boundPort,
-                cfg?.data?.host, cfg?.data?.port,
+                MxtrConfig.LOCAL_PROXY_HOST,
+                boundPort,
+                cfg?.data?.host,
+                cfg?.data?.port,
             )
             MxtrStats.setAcceptLoopAlive(true)
             while (true) {
@@ -112,11 +118,11 @@ object MxtrHttpProxy {
      */
     private fun getOrCreateSession(config: MxtrRuntimeConfig): MxtrSession {
         val data = config.data ?: throw IOException("mxtr not configured")
-        var s = session
-        if (s != null && !s.isClosed()) return s
+        val cached = session
+        if (cached != null && !cached.isClosed()) return cached
         synchronized(sessionLock) {
-            s = session
-            if (s != null && !s.isClosed()) return s!!
+            val current = session
+            if (current != null && !current.isClosed()) return current
             val fresh = MxtrSession.connect(
                 serverHost = data.host,
                 serverPort = data.port,
@@ -132,7 +138,10 @@ object MxtrHttpProxy {
     private fun handle(client: Socket) {
         val id = connCounter.incrementAndGet()
         val config = activeConfig.get() ?: run {
-            try { client.close() } catch (_: Throwable) {}
+            try {
+                client.close()
+            } catch (_: Throwable) {
+                }
             return
         }
         MxtrStats.connStart()
@@ -183,26 +192,43 @@ object MxtrHttpProxy {
 
             val t1 = Thread({
                 copyLoop(downIn, upOut, MxtrStats::addBytesUp)
-                try { client.shutdownInput() } catch (_: Throwable) {}
-            }, "mxtr-up-$id").apply { isDaemon = true; start() }
+                try {
+                    client.shutdownInput()
+                } catch (_: Throwable) {
+                    }
+            }, "mxtr-up-$id").apply {
+                isDaemon = true
+                start()
+            }
             copyLoop(upIn, downOut, MxtrStats::addBytesDown)
-            try { t1.join(500) } catch (_: Throwable) {}
+            try {
+                t1.join(500)
+            } catch (_: Throwable) {
+                }
             MxtrStats.connSucceeded()
         } catch (ce: CategorizedError) {
             Timber.tag(TAG).w(ce.cause, "[%d] %s failed (%s)", id, targetHostPort, ce.kind.name)
             MxtrStats.connFailed(ce.kind, targetHostPort, ce.cause?.message.orEmpty())
             try {
                 client.getOutputStream().write("HTTP/1.1 502 Bad Gateway\r\nConnection: close\r\n\r\n".toByteArray())
-            } catch (_: Throwable) {}
+            } catch (_: Throwable) {
+                }
         } catch (e: Throwable) {
             Timber.tag(TAG).w(e, "[%d] %s failed (uncategorized)", id, targetHostPort)
             MxtrStats.connFailed(MxtrErrorKind.UNKNOWN, targetHostPort, e.message.orEmpty())
             try {
                 client.getOutputStream().write("HTTP/1.1 502 Bad Gateway\r\nConnection: close\r\n\r\n".toByteArray())
-            } catch (_: Throwable) {}
+            } catch (_: Throwable) {
+                }
         } finally {
-            try { stream?.close() } catch (_: Throwable) {}
-            try { client.close() } catch (_: Throwable) {}
+            try {
+                stream?.close()
+            } catch (_: Throwable) {
+                }
+            try {
+                client.close()
+            } catch (_: Throwable) {
+                }
         }
     }
 
@@ -214,11 +240,17 @@ object MxtrHttpProxy {
         for (attempt in 1..2) {
             val s = try {
                 getOrCreateSession(config)
-            } catch (e: UnknownHostException) { throw CategorizedError(MxtrErrorKind.DNS, e) }
-            catch (e: SocketTimeoutException) { throw CategorizedError(MxtrErrorKind.TCP_TIMEOUT, e) }
-            catch (e: ConnectException) { throw CategorizedError(MxtrErrorKind.TCP_REFUSED, e) }
-            catch (e: SSLException) { throw CategorizedError(MxtrErrorKind.TLS_HANDSHAKE, e) }
-            catch (e: IOException) { throw CategorizedError(MxtrErrorKind.MXTR_HANDSHAKE, e) }
+            } catch (e: UnknownHostException) {
+                throw CategorizedError(MxtrErrorKind.DNS, e)
+            } catch (e: SocketTimeoutException) {
+                throw CategorizedError(MxtrErrorKind.TCP_TIMEOUT, e)
+            } catch (e: ConnectException) {
+                throw CategorizedError(MxtrErrorKind.TCP_REFUSED, e)
+            } catch (e: SSLException) {
+                throw CategorizedError(MxtrErrorKind.TLS_HANDSHAKE, e)
+            } catch (e: IOException) {
+                throw CategorizedError(MxtrErrorKind.MXTR_HANDSHAKE, e)
+            }
 
             try {
                 return s.openStream(targetHost, targetPort)
@@ -268,7 +300,10 @@ object MxtrHttpProxy {
             ss.bind(InetSocketAddress(InetAddress.getByName(host), 0))
             return ss
         } catch (e: Throwable) {
-            try { ss.close() } catch (_: Throwable) {}
+            try {
+                ss.close()
+            } catch (_: Throwable) {
+                }
             throw IOException("could not bind local proxy on $host", e)
         }
     }

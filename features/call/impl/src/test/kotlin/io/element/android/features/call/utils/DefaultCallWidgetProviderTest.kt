@@ -10,6 +10,8 @@ package io.element.android.features.call.utils
 
 import com.google.common.truth.Truth.assertThat
 import io.element.android.features.call.impl.utils.DefaultCallWidgetProvider
+import io.element.android.libraries.featureflag.api.FeatureFlagService
+import io.element.android.libraries.featureflag.test.FakeFeatureFlagService
 import io.element.android.libraries.matrix.api.MatrixClientProvider
 import io.element.android.libraries.matrix.api.widget.CallWidgetSettingsProvider
 import io.element.android.libraries.matrix.test.A_ROOM_ID
@@ -132,10 +134,12 @@ class DefaultCallWidgetProviderTest {
         appPreferencesStore: AppPreferencesStore = InMemoryAppPreferencesStore(),
         callWidgetSettingsProvider: CallWidgetSettingsProvider = FakeCallWidgetSettingsProvider(),
         activeRoomsHolder: ActiveRoomsHolder = DefaultActiveRoomsHolder(),
+        featureFlagService: FeatureFlagService = FakeFeatureFlagService(),
     ) = DefaultCallWidgetProvider(
         matrixClientsProvider = matrixClientProvider,
         appPreferencesStore = appPreferencesStore,
         callWidgetSettingsProvider = callWidgetSettingsProvider,
         activeRoomsHolder = activeRoomsHolder,
+        featureFlagService = featureFlagService,
     )
 }

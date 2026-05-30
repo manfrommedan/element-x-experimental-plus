@@ -81,6 +81,7 @@ class DefaultActiveCallManagerTest {
                     sessionId = callNotificationData.sessionId,
                     roomId = callNotificationData.roomId,
                     isAudioCall = false,
+                    notifyEventId = callNotificationData.eventId.value,
                 ),
                 callState = CallState.Ringing(callNotificationData)
             )
@@ -108,6 +109,7 @@ class DefaultActiveCallManagerTest {
                     sessionId = callNotificationData.sessionId,
                     roomId = callNotificationData.roomId,
                     isAudioCall = true,
+                    notifyEventId = callNotificationData.eventId.value,
                 ),
                 callState = CallState.Ringing(callNotificationData)
             )
@@ -460,6 +462,7 @@ class DefaultActiveCallManagerTest {
                     sessionId = callNotificationData.sessionId,
                     roomId = callNotificationData.roomId,
                     isAudioCall = false,
+                    notifyEventId = callNotificationData.eventId.value,
                 ),
                 callState = CallState.Ringing(callNotificationData)
             )

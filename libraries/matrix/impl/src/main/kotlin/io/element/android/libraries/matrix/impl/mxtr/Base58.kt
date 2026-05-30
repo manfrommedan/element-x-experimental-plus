@@ -50,7 +50,9 @@ internal object Base58 {
         // with high bit set; trim it.
         val trimmed = if (bytes.isNotEmpty() && bytes[0].toInt() == 0) {
             bytes.copyOfRange(1, bytes.size)
-        } else bytes
+        } else {
+            bytes
+        }
         return ByteArray(zeros) + trimmed
     }
 }

@@ -15,20 +15,27 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkHorizontally
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.waitForUpOrCancellation
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.boundsInWindow
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.isTraversalGroup
@@ -36,18 +43,19 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import io.element.android.compound.theme.ElementTheme
+import io.element.android.features.messages.impl.selection.LocalDragSelectRegistry
 import io.element.android.features.messages.impl.selection.SelectionIndicator
 import io.element.android.features.messages.impl.timeline.TimelineEvent
 import io.element.android.features.messages.impl.timeline.TimelineRoomInfo
 import io.element.android.features.messages.impl.timeline.components.event.TimelineItemEventContentView
 import io.element.android.features.messages.impl.timeline.components.layout.ContentAvoidingLayoutData
 import io.element.android.features.messages.impl.timeline.model.TimelineItem
-import kotlinx.collections.immutable.ImmutableSet
 import io.element.android.features.messages.impl.timeline.model.event.TimelineItemLegacyCallInviteContent
 import io.element.android.features.messages.impl.timeline.model.event.TimelineItemPollContent
 import io.element.android.features.messages.impl.timeline.model.event.TimelineItemRtcNotificationContent
 import io.element.android.features.messages.impl.timeline.model.event.TimelineItemStateContent
 import io.element.android.features.messages.impl.timeline.model.event.TimelineItemVoiceContent
+import io.element.android.features.messages.impl.timeline.model.event.isBulkSelectable
 import io.element.android.features.messages.impl.timeline.protection.TimelineProtectionEvent
 import io.element.android.features.messages.impl.timeline.protection.TimelineProtectionState
 import io.element.android.libraries.designsystem.colors.gradientSubtleColors
@@ -61,6 +69,7 @@ import io.element.android.libraries.matrix.api.user.MatrixUser
 import io.element.android.libraries.ui.strings.CommonStrings
 import io.element.android.libraries.ui.utils.a11y.isTalkbackActive
 import io.element.android.wysiwyg.link.Link
+import kotlinx.collections.immutable.ImmutableSet
 import kotlin.time.DurationUnit
 
 @Composable
@@ -115,7 +124,9 @@ internal fun TimelineItemRow(
     } else {
         Modifier
     }
-    val selectableEvent = (timelineItem as? TimelineItem.Event)?.takeIf { it.eventId != null && selectedEventIds != null }
+    val selectableEvent = (timelineItem as? TimelineItem.Event)?.takeIf {
+        it.eventId != null && selectedEventIds != null && it.content.isBulkSelectable()
+    }
     val isSelected = selectableEvent != null && selectableEvent.eventId in selectedEventIds!!
     val selectionTint = if (isSelected) {
         Modifier.background(ElementTheme.colors.bgAccentSelected)
@@ -123,18 +134,41 @@ internal fun TimelineItemRow(
         Modifier
     }
     val selectionClick = if (selectableEvent != null) {
-        Modifier.clickable(
-            interactionSource = null,
-            indication = null,
-            onClick = { onContentClick(selectableEvent) },
-        )
+        // While selecting, a tap anywhere on the row toggles it. We intercept in the Initial
+        // pass and consume the up, so inner content handlers (notably opening the media viewer
+        // for an image) never steal the tap and drop us out of selection. A drag still scrolls:
+        // movement cancels waitForUpOrCancellation, so nothing is consumed.
+        Modifier.pointerInput(selectableEvent.eventId) {
+            awaitEachGesture {
+                awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
+                val up = waitForUpOrCancellation(pass = PointerEventPass.Initial)
+                if (up != null) {
+                    up.consume()
+                    onContentClick(selectableEvent)
+                }
+            }
+        }
     } else {
         Modifier
     }
-    Box(modifier = modifier.then(backgroundModifier).then(selectionTint).then(selectionClick)) {
+    // Report this row's on-screen bounds so drag-to-select can hit-test against it (window
+    // coordinates, like a DOM element). No-op when the registry isn't provided (drag off).
+    val dragRegistry = LocalDragSelectRegistry.current
+    val dragRegEventId = (timelineItem as? TimelineItem.Event)?.eventId
+    if (dragRegistry != null && dragRegEventId != null) {
+        DisposableEffect(dragRegEventId) {
+            onDispose { dragRegistry.remove(dragRegEventId) }
+        }
+    }
+    val dragRegisterModifier = if (dragRegistry != null && dragRegEventId != null) {
+        Modifier.onGloballyPositioned { dragRegistry.put(dragRegEventId, it.boundsInWindow()) }
+    } else {
+        Modifier
+    }
+    Box(modifier = modifier.then(backgroundModifier).then(selectionTint).then(selectionClick).then(dragRegisterModifier)) {
         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
             AnimatedVisibility(
-                visible = selectedEventIds != null && timelineItem is TimelineItem.Event,
+                visible = selectableEvent != null,
                 enter = fadeIn(tween(150)) + expandHorizontally(tween(180)),
                 exit = fadeOut(tween(120)) + shrinkHorizontally(tween(150)),
             ) {

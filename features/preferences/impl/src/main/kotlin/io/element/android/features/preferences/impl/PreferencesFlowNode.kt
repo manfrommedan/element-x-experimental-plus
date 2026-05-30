@@ -27,11 +27,11 @@ import io.element.android.features.logout.api.LogoutEntryPoint
 import io.element.android.features.preferences.api.PreferencesEntryPoint
 import io.element.android.features.preferences.impl.about.AboutNode
 import io.element.android.features.preferences.impl.advanced.AdvancedSettingsNode
-import io.element.android.features.preferences.impl.mxtr.MxtrSettingsNode
 import io.element.android.features.preferences.impl.analytics.AnalyticsSettingsNode
 import io.element.android.features.preferences.impl.blockedusers.BlockedUsersNode
 import io.element.android.features.preferences.impl.developer.DeveloperSettingsNode
 import io.element.android.features.preferences.impl.labs.LabsNode
+import io.element.android.features.preferences.impl.mxtr.MxtrSettingsNode
 import io.element.android.features.preferences.impl.notifications.NotificationSettingsNode
 import io.element.android.features.preferences.impl.notifications.edit.EditDefaultNotificationSettingNode
 import io.element.android.features.preferences.impl.root.PreferencesRootNode

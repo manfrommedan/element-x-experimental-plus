@@ -89,7 +89,7 @@
   <string name="screen_labs_enable_share_mxid_shortcut">"Копировать Matrix ID из настроек"</string>
   <string name="screen_labs_enable_share_mxid_shortcut_description">"Кнопка копирования рядом с твоим Matrix ID в шапке настроек - поделиться в одно касание."</string>
   <string name="screen_labs_enable_message_multi_select">"Множественный выбор сообщений"</string>
-  <string name="screen_labs_enable_message_multi_select_description">"Долгое нажатие на сообщение - включается режим выбора. Тап по другим сообщениям добавляет их в выбор. Массовое удаление, копирование, пересылка до 30 сообщений."</string>
+  <string name="screen_labs_enable_message_multi_select_description">"Долгое нажатие на текстовое сообщение начинает выбор, потяните вверх или вниз, чтобы выделить целый диапазон (у краёв список прокручивается сам). Долгое нажатие на медиа открывает меню, где «Выбрать» тоже запускает выбор. Массовое копирование, пересылка и удаление до 30 за раз."</string>
   <string name="screen_labs_enable_favorites_pinned_to_top">"Избранные чаты наверху"</string>
   <string name="screen_labs_enable_favorites_pinned_to_top_description">"Избранные чаты показываются отдельным разделом над остальным списком, как в SchildiChat или закреплённых чатах Telegram."</string>
   <string name="screen_advanced_settings_hide_redacted_events_toggle_title">"Скрывать удалённые сообщения"</string>

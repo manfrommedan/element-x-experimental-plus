@@ -38,6 +38,7 @@ import io.element.android.features.messages.impl.link.LinkState
 import io.element.android.features.messages.impl.messagecomposer.MessageComposerEvent
 import io.element.android.features.messages.impl.messagecomposer.MessageComposerState
 import io.element.android.features.messages.impl.pinned.banner.PinnedMessagesBannerState
+import io.element.android.features.messages.impl.selection.TimelineSelectionState
 import io.element.android.features.messages.impl.timeline.MarkAsFullyRead
 import io.element.android.features.messages.impl.timeline.TimelineController
 import io.element.android.features.messages.impl.timeline.TimelineEvent
@@ -51,6 +52,7 @@ import io.element.android.features.messages.impl.timeline.model.event.TimelineIt
 import io.element.android.features.messages.impl.timeline.model.event.TimelineItemPollContent
 import io.element.android.features.messages.impl.timeline.model.event.TimelineItemStateContent
 import io.element.android.features.messages.impl.timeline.model.event.TimelineItemTextBasedContent
+import io.element.android.features.messages.impl.timeline.model.event.isBulkSelectable
 import io.element.android.features.messages.impl.timeline.protection.TimelineProtectionState
 import io.element.android.features.messages.impl.voicemessages.composer.DefaultVoiceMessageComposerPresenter
 import io.element.android.features.roomcall.api.RoomCallState
@@ -82,6 +84,7 @@ import io.element.android.libraries.matrix.api.room.history.RoomHistoryVisibilit
 import io.element.android.libraries.matrix.api.room.powerlevels.permissionsAsState
 import io.element.android.libraries.matrix.api.timeline.Timeline
 import io.element.android.libraries.matrix.api.timeline.item.event.EventOrTransactionId
+import io.element.android.libraries.matrix.api.timeline.item.event.toEventOrTransactionId
 import io.element.android.libraries.matrix.ui.messages.reply.map
 import io.element.android.libraries.matrix.ui.model.getAvatarData
 import io.element.android.libraries.matrix.ui.room.getDirectRoomMember
@@ -91,7 +94,6 @@ import io.element.android.libraries.ui.strings.CommonStrings
 import io.element.android.services.analytics.api.AnalyticsService
 import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.toImmutableList
-import io.element.android.libraries.matrix.api.timeline.item.event.toEventOrTransactionId
 import kotlinx.collections.immutable.toPersistentSet
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.collectLatest
@@ -179,8 +181,20 @@ class MessagesPresenter(
         }
 
         val canOpenThreadList by featureFlagService.isFeatureEnabledFlow(FeatureFlags.RoomThreadList).collectAsState(initial = false)
-        val isMultiSelectEnabled by featureFlagService.isFeatureEnabledFlow(FeatureFlags.MessageMultiSelect).collectAsState(initial = false)
-        var selectionState by remember { mutableStateOf(io.element.android.features.messages.impl.selection.TimelineSelectionState()) }
+        // collectAsState(initial = false) momentarily reports false right after this screen
+        // recomposes (for instance when returning from the media viewer), which would make a
+        // long-press fall back to the context menu for a frame or two. Seed the initial value
+        // from a saved sticky flag so the selection gestures stay stable across recomposition.
+        var multiSelectSeen by rememberSaveable { mutableStateOf(false) }
+        val isMultiSelectEnabled by featureFlagService.isFeatureEnabledFlow(FeatureFlags.MessageMultiSelect)
+            .collectAsState(initial = multiSelectSeen)
+        // Track both directions: seeding from the last seen value kills the initial-frame flicker
+        // on screen re-entry, while still reflecting a disable on the next entry.
+        multiSelectSeen = isMultiSelectEnabled
+        // rememberSaveable so a large in-progress selection survives rotation / process death.
+        var selectionState by rememberSaveable(stateSaver = TimelineSelectionState.Saver) {
+            mutableStateOf(TimelineSelectionState())
+        }
         val isCurrentlySharingLiveLocationInRoom by remember { liveLocationShareManager.isCurrentlySharing(room.roomId) }.collectAsState()
 
         val userEventPermissions by room.permissionsAsState(UserEventPermissions.DEFAULT) { perms ->
@@ -265,7 +279,14 @@ class MessagesPresenter(
                 }
                 is MessagesEvent.EnterSelection -> {
                     val anchorEventId = event.anchor.eventId
-                    if (anchorEventId != null) {
+                    // Mirror the ToggleSelection guards so this canonical entry point can't add
+                    // noise (state changes / redacted) or push past the cap, whatever the caller.
+                    val alreadySelected = anchorEventId != null && anchorEventId in selectionState.selectedIds
+                    val underCap = selectionState.selectedIds.size < selectionState.maxSelection
+                    if (anchorEventId != null &&
+                        event.anchor.content.isBulkSelectable() &&
+                        (alreadySelected || underCap)
+                    ) {
                         selectionState = selectionState.copy(
                             isActive = true,
                             selectedIds = (selectionState.selectedIds + anchorEventId).toPersistentSet(),
@@ -274,10 +295,12 @@ class MessagesPresenter(
                 }
                 is MessagesEvent.ToggleSelection -> {
                     val targetId = event.event.eventId ?: return@handleEvent
+                    if (!event.event.content.isBulkSelectable()) return@handleEvent
                     val current = selectionState.selectedIds
                     val next = if (targetId in current) current - targetId else current + targetId
                     if (next.size > selectionState.maxSelection) {
-                        snackbarDispatcher.post(SnackbarMessage(R.string.screen_messages_selection_cap_reached))
+                        // At the cap: silently ignore the extra tap. The top-bar counter shows
+                        // the "N (MAX)" state, so no (flooding) snackbar is needed.
                         return@handleEvent
                     }
                     selectionState = selectionState.copy(
@@ -285,13 +308,27 @@ class MessagesPresenter(
                         selectedIds = next.toPersistentSet(),
                     )
                 }
+                is MessagesEvent.SetSelection -> {
+                    // Drag-to-select emits the whole swept set at once. Cap silently
+                    // (the drag handler already stops growing past maxSelection, this
+                    // is just a backstop) and keep the order deterministic.
+                    val ids = if (event.eventIds.size > selectionState.maxSelection) {
+                        event.eventIds.asSequence().take(selectionState.maxSelection).toPersistentSet()
+                    } else {
+                        event.eventIds.toPersistentSet()
+                    }
+                    selectionState = selectionState.copy(
+                        isActive = ids.isNotEmpty(),
+                        selectedIds = ids,
+                    )
+                }
                 MessagesEvent.ClearSelection -> {
-                    selectionState = io.element.android.features.messages.impl.selection.TimelineSelectionState()
+                    selectionState = TimelineSelectionState()
                 }
                 MessagesEvent.BulkRedactSelected -> {
                     val targets = selectionState.selectedIds.toList()
                     if (targets.isEmpty()) return@handleEvent
-                    selectionState = io.element.android.features.messages.impl.selection.TimelineSelectionState()
+                    selectionState = TimelineSelectionState()
                     sessionCoroutineScope.launch {
                         var failures = 0
                         for (id in targets) {
@@ -315,7 +352,7 @@ class MessagesPresenter(
                 MessagesEvent.BulkCopySelected -> {
                     // The actual clipboard write happens in the View (LocalClipboardManager). The
                     // presenter just exits selection mode after the View handles the copy.
-                    selectionState = io.element.android.features.messages.impl.selection.TimelineSelectionState()
+                    selectionState = TimelineSelectionState()
                 }
                 MessagesEvent.BulkForwardSelected -> {
                     if (selectionState.selectedIds.isEmpty()) return@handleEvent
@@ -330,27 +367,8 @@ class MessagesPresenter(
                         .mapNotNull { it.eventId }
                         .toList()
                     if (orderedTargets.isEmpty()) return@handleEvent
-                    selectionState = io.element.android.features.messages.impl.selection.TimelineSelectionState()
+                    selectionState = TimelineSelectionState()
                     navigator.forwardEvents(orderedTargets)
-                }
-                MessagesEvent.SelectAllVisible -> {
-                    // timelineItems is newest-first (TimelineItemsFactory walks the
-                    // diff cache in reverse before emitting). LazyColumn renders
-                    // reverseLayout=true so the first item in the list draws at the
-                    // BOTTOM of the screen, which is exactly where the user is
-                    // looking. Just take from the head - that's the newest N events.
-                    val ids = timelineState.timelineItems
-                        .asSequence()
-                        .filterIsInstance<io.element.android.features.messages.impl.timeline.model.TimelineItem.Event>()
-                        .filterNot { it.content is io.element.android.features.messages.impl.timeline.model.event.TimelineItemRedactedContent }
-                        .mapNotNull { it.eventId }
-                        .take(selectionState.maxSelection)
-                        .toList()
-                    if (ids.isEmpty()) return@handleEvent
-                    selectionState = selectionState.copy(
-                        isActive = true,
-                        selectedIds = ids.toPersistentSet(),
-                    )
                 }
                 is MessagesEvent.ToggleReaction -> {
                     localCoroutineScope.toggleReaction(event.emoji, event.eventOrTransactionId)
