@@ -29,16 +29,13 @@ class DefaultVersionFormatter(
             buildMeta.versionName,
             buildMeta.versionCode.toString()
         )
-        // Show the upstream Element X base version plus the short revision (kept for bug reports).
-        // The working branch name (buildMeta.gitBranchName) is intentionally not displayed here -
-        // it stays available in BuildMeta, it is just hidden from the About screen.
-        return "$base\n$ELEMENT_BASE_LABEL ${buildMeta.versionName} · ${buildMeta.gitRevision}\n$MXTR_PROXY_LABEL"
+        // versionName already carries the Element X base version and the "-plus" fork marker, so
+        // the single version line is enough. The working branch name (buildMeta.gitBranchName) is
+        // intentionally not shown - it stays available in BuildMeta for bug reports.
+        return "$base\n$MXTR_PROXY_LABEL"
     }
 
     companion object {
-        // Upstream version this fork is built on, shown in Settings -> About.
-        private const val ELEMENT_BASE_LABEL = "Element X"
-
         // Brand line shown under the version in Settings -> About.
         // mxtr = Matrix Transport, our anti-DPI tunnel protocol.
         private const val MXTR_PROXY_LABEL = "mxtrproxy-antidpi"

@@ -26,7 +26,7 @@ class VersionFormatterTest {
                 gitRevision = "1234567890",
             )
         )
-        assertThat(sut.get()).isEqualTo("${VERSION}versionName, 123\nElement X versionName · 1234567890\nmxtrproxy-antidpi")
+        assertThat(sut.get()).isEqualTo("${VERSION}versionName, 123\nmxtrproxy-antidpi")
     }
 
     @Test
@@ -40,7 +40,7 @@ class VersionFormatterTest {
                 gitRevision = "1234567890",
             )
         )
-        assertThat(sut.get()).isEqualTo("${VERSION}versionName, 123\nElement X versionName · 1234567890\nmxtrproxy-antidpi")
+        assertThat(sut.get()).isEqualTo("${VERSION}versionName, 123\nmxtrproxy-antidpi")
     }
 
     companion object {

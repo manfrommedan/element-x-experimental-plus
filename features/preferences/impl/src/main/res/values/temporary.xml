@@ -42,4 +42,63 @@
     <!-- mxtr-proxy entry under Advanced settings. -->
     <string name="screen_advanced_settings_mxtr_title">"Anti-censorship proxy"</string>
     <string name="screen_advanced_settings_mxtr_subtitle">"DPI &amp; TSPU bypass via your own server"</string>
+
+    <!-- mxtr-proxy settings screen. -->
+    <string name="screen_mxtr_settings_title">"Anti-censorship proxy"</string>
+    <string name="screen_mxtr_settings_back">"Back"</string>
+    <!-- Connection status pill. -->
+    <string name="screen_mxtr_settings_status_off">"Off"</string>
+    <string name="screen_mxtr_settings_status_connected">"Connected"</string>
+    <string name="screen_mxtr_settings_status_starting">"Starting…"</string>
+    <!-- Label above the current server address. -->
+    <string name="screen_mxtr_settings_server">"Server"</string>
+    <!-- Live metric: number of active connections. -->
+    <string name="screen_mxtr_settings_metric_active">"Active"</string>
+    <!-- Enable/disable card. -->
+    <string name="screen_mxtr_settings_use_proxy">"Use proxy"</string>
+    <string name="screen_mxtr_settings_use_proxy_description">"Secure connection through your server"</string>
+    <!-- Connection string input card. -->
+    <string name="screen_mxtr_settings_connection_string">"Connection string"</string>
+    <string name="screen_mxtr_settings_connection_string_hint">"Paste the connection string from your server"</string>
+    <!-- Summary shown when the connection string is valid. %1$s = host, %2$d = port. -->
+    <string name="screen_mxtr_settings_server_summary">"Server %1$s:%2$d"</string>
+    <!-- Error shown when the connection string cannot be parsed. -->
+    <string name="screen_mxtr_settings_format_error">"Invalid format. Expected mxtr://&lt;base58-32B-psk&gt;@&lt;ipv4-or-ipv6&gt;:&lt;port&gt;?sni=&lt;name&gt;. Host must be an IP literal, hostname is rejected."</string>
+    <!-- Tool buttons under the connection string. -->
+    <string name="screen_mxtr_settings_action_copy">"Copy"</string>
+    <string name="screen_mxtr_settings_action_share">"Share"</string>
+    <!-- Primary action buttons. -->
+    <string name="screen_mxtr_settings_action_apply">"Apply"</string>
+    <string name="screen_mxtr_settings_action_reset">"Reset"</string>
+    <!-- Confirmation shown after applying settings. -->
+    <string name="screen_mxtr_settings_restart_hint">"Saved. Restart the app to apply."</string>
+    <!-- Diagnostics card. -->
+    <string name="screen_mxtr_settings_diagnostics">"Diagnostics"</string>
+    <!-- Collapsed diagnostics summary. %1$d = total, %2$d = errors, %3$d = restarts. -->
+    <string name="screen_mxtr_settings_diagnostics_summary">"Total %1$d · errors %2$d · restarts %3$d"</string>
+    <!-- Chevron accessibility labels. -->
+    <string name="screen_mxtr_settings_collapse">"Collapse"</string>
+    <string name="screen_mxtr_settings_expand">"Expand"</string>
+    <!-- Diagnostics detail rows. -->
+    <string name="screen_mxtr_settings_diag_accept_status">"Accept status"</string>
+    <!-- Listener address. %1$d = local port. -->
+    <string name="screen_mxtr_settings_diag_listening">"Listening 127.0.0.1:%1$d"</string>
+    <string name="screen_mxtr_settings_diag_not_started">"Not started"</string>
+    <string name="screen_mxtr_settings_diag_restarts">"Restarts"</string>
+    <string name="screen_mxtr_settings_diag_sni_sent">"SNI we send"</string>
+    <string name="screen_mxtr_settings_diag_total_connections">"Total connections"</string>
+    <string name="screen_mxtr_settings_diag_succeeded">"Succeeded"</string>
+    <string name="screen_mxtr_settings_diag_failed">"Failed"</string>
+    <string name="screen_mxtr_settings_diag_sent">"Sent"</string>
+    <string name="screen_mxtr_settings_diag_received">"Received"</string>
+    <!-- Diagnostics error sections. -->
+    <string name="screen_mxtr_settings_errors_by_type">"Errors by type"</string>
+    <string name="screen_mxtr_settings_recent_errors">"Recent errors"</string>
+    <!-- Share sheet chooser title. -->
+    <string name="screen_mxtr_settings_share_chooser_title">"Share mxtr"</string>
+    <!-- Byte-size units. %1$s = formatted number. -->
+    <string name="screen_mxtr_settings_unit_bytes">"%1$s B"</string>
+    <string name="screen_mxtr_settings_unit_kib">"%1$s KB"</string>
+    <string name="screen_mxtr_settings_unit_mib">"%1$s MB"</string>
+    <string name="screen_mxtr_settings_unit_gib">"%1$s GB"</string>
 </resources>
