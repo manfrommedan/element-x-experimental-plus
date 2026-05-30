@@ -137,6 +137,8 @@ class DefaultActionListPresenter(
     ) = launch {
         target.value = ActionListState.Target.Loading(timelineItem)
 
+        // "Select" lets the menu reach mass selection - notably for media, where a long-press
+        // opens this menu instead of entering selection directly (long-press media -> Select).
         val isMultiSelectEnabled = featureFlagService.isFeatureEnabled(FeatureFlags.MessageMultiSelect)
         val actions = buildActions(
             timelineItem = timelineItem,

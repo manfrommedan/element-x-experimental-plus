@@ -89,6 +89,8 @@ import io.element.android.features.messages.impl.timeline.components.receipt.bot
 import io.element.android.features.messages.impl.timeline.model.TimelineItem
 import io.element.android.features.messages.impl.timeline.model.TimelineItemGroupPosition
 import io.element.android.features.messages.impl.timeline.model.event.aTimelineItemStateEventContent
+import io.element.android.features.messages.impl.timeline.model.event.isBulkSelectable
+import io.element.android.features.messages.impl.timeline.model.event.opensMediaViewer
 import io.element.android.features.messages.impl.timeline.model.event.aTimelineItemTextContent
 import io.element.android.features.messages.impl.topbars.MessagesViewTopBar
 import io.element.android.features.messages.impl.topbars.ThreadTopBar
@@ -183,6 +185,10 @@ fun MessagesView(
     // This is needed because the composer is inside an AndroidView that can't be affected by the FocusManager in Compose
     val localView = LocalView.current
 
+    // Exact anchor for drag-to-select: the event the long-press fired on. Read by the
+    // drag gesture instead of hit-testing the pointer position (which is fragile).
+    val dragAnchorEventId = remember { mutableStateOf<io.element.android.libraries.matrix.api.core.EventId?>(null) }
+
     fun hidingKeyboard(block: () -> Unit) {
         localView.hideKeyboard()
         block()
@@ -195,6 +201,26 @@ fun MessagesView(
             state.eventSink(MessagesEvent.ToggleSelection(event))
             return
         }
+        if (state.isMultiSelectEnabled) {
+            // Telegram-style mapping (long-press enters selection, see onMessageLongClick).
+            // A single tap opens the content when it has its own viewer (image/video/file/
+            // audio/location -> onEventContentClick returns true). When there is nothing to
+            // open (text and friends -> false) it falls back to the context menu instead.
+            val opened = onEventContentClick(state.timelineState.isLive, event)
+            if (opened) {
+                localView.hideKeyboard()
+            } else {
+                hidingKeyboard {
+                    state.actionListState.eventSink(
+                        ActionListEvent.ComputeForMessage(
+                            event = event,
+                            userEventPermissions = state.userEventPermissions,
+                        )
+                    )
+                }
+            }
+            return
+        }
         val hideKeyboard = onEventContentClick(state.timelineState.isLive, event)
         if (hideKeyboard) {
             localView.hideKeyboard()
@@ -205,6 +231,25 @@ fun MessagesView(
         Timber.v("OnMessageLongClicked= ${event.id}")
         if (state.selectionState.isActive) {
             state.eventSink(MessagesEvent.ToggleSelection(event))
+            return
+        }
+        if (state.isMultiSelectEnabled && event.content.isBulkSelectable()) {
+            if (event.content.opensMediaViewer()) {
+                // Media: tap already opens the viewer, so long-press surfaces the context menu
+                // (details, edit caption, forward, react, and "Select" to start mass-selection).
+                hidingKeyboard {
+                    state.actionListState.eventSink(
+                        ActionListEvent.ComputeForMessage(
+                            event = event,
+                            userEventPermissions = state.userEventPermissions,
+                        )
+                    )
+                }
+            } else {
+                // Text & friends: long-press enters selection directly (fast drag anchor).
+                dragAnchorEventId.value = event.eventId
+                state.eventSink(MessagesEvent.EnterSelection(event))
+            }
             return
         }
         hidingKeyboard {
@@ -266,13 +311,15 @@ fun MessagesView(
                         io.element.android.features.messages.impl.selection.MessagesSelectionTopBar(
                             state = state.selectionState,
                             onCancelClick = { state.eventSink(MessagesEvent.ClearSelection) },
-                            onSelectAllClick = { state.eventSink(MessagesEvent.SelectAllVisible) },
                             onCopyClick = {
                                 // BulkCopy is finalised in the View because it needs the clipboard manager.
+                                // Ordered by sentTime so the pasted block reads chronologically, matching
+                                // BulkForward (timelineItems is newest-first under reverseLayout).
                                 val texts = state.timelineState.timelineItems
                                     .asSequence()
                                     .filterIsInstance<io.element.android.features.messages.impl.timeline.model.TimelineItem.Event>()
                                     .filter { it.eventId in state.selectionState.selectedIds }
+                                    .sortedBy { it.sentTimeMillis }
                                     .mapNotNull { (it.content as? io.element.android.features.messages.impl.timeline.model.event.TimelineItemTextBasedContent)?.body }
                                     .joinToString("\n\n")
                                 if (texts.isNotEmpty()) clipboardManager.setText(androidx.compose.ui.text.AnnotatedString(texts))
@@ -320,6 +367,7 @@ fun MessagesView(
                             state = state,
                             onContentClick = ::onContentClick,
                             onMessageLongClick = ::onMessageLongClick,
+                            dragAnchorState = dragAnchorEventId,
                             onUserDataClick = {
                                 if (!state.selectionState.isActive) {
                                     hidingKeyboard {
@@ -535,6 +583,7 @@ private fun MessagesViewContent(
     onViewAllPinnedMessagesClick: () -> Unit,
     forceJumpToBottomVisibility: Boolean,
     onSwipeToReply: (TimelineItem.Event) -> Unit,
+    dragAnchorState: androidx.compose.runtime.MutableState<io.element.android.libraries.matrix.api.core.EventId?>? = null,
     modifier: Modifier = Modifier,
     knockRequestsBannerView: @Composable () -> Unit,
 ) {
@@ -591,6 +640,9 @@ private fun MessagesViewContent(
                 nestedScrollConnection = scrollBehavior.nestedScrollConnection,
                 floatingDateTopOffset = pinnedBannerHeightDp,
                 selectedEventIds = if (state.selectionState.isActive) state.selectionState.selectedIds else null,
+                dragSelectEnabled = state.isMultiSelectEnabled,
+                dragAnchorState = dragAnchorState,
+                onSelectionChange = { ids -> state.eventSink(MessagesEvent.SetSelection(ids)) },
             )
 
             if (state.timelineState.timelineMode !is Timeline.Mode.Thread) {

@@ -48,6 +48,7 @@ import io.element.android.features.messages.impl.timeline.components.receipt.bot
 import io.element.android.features.messages.impl.timeline.model.TimelineItem
 import io.element.android.features.messages.impl.timeline.model.TimelineItemThreadInfo
 import io.element.android.features.messages.impl.timeline.model.event.TimelineItemEventContentWithAttachment
+import io.element.android.features.messages.impl.timeline.model.event.isBulkSelectable
 import io.element.android.features.messages.impl.timeline.model.event.TimelineItemPollContent
 import io.element.android.features.messages.impl.timeline.model.event.TimelineItemStateContent
 import io.element.android.features.messages.impl.timeline.model.event.TimelineItemTextBasedContent
@@ -179,7 +180,16 @@ class MessagesPresenter(
         }
 
         val canOpenThreadList by featureFlagService.isFeatureEnabledFlow(FeatureFlags.RoomThreadList).collectAsState(initial = false)
-        val isMultiSelectEnabled by featureFlagService.isFeatureEnabledFlow(FeatureFlags.MessageMultiSelect).collectAsState(initial = false)
+        // collectAsState(initial = false) momentarily reports false right after this screen
+        // recomposes (for instance when returning from the media viewer), which would make a
+        // long-press fall back to the context menu for a frame or two. Seed the initial value
+        // from a saved sticky flag so the selection gestures stay stable across recomposition.
+        var multiSelectSeen by rememberSaveable { mutableStateOf(false) }
+        val isMultiSelectEnabled by featureFlagService.isFeatureEnabledFlow(FeatureFlags.MessageMultiSelect)
+            .collectAsState(initial = multiSelectSeen)
+        // Track both directions: seeding from the last seen value kills the initial-frame flicker
+        // on screen re-entry, while still reflecting a disable on the next entry.
+        multiSelectSeen = isMultiSelectEnabled
         var selectionState by remember { mutableStateOf(io.element.android.features.messages.impl.selection.TimelineSelectionState()) }
         val isCurrentlySharingLiveLocationInRoom by remember { liveLocationShareManager.isCurrentlySharing(room.roomId) }.collectAsState()
 
@@ -265,7 +275,14 @@ class MessagesPresenter(
                 }
                 is MessagesEvent.EnterSelection -> {
                     val anchorEventId = event.anchor.eventId
-                    if (anchorEventId != null) {
+                    // Mirror the ToggleSelection guards so this canonical entry point can't add
+                    // noise (state changes / redacted) or push past the cap, whatever the caller.
+                    val alreadySelected = anchorEventId != null && anchorEventId in selectionState.selectedIds
+                    val underCap = selectionState.selectedIds.size < selectionState.maxSelection
+                    if (anchorEventId != null &&
+                        event.anchor.content.isBulkSelectable() &&
+                        (alreadySelected || underCap)
+                    ) {
                         selectionState = selectionState.copy(
                             isActive = true,
                             selectedIds = (selectionState.selectedIds + anchorEventId).toPersistentSet(),
@@ -274,15 +291,31 @@ class MessagesPresenter(
                 }
                 is MessagesEvent.ToggleSelection -> {
                     val targetId = event.event.eventId ?: return@handleEvent
+                    if (!event.event.content.isBulkSelectable()) return@handleEvent
                     val current = selectionState.selectedIds
                     val next = if (targetId in current) current - targetId else current + targetId
                     if (next.size > selectionState.maxSelection) {
-                        snackbarDispatcher.post(SnackbarMessage(R.string.screen_messages_selection_cap_reached))
+                        // At the cap: silently ignore the extra tap. The top-bar counter shows
+                        // the "N (MAX)" state, so no (flooding) snackbar is needed.
                         return@handleEvent
                     }
                     selectionState = selectionState.copy(
                         isActive = next.isNotEmpty(),
                         selectedIds = next.toPersistentSet(),
+                    )
+                }
+                is MessagesEvent.SetSelection -> {
+                    // Drag-to-select emits the whole swept set at once. Cap silently
+                    // (the drag handler already stops growing past maxSelection, this
+                    // is just a backstop) and keep the order deterministic.
+                    val ids = if (event.eventIds.size > selectionState.maxSelection) {
+                        event.eventIds.asSequence().take(selectionState.maxSelection).toPersistentSet()
+                    } else {
+                        event.eventIds.toPersistentSet()
+                    }
+                    selectionState = selectionState.copy(
+                        isActive = ids.isNotEmpty(),
+                        selectedIds = ids,
                     )
                 }
                 MessagesEvent.ClearSelection -> {
@@ -332,25 +365,6 @@ class MessagesPresenter(
                     if (orderedTargets.isEmpty()) return@handleEvent
                     selectionState = io.element.android.features.messages.impl.selection.TimelineSelectionState()
                     navigator.forwardEvents(orderedTargets)
-                }
-                MessagesEvent.SelectAllVisible -> {
-                    // timelineItems is newest-first (TimelineItemsFactory walks the
-                    // diff cache in reverse before emitting). LazyColumn renders
-                    // reverseLayout=true so the first item in the list draws at the
-                    // BOTTOM of the screen, which is exactly where the user is
-                    // looking. Just take from the head - that's the newest N events.
-                    val ids = timelineState.timelineItems
-                        .asSequence()
-                        .filterIsInstance<io.element.android.features.messages.impl.timeline.model.TimelineItem.Event>()
-                        .filterNot { it.content is io.element.android.features.messages.impl.timeline.model.event.TimelineItemRedactedContent }
-                        .mapNotNull { it.eventId }
-                        .take(selectionState.maxSelection)
-                        .toList()
-                    if (ids.isEmpty()) return@handleEvent
-                    selectionState = selectionState.copy(
-                        isActive = true,
-                        selectedIds = ids.toPersistentSet(),
-                    )
                 }
                 is MessagesEvent.ToggleReaction -> {
                     localCoroutineScope.toggleReaction(event.emoji, event.eventOrTransactionId)

@@ -17,7 +17,7 @@
     <string name="screen_labs_enable_share_mxid_shortcut_description">"Adds a copy button next to your Matrix ID in the settings header so you can share it in one tap."</string>
     <!-- Labs toggle: multi-select messages with bulk actions. -->
     <string name="screen_labs_enable_message_multi_select">"Multi-select messages"</string>
-    <string name="screen_labs_enable_message_multi_select_description">"Long-press a message to enter selection mode, then tap others to add to the selection. Bulk delete, copy and forward up to 30 messages at once."</string>
+    <string name="screen_labs_enable_message_multi_select_description">"Long-press a text message to start selecting, then drag up or down to sweep a whole range (the list auto-scrolls at the edges). Long-press media for its menu, where \"Select\" also starts selection. Bulk copy, forward and delete up to 30 at once."</string>
     <!-- Labs toggle: favourites pinned at the top of the chat list. -->
     <string name="screen_labs_enable_favorites_pinned_to_top">"Favourites at the top"</string>
     <string name="screen_labs_enable_favorites_pinned_to_top_description">"Show your favourite rooms in their own section above the rest of the chat list, like SchildiChat or Telegram pinned chats."</string>

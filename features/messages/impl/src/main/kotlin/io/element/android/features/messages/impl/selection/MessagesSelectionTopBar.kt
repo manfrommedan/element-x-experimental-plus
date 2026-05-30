@@ -24,7 +24,6 @@ import io.element.android.libraries.ui.strings.CommonStrings
 fun MessagesSelectionTopBar(
     state: TimelineSelectionState,
     onCancelClick: () -> Unit,
-    onSelectAllClick: () -> Unit,
     onCopyClick: () -> Unit,
     onDeleteClick: () -> Unit,
     onForwardClick: () -> Unit,
@@ -41,19 +40,18 @@ fun MessagesSelectionTopBar(
         },
         title = {
             Text(
-                text = stringResource(R.string.screen_messages_selection_count_short, state.count),
+                // At the cap the title itself states the limit instead of firing a snackbar -
+                // cheaper, never floods, and stays on this screen.
+                text = if (state.isAtCap) {
+                    stringResource(R.string.screen_messages_selection_cap_reached)
+                } else {
+                    stringResource(R.string.screen_messages_selection_count_short, state.count)
+                },
                 style = ElementTheme.typography.fontHeadingMdRegular,
-                color = ElementTheme.colors.textPrimary,
+                color = if (state.isAtCap) ElementTheme.colors.textCriticalPrimary else ElementTheme.colors.textPrimary,
             )
         },
         actions = {
-            IconButton(onClick = onSelectAllClick) {
-                Icon(
-                    imageVector = CompoundIcons.CheckCircle(),
-                    contentDescription = stringResource(R.string.action_select_all),
-                    tint = ElementTheme.colors.iconPrimary,
-                )
-            }
             IconButton(onClick = onCopyClick) {
                 Icon(
                     imageVector = CompoundIcons.Copy(),

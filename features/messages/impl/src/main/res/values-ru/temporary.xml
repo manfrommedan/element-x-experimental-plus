@@ -10,7 +10,7 @@
     <string name="action_select_all">"Выбрать всё"</string>
     <string name="screen_messages_selection_count_short">"Выбрано: %1$d"</string>
     <string name="screen_messages_selection_delete_confirm">"Удалить %1$d сообщений?"</string>
-    <string name="screen_messages_selection_cap_reached">"Максимум 30 сообщений"</string>
+    <string name="screen_messages_selection_cap_reached">"Выбран максимум сообщений"</string>
     <string name="screen_composer_attachments_cap_reached">"Можно отправить до 30 файлов за раз"</string>
     <string name="screen_messages_forwarded">"Переслано"</string>
 </resources>
