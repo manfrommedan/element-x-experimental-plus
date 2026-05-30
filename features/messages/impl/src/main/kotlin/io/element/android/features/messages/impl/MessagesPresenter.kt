@@ -96,6 +96,7 @@ import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.toImmutableList
 import kotlinx.collections.immutable.toPersistentSet
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.launch
@@ -326,22 +327,28 @@ class MessagesPresenter(
                     selectionState = TimelineSelectionState()
                 }
                 MessagesEvent.BulkRedactSelected -> {
-                    val targets = selectionState.selectedIds.toList()
+                    // Only redact events the user is actually permitted to, skipping the rest so we
+                    // don't fire requests guaranteed to fail. Route through the current timeline so
+                    // thread/focused/pinned selections redact the right timeline.
+                    val targets = timelineState.timelineItems
+                        .asSequence()
+                        .filterIsInstance<TimelineItem.Event>()
+                        .filter { it.eventId != null && it.eventId in selectionState.selectedIds }
+                        .filter { if (it.isMine) userEventPermissions.canRedactOwn else userEventPermissions.canRedactOther }
+                        .mapNotNull { it.eventId }
+                        .toList()
                     if (targets.isEmpty()) return@handleEvent
                     selectionState = TimelineSelectionState()
                     sessionCoroutineScope.launch {
                         var failures = 0
-                        for (id in targets) {
-                            val res = room.liveTimeline.redactEvent(
-                                eventOrTransactionId = id.toEventOrTransactionId(),
-                                reason = null,
-                            )
-                            if (res.isFailure) failures += 1
-                            // Throttle against Synapse's per-room redact rate limit
-                            // (homeservers reject bursts of redact requests). 200 ms
-                            // gives 5 ops/sec which stays under the default limit and
-                            // still lets a 30-message batch finish in ~6 s.
-                            kotlinx.coroutines.delay(BULK_REDACT_THROTTLE_MS)
+                        targets.forEachIndexed { index, id ->
+                            timelineController.invokeOnCurrentTimeline {
+                                redactEvent(eventOrTransactionId = id.toEventOrTransactionId(), reason = null)
+                                    .onFailure { failures += 1 }
+                            }
+                            // Throttle against the homeserver per-room redact rate limit, but only
+                            // between sends so the final redact does not pay the delay.
+                            if (index < targets.lastIndex) delay(BULK_REDACT_THROTTLE_MS)
                         }
                         if (failures > 0) {
                             Timber.w("BulkRedact: $failures of ${targets.size} redact requests failed")
@@ -350,23 +357,33 @@ class MessagesPresenter(
                     }
                 }
                 MessagesEvent.BulkCopySelected -> {
-                    // The actual clipboard write happens in the View (LocalClipboardManager). The
-                    // presenter just exits selection mode after the View handles the copy.
+                    // Assemble + write here (not in the View) so we get the standard copied
+                    // snackbar. Ordered by sentTime so the pasted block reads chronologically.
+                    val text = timelineState.timelineItems
+                        .asSequence()
+                        .filterIsInstance<TimelineItem.Event>()
+                        .filter { it.eventId != null && it.eventId in selectionState.selectedIds }
+                        .sortedBy { it.sentTimeMillis }
+                        .mapNotNull { (it.content as? TimelineItemTextBasedContent)?.body }
+                        .joinToString("\n\n")
+                    if (text.isNotEmpty()) {
+                        clipboardHelper.copyPlainText(text)
+                        snackbarDispatcher.post(SnackbarMessage(CommonStrings.common_copied_to_clipboard))
+                    }
                     selectionState = TimelineSelectionState()
                 }
                 MessagesEvent.BulkForwardSelected -> {
-                    if (selectionState.selectedIds.isEmpty()) return@handleEvent
-                    // Order by original sentTime so the recipient sees the forwarded
-                    // run in the same chronological order they had in the source room,
-                    // regardless of how the user tapped them in selection mode.
-                    val orderedTargets = timelineState.timelineItems
+                    val selected = selectionState.selectedIds
+                    if (selected.isEmpty()) return@handleEvent
+                    // Order by sentTime where the event is in the loaded window, then append any
+                    // selected ids scrolled out of the window so nothing is silently dropped.
+                    val sentTimeById = timelineState.timelineItems
                         .asSequence()
-                        .filterIsInstance<io.element.android.features.messages.impl.timeline.model.TimelineItem.Event>()
-                        .filter { it.eventId != null && it.eventId in selectionState.selectedIds }
-                        .sortedBy { it.sentTimeMillis }
-                        .mapNotNull { it.eventId }
-                        .toList()
-                    if (orderedTargets.isEmpty()) return@handleEvent
+                        .filterIsInstance<TimelineItem.Event>()
+                        .filter { it.eventId != null && it.eventId in selected }
+                        .mapNotNull { event -> event.eventId?.let { it to event.sentTimeMillis } }
+                        .toMap()
+                    val orderedTargets = selected.sortedBy { sentTimeById[it] ?: Long.MAX_VALUE }
                     selectionState = TimelineSelectionState()
                     navigator.forwardEvents(orderedTargets)
                 }

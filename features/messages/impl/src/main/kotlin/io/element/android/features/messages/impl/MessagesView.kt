@@ -159,7 +159,6 @@ fun MessagesView(
 
     val snackbarHostState = rememberSnackbarHostState(snackbarMessage = state.snackbarMessage)
 
-    val clipboardManager = androidx.compose.ui.platform.LocalClipboardManager.current
     var showBulkDeleteConfirm by remember { mutableStateOf(false) }
 
     // Back press while selecting should exit selection mode rather than the room.
@@ -311,23 +310,10 @@ fun MessagesView(
                     if (state.selectionState.isActive) {
                         io.element.android.features.messages.impl.selection.MessagesSelectionTopBar(
                             state = state.selectionState,
+                            userEventPermissions = state.userEventPermissions,
                             onCancelClick = { state.eventSink(MessagesEvent.ClearSelection) },
-                            onCopyClick = {
-                                // BulkCopy is finalised in the View because it needs the clipboard manager.
-                                // Ordered by sentTime so the pasted block reads chronologically, matching
-                                // BulkForward (timelineItems is newest-first under reverseLayout).
-                                val texts = state.timelineState.timelineItems
-                                    .asSequence()
-                                    .filterIsInstance<io.element.android.features.messages.impl.timeline.model.TimelineItem.Event>()
-                                    .filter { it.eventId in state.selectionState.selectedIds }
-                                    .sortedBy { it.sentTimeMillis }
-                                    .mapNotNull {
-                                        (it.content as? io.element.android.features.messages.impl.timeline.model.event.TimelineItemTextBasedContent)?.body
-                                    }
-                                    .joinToString("\n\n")
-                                if (texts.isNotEmpty()) clipboardManager.setText(androidx.compose.ui.text.AnnotatedString(texts))
-                                state.eventSink(MessagesEvent.BulkCopySelected)
-                            },
+                            // Clipboard write + snackbar are handled in the presenter.
+                            onCopyClick = { state.eventSink(MessagesEvent.BulkCopySelected) },
                             onForwardClick = { state.eventSink(MessagesEvent.BulkForwardSelected) },
                             onDeleteClick = { showBulkDeleteConfirm = true },
                         )
