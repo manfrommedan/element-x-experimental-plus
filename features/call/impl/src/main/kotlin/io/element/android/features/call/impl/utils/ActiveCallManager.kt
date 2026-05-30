@@ -220,7 +220,9 @@ class DefaultActiveCallManager(
             return@withLock
         }
 
-        if (currentActiveCall.callData != callData) {
+        // Match by call identity (session + room + audio mode). notifyEventId is incoming-call
+        // metadata that is not always carried on the hang-up side, so it must not break the match.
+        if (currentActiveCall.callData.copy(notifyEventId = null) != callData.copy(notifyEventId = null)) {
             Timber.tag(tag).w("Call type $callData does not match the active call type, ignoring")
             return@withLock
         }

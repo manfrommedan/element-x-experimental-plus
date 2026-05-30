@@ -101,8 +101,11 @@ fun TimelineItemImageView(
                 // render instantly even on mobile data. Tap-to-download only
                 // appears on the painter's Error state (cache miss + can't fetch).
                 val model = remember(content.thumbnailMediaRequestData, networkAllowed) {
-                    if (networkAllowed) content.thumbnailMediaRequestData
-                    else content.thumbnailMediaRequestData.copy(allowNetwork = false)
+                    if (networkAllowed) {
+                        content.thumbnailMediaRequestData
+                    } else {
+                        content.thumbnailMediaRequestData.copy(allowNetwork = false)
+                    }
                 }
                 var painterState by remember(model) {
                     mutableStateOf<AsyncImagePainter.State>(AsyncImagePainter.State.Empty)

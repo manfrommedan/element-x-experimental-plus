@@ -22,7 +22,9 @@ object MxtrConfig {
     // rather than any constant. 0 means "not bound yet".
     private val active = AtomicInteger(0)
 
-    fun setActiveLocalPort(port: Int) { active.set(port) }
+    fun setActiveLocalPort(port: Int) {
+        active.set(port)
+    }
     fun activeLocalPort(): Int = active.get()
 
     fun proxyUrl(): String = "http://$LOCAL_PROXY_HOST:${active.get()}"

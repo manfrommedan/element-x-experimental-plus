@@ -8,13 +8,18 @@
 package io.element.android.features.messages.impl.timeline.model.event
 
 import com.google.common.truth.Truth.assertThat
+import io.element.android.libraries.matrix.api.notification.CallIntent
 import org.junit.Test
 
 class TimelineItemEventContentSelectionTest {
     @Test
-    fun `isBulkSelectable is false for noise - state changes, redacted, unknown`() {
+    fun `isBulkSelectable is false for noise - state changes, redacted, call notifications, unknown`() {
         assertThat(aTimelineItemStateEventContent().isBulkSelectable()).isFalse()
         assertThat(TimelineItemRedactedContent.isBulkSelectable()).isFalse()
+        assertThat(TimelineItemLegacyCallInviteContent.isBulkSelectable()).isFalse()
+        assertThat(
+            TimelineItemRtcNotificationContent(CallIntent.AUDIO, RtcNotificationState.Started).isBulkSelectable()
+        ).isFalse()
         assertThat(TimelineItemUnknownContent.isBulkSelectable()).isFalse()
     }
 
@@ -40,6 +45,7 @@ class TimelineItemEventContentSelectionTest {
             aTimelineItemVideoContent(),
             aTimelineItemFileContent(),
             aTimelineItemAudioContent(),
+            aTimelineItemLocationContent(mode = aStaticLocationMode()),
         ).forEach { assertThat(it.opensMediaViewer()).isTrue() }
     }
 

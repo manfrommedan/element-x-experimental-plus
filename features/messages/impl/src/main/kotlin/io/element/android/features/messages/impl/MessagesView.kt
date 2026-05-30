@@ -72,6 +72,7 @@ import io.element.android.features.messages.impl.messagecomposer.suggestions.Sug
 import io.element.android.features.messages.impl.pinned.banner.PinnedMessagesBannerState
 import io.element.android.features.messages.impl.pinned.banner.PinnedMessagesBannerView
 import io.element.android.features.messages.impl.pinned.banner.PinnedMessagesBannerViewDefaults
+import io.element.android.features.messages.impl.selection.DragSelectAnchor
 import io.element.android.features.messages.impl.timeline.FOCUS_ON_PINNED_EVENT_DEBOUNCE_DURATION_IN_MILLIS
 import io.element.android.features.messages.impl.timeline.TimelineEvent
 import io.element.android.features.messages.impl.timeline.TimelineView
@@ -89,9 +90,9 @@ import io.element.android.features.messages.impl.timeline.components.receipt.bot
 import io.element.android.features.messages.impl.timeline.model.TimelineItem
 import io.element.android.features.messages.impl.timeline.model.TimelineItemGroupPosition
 import io.element.android.features.messages.impl.timeline.model.event.aTimelineItemStateEventContent
+import io.element.android.features.messages.impl.timeline.model.event.aTimelineItemTextContent
 import io.element.android.features.messages.impl.timeline.model.event.isBulkSelectable
 import io.element.android.features.messages.impl.timeline.model.event.opensMediaViewer
-import io.element.android.features.messages.impl.timeline.model.event.aTimelineItemTextContent
 import io.element.android.features.messages.impl.topbars.MessagesViewTopBar
 import io.element.android.features.messages.impl.topbars.ThreadTopBar
 import io.element.android.features.messages.impl.voicemessages.composer.VoiceMessagePermissionRationaleDialog
@@ -187,7 +188,7 @@ fun MessagesView(
 
     // Exact anchor for drag-to-select: the event the long-press fired on. Read by the
     // drag gesture instead of hit-testing the pointer position (which is fragile).
-    val dragAnchorEventId = remember { mutableStateOf<io.element.android.libraries.matrix.api.core.EventId?>(null) }
+    val dragAnchor = remember { DragSelectAnchor() }
 
     fun hidingKeyboard(block: () -> Unit) {
         localView.hideKeyboard()
@@ -202,7 +203,7 @@ fun MessagesView(
             return
         }
         if (state.isMultiSelectEnabled) {
-            // Telegram-style mapping (long-press enters selection, see onMessageLongClick).
+            // Tap/long-press split (long-press enters selection, see onMessageLongClick).
             // A single tap opens the content when it has its own viewer (image/video/file/
             // audio/location -> onEventContentClick returns true). When there is nothing to
             // open (text and friends -> false) it falls back to the context menu instead.
@@ -247,7 +248,7 @@ fun MessagesView(
                 }
             } else {
                 // Text & friends: long-press enters selection directly (fast drag anchor).
-                dragAnchorEventId.value = event.eventId
+                dragAnchor.eventId = event.eventId
                 state.eventSink(MessagesEvent.EnterSelection(event))
             }
             return
@@ -320,7 +321,9 @@ fun MessagesView(
                                     .filterIsInstance<io.element.android.features.messages.impl.timeline.model.TimelineItem.Event>()
                                     .filter { it.eventId in state.selectionState.selectedIds }
                                     .sortedBy { it.sentTimeMillis }
-                                    .mapNotNull { (it.content as? io.element.android.features.messages.impl.timeline.model.event.TimelineItemTextBasedContent)?.body }
+                                    .mapNotNull {
+                                        (it.content as? io.element.android.features.messages.impl.timeline.model.event.TimelineItemTextBasedContent)?.body
+                                    }
                                     .joinToString("\n\n")
                                 if (texts.isNotEmpty()) clipboardManager.setText(androidx.compose.ui.text.AnnotatedString(texts))
                                 state.eventSink(MessagesEvent.BulkCopySelected)
@@ -367,7 +370,7 @@ fun MessagesView(
                             state = state,
                             onContentClick = ::onContentClick,
                             onMessageLongClick = ::onMessageLongClick,
-                            dragAnchorState = dragAnchorEventId,
+                            dragAnchor = dragAnchor,
                             onUserDataClick = {
                                 if (!state.selectionState.isActive) {
                                     hidingKeyboard {
@@ -583,7 +586,7 @@ private fun MessagesViewContent(
     onViewAllPinnedMessagesClick: () -> Unit,
     forceJumpToBottomVisibility: Boolean,
     onSwipeToReply: (TimelineItem.Event) -> Unit,
-    dragAnchorState: androidx.compose.runtime.MutableState<io.element.android.libraries.matrix.api.core.EventId?>? = null,
+    dragAnchor: DragSelectAnchor? = null,
     modifier: Modifier = Modifier,
     knockRequestsBannerView: @Composable () -> Unit,
 ) {
@@ -641,7 +644,7 @@ private fun MessagesViewContent(
                 floatingDateTopOffset = pinnedBannerHeightDp,
                 selectedEventIds = if (state.selectionState.isActive) state.selectionState.selectedIds else null,
                 dragSelectEnabled = state.isMultiSelectEnabled,
-                dragAnchorState = dragAnchorState,
+                dragAnchor = dragAnchor,
                 onSelectionChange = { ids -> state.eventSink(MessagesEvent.SetSelection(ids)) },
             )
 

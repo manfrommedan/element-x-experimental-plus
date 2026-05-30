@@ -23,9 +23,9 @@ import dev.zacsweers.metro.AssistedFactory
 import dev.zacsweers.metro.AssistedInject
 import im.vector.app.features.analytics.plan.MobileScreen
 import io.element.android.compound.theme.ElementTheme
+import io.element.android.features.call.api.CallData
 import io.element.android.features.call.api.CallSummary
 import io.element.android.features.call.api.CallSummaryStore
-import io.element.android.features.call.api.CallData
 import io.element.android.features.call.impl.data.WidgetMessage
 import io.element.android.features.call.impl.utils.ActiveCallManager
 import io.element.android.features.call.impl.utils.CallWidgetProvider
@@ -38,8 +38,8 @@ import io.element.android.libraries.core.coroutine.CoroutineDispatchers
 import io.element.android.libraries.di.annotations.AppCoroutineScope
 import io.element.android.libraries.matrix.api.MatrixClientProvider
 import io.element.android.libraries.matrix.api.core.EventId
-import io.element.android.libraries.matrix.api.timeline.item.event.EventType
 import io.element.android.libraries.matrix.api.sync.SyncState
+import io.element.android.libraries.matrix.api.timeline.item.event.EventType
 import io.element.android.libraries.matrix.api.widget.MatrixWidgetDriver
 import io.element.android.libraries.network.useragent.UserAgentProvider
 import io.element.android.services.analytics.api.ScreenTracker
@@ -83,7 +83,6 @@ class CallScreenPresenter(
         fun create(callData: CallData, navigator: CallScreenNavigator): CallScreenPresenter
     }
 
-    private val isInWidgetMode = true
     private val isAudioOnlyCall = callData.isAudioCall
     private val userAgent = userAgentProvider.provide()
 

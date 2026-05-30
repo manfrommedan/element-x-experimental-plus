@@ -13,7 +13,6 @@ import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.gestures.scrollBy
 import androidx.compose.foundation.lazy.LazyListState
-import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateMapOf
@@ -82,8 +81,18 @@ class DragSelectRegistry {
 val LocalDragSelectRegistry = compositionLocalOf<DragSelectRegistry?> { null }
 
 /**
- * Telegram-style drag-to-select. Anchor = the exact event the long-press fired on (pushed into
- * [anchorState] by the per-row handler; cleared on every touch-down so a press in the gutter,
+ * One-shot mutable cell carrying the long-press anchor from the per-row long-click handler
+ * (writer) to the drag gesture (reader/clearer). A plain holder rather than a MutableState so it
+ * can be passed through @Composable parameters without tripping the MutableParams lint, and so the
+ * write is visible to the gesture immediately without waiting for a recomposition.
+ */
+class DragSelectAnchor {
+    var eventId: EventId? = null
+}
+
+/**
+ * Long-press-then-drag range selection. Anchor = the exact event the long-press fired on (pushed
+ * into [anchor] by the per-row handler; cleared on every touch-down so a press in the gutter,
  * which sets no anchor, is ignored). The moving finger is resolved through the per-row bounds
  * registry, not layout-offset math. Holding near an edge auto-scrolls while the range grows.
  */
@@ -95,7 +104,7 @@ fun Modifier.dragToSelectMessages(
     enabled: Boolean,
     maxSelection: Int,
     reverseLayout: Boolean,
-    anchorState: MutableState<EventId?>,
+    anchor: DragSelectAnchor,
     onSelectionChange: (ImmutableSet<EventId>) -> Unit,
 ): Modifier = composed {
     val registry = LocalDragSelectRegistry.current
@@ -117,7 +126,7 @@ fun Modifier.dragToSelectMessages(
                 Modifier.pointerInput(Unit) {
                     awaitEachGesture {
                         awaitFirstDown(requireUnconsumed = false)
-                        anchorState.value = null
+                        anchor.eventId = null
                     }
                 }
             } else {
@@ -151,16 +160,23 @@ fun Modifier.dragToSelectMessages(
                     .filter { it.content.isBulkSelectable() }
                     .mapNotNull { it.eventId }
                 // Range FIRST: the actively swept run (which always includes the anchor) must
-                // never be truncated by the cap. Pre-existing taps fill the remaining budget.
-                val combined = (range + baseSelection.asSequence()).distinct().toList()
+                // never be truncated by the cap. Pre-existing taps fill the remaining budget in a
+                // deterministic order (by timeline position, on-screen before off-screen) so the
+                // same set survives the cap every recomposition instead of set-iteration order.
+                val combined = (
+                    range + baseSelection.asSequence().sortedBy {
+                        val i = indexOfEvent(it)
+                        if (i < 0) Int.MAX_VALUE else i
+                    }
+                    ).distinct().toList()
                 val capped = if (combined.size > maxSelection) combined.take(maxSelection) else combined
                 latestOnChange(capped.toPersistentSet())
             }
 
             detectDragGesturesAfterLongPress(
                 onDragStart = { offset ->
-                    val anchorId = anchorState.value
-                    anchorState.value = null // one-shot consume
+                    val anchorId = anchor.eventId
+                    anchor.eventId = null // one-shot consume
                     val idx = indexOfEvent(anchorId)
                     if (anchorId != null && idx >= 0) {
                         anchorIndex = idx

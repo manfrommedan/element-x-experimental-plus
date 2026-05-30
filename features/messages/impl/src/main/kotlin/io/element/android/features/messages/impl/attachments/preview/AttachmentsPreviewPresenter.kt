@@ -12,9 +12,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.getValue
-import android.net.Uri
 import androidx.compose.runtime.mutableStateListOf
-import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -48,7 +46,6 @@ import io.element.android.libraries.mediaviewer.api.local.LocalMediaFactory
 import io.element.android.libraries.preferences.api.store.VideoCompressionPreset
 import io.element.android.libraries.textcomposer.model.TextEditorState
 import io.element.android.libraries.textcomposer.model.rememberMarkdownTextEditorState
-import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.toImmutableList
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
@@ -357,7 +354,7 @@ class AttachmentsPreviewPresenter(
     /**
      * Bulk-pick send. Iterates attachments in their original 0..N-1 order so the room timeline
      * preserves selection order. The single shared [batchCaption] and [inReplyToEventId] attach
-     * to the first attachment only - WhatsApp/Telegram batched-share semantics.
+     * to the first attachment only - standard batched-share semantics.
      *
      * Throttle between sends is provided by mediaSender's internal send pipeline; we add no extra
      * delay here. Failures are logged per-item but do not abort the batch.

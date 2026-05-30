@@ -38,6 +38,7 @@ import io.element.android.features.messages.impl.link.LinkState
 import io.element.android.features.messages.impl.messagecomposer.MessageComposerEvent
 import io.element.android.features.messages.impl.messagecomposer.MessageComposerState
 import io.element.android.features.messages.impl.pinned.banner.PinnedMessagesBannerState
+import io.element.android.features.messages.impl.selection.TimelineSelectionState
 import io.element.android.features.messages.impl.timeline.MarkAsFullyRead
 import io.element.android.features.messages.impl.timeline.TimelineController
 import io.element.android.features.messages.impl.timeline.TimelineEvent
@@ -48,10 +49,10 @@ import io.element.android.features.messages.impl.timeline.components.receipt.bot
 import io.element.android.features.messages.impl.timeline.model.TimelineItem
 import io.element.android.features.messages.impl.timeline.model.TimelineItemThreadInfo
 import io.element.android.features.messages.impl.timeline.model.event.TimelineItemEventContentWithAttachment
-import io.element.android.features.messages.impl.timeline.model.event.isBulkSelectable
 import io.element.android.features.messages.impl.timeline.model.event.TimelineItemPollContent
 import io.element.android.features.messages.impl.timeline.model.event.TimelineItemStateContent
 import io.element.android.features.messages.impl.timeline.model.event.TimelineItemTextBasedContent
+import io.element.android.features.messages.impl.timeline.model.event.isBulkSelectable
 import io.element.android.features.messages.impl.timeline.protection.TimelineProtectionState
 import io.element.android.features.messages.impl.voicemessages.composer.DefaultVoiceMessageComposerPresenter
 import io.element.android.features.roomcall.api.RoomCallState
@@ -83,6 +84,7 @@ import io.element.android.libraries.matrix.api.room.history.RoomHistoryVisibilit
 import io.element.android.libraries.matrix.api.room.powerlevels.permissionsAsState
 import io.element.android.libraries.matrix.api.timeline.Timeline
 import io.element.android.libraries.matrix.api.timeline.item.event.EventOrTransactionId
+import io.element.android.libraries.matrix.api.timeline.item.event.toEventOrTransactionId
 import io.element.android.libraries.matrix.ui.messages.reply.map
 import io.element.android.libraries.matrix.ui.model.getAvatarData
 import io.element.android.libraries.matrix.ui.room.getDirectRoomMember
@@ -92,7 +94,6 @@ import io.element.android.libraries.ui.strings.CommonStrings
 import io.element.android.services.analytics.api.AnalyticsService
 import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.toImmutableList
-import io.element.android.libraries.matrix.api.timeline.item.event.toEventOrTransactionId
 import kotlinx.collections.immutable.toPersistentSet
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.collectLatest
@@ -190,7 +191,10 @@ class MessagesPresenter(
         // Track both directions: seeding from the last seen value kills the initial-frame flicker
         // on screen re-entry, while still reflecting a disable on the next entry.
         multiSelectSeen = isMultiSelectEnabled
-        var selectionState by remember { mutableStateOf(io.element.android.features.messages.impl.selection.TimelineSelectionState()) }
+        // rememberSaveable so a large in-progress selection survives rotation / process death.
+        var selectionState by rememberSaveable(stateSaver = TimelineSelectionState.Saver) {
+            mutableStateOf(TimelineSelectionState())
+        }
         val isCurrentlySharingLiveLocationInRoom by remember { liveLocationShareManager.isCurrentlySharing(room.roomId) }.collectAsState()
 
         val userEventPermissions by room.permissionsAsState(UserEventPermissions.DEFAULT) { perms ->
@@ -319,12 +323,12 @@ class MessagesPresenter(
                     )
                 }
                 MessagesEvent.ClearSelection -> {
-                    selectionState = io.element.android.features.messages.impl.selection.TimelineSelectionState()
+                    selectionState = TimelineSelectionState()
                 }
                 MessagesEvent.BulkRedactSelected -> {
                     val targets = selectionState.selectedIds.toList()
                     if (targets.isEmpty()) return@handleEvent
-                    selectionState = io.element.android.features.messages.impl.selection.TimelineSelectionState()
+                    selectionState = TimelineSelectionState()
                     sessionCoroutineScope.launch {
                         var failures = 0
                         for (id in targets) {
@@ -348,7 +352,7 @@ class MessagesPresenter(
                 MessagesEvent.BulkCopySelected -> {
                     // The actual clipboard write happens in the View (LocalClipboardManager). The
                     // presenter just exits selection mode after the View handles the copy.
-                    selectionState = io.element.android.features.messages.impl.selection.TimelineSelectionState()
+                    selectionState = TimelineSelectionState()
                 }
                 MessagesEvent.BulkForwardSelected -> {
                     if (selectionState.selectedIds.isEmpty()) return@handleEvent
@@ -363,7 +367,7 @@ class MessagesPresenter(
                         .mapNotNull { it.eventId }
                         .toList()
                     if (orderedTargets.isEmpty()) return@handleEvent
-                    selectionState = io.element.android.features.messages.impl.selection.TimelineSelectionState()
+                    selectionState = TimelineSelectionState()
                     navigator.forwardEvents(orderedTargets)
                 }
                 is MessagesEvent.ToggleReaction -> {

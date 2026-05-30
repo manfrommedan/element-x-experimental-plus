@@ -75,8 +75,8 @@ object MxtrShareString {
     // URI.host strips outer [] brackets, so we test bare-form here.
     private val IPV6_RE = Regex(
         "^(" +
-            "([0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}|" +              // full 8 groups
-            "([0-9a-fA-F]{1,4}:){1,7}:|" +                             // compressed trail ::
+            "([0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}|" + // full 8 groups
+            "([0-9a-fA-F]{1,4}:){1,7}:|" + // compressed trail ::
             "([0-9a-fA-F]{1,4}:){1,6}:[0-9a-fA-F]{1,4}|" +
             "([0-9a-fA-F]{1,4}:){1,5}(:[0-9a-fA-F]{1,4}){1,2}|" +
             "([0-9a-fA-F]{1,4}:){1,4}(:[0-9a-fA-F]{1,4}){1,3}|" +

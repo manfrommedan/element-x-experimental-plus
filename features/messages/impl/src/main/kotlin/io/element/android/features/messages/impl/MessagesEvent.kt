@@ -12,8 +12,8 @@ import io.element.android.features.messages.impl.actionlist.model.TimelineItemAc
 import io.element.android.features.messages.impl.timeline.model.TimelineItem
 import io.element.android.libraries.matrix.api.core.EventId
 import io.element.android.libraries.matrix.api.timeline.item.event.EventOrTransactionId
-import kotlinx.collections.immutable.ImmutableSet
 import io.element.android.libraries.matrix.api.user.MatrixUser
+import kotlinx.collections.immutable.ImmutableSet
 
 sealed interface MessagesEvent {
     data class HandleAction(val action: TimelineItemAction, val event: TimelineItem.Event) : MessagesEvent
@@ -26,16 +26,22 @@ sealed interface MessagesEvent {
 
     /** Enter selection mode anchored on a single event (the user long-pressed or hit "Select"). */
     data class EnterSelection(val anchor: TimelineItem.Event) : MessagesEvent
+
     /** Add or remove an event from the active selection. No-op outside selection mode. */
     data class ToggleSelection(val event: TimelineItem.Event) : MessagesEvent
+
     /** Replace the whole selection set (used by drag-to-select to set a swept range). */
     data class SetSelection(val eventIds: ImmutableSet<EventId>) : MessagesEvent
+
     /** Exit selection mode and clear the set. */
     data object ClearSelection : MessagesEvent
+
     /** Redact every event in the selection sequentially. */
     data object BulkRedactSelected : MessagesEvent
+
     /** Join selected message bodies and write to clipboard. */
     data object BulkCopySelected : MessagesEvent
+
     /** Open the forward picker pre-loaded with every selected event. */
     data object BulkForwardSelected : MessagesEvent
 }

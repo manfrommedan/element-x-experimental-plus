@@ -40,7 +40,6 @@ internal class MxtrSession private constructor(
     private val keyS2C: ByteArray,
     private val pskCfg: MxtrPskDerivedConfig,
 ) : AutoCloseable {
-
     private val nextStreamId = AtomicInteger(1)
     private val streams = ConcurrentHashMap<Int, MxtrStream>()
     private var seqRead: Long = 1
@@ -60,7 +59,10 @@ internal class MxtrSession private constructor(
         val ht = Thread(::heartbeatLoop, "mxtr-session-heartbeat").apply { isDaemon = true }
         heartbeatThread = ht
         ht.start()
-        Thread(::readerLoop, "mxtr-session-reader").apply { isDaemon = true; start() }
+        Thread(::readerLoop, "mxtr-session-reader").apply {
+            isDaemon = true
+            start()
+        }
     }
 
     fun isClosed(): Boolean = closed.get()
@@ -120,7 +122,10 @@ internal class MxtrSession private constructor(
     // socket and stall the caller's unwind. Skip silently when closed.
     private fun sendCloseBestEffort(sid: Int) {
         if (closed.get()) return
-        try { writeStreamFrame(sid, TYPE_CLOSE, ByteArray(0)) } catch (_: IOException) {}
+        try {
+            writeStreamFrame(sid, TYPE_CLOSE, ByteArray(0))
+        } catch (_: IOException) {
+            }
     }
 
     internal fun writeStreamFrame(sid: Int, type: Byte, payload: ByteArray) {
@@ -165,7 +170,11 @@ internal class MxtrSession private constructor(
                 val padSize = pskCfg.heartbeatPadMin + RNG.nextInt(padRange + 1)
                 val pad = ByteArray(padSize)
                 RNG.nextBytes(pad)
-                try { writeStreamFrame(0, TYPE_PING, pad) } catch (_: IOException) { return }
+                try {
+                    writeStreamFrame(0, TYPE_PING, pad)
+                } catch (_: IOException) {
+                    return
+                }
             }
         } catch (_: InterruptedException) {
             // closed
@@ -202,7 +211,11 @@ internal class MxtrSession private constructor(
                         st?.deliverEof()
                     }
                     TYPE_PING -> {
-                        try { writeStreamFrame(0, TYPE_PONG, payload) } catch (_: IOException) { /* peer gone */ }
+                        try {
+                            writeStreamFrame(0, TYPE_PONG, payload)
+                        } catch (_: IOException) {
+                            // peer gone
+                        }
                     }
                     TYPE_PONG -> Unit
                     else -> Timber.tag(TAG).w("unknown frame type 0x${type.toString(16)} stream $sid")
@@ -222,7 +235,10 @@ internal class MxtrSession private constructor(
         heartbeatThread?.interrupt()
         for (st in streams.values) st.deliverEof()
         streams.clear()
-        try { socket.close() } catch (_: Throwable) {}
+        try {
+            socket.close()
+        } catch (_: Throwable) {
+            }
     }
 
     private fun writePaddedAead(out: OutputStream, key: ByteArray, seq: Long, plaintext: ByteArray) {
@@ -385,7 +401,11 @@ internal class MxtrSession private constructor(
                 val srvPad = rest.copyOfRange(0, srvPadLen)
                 val srvMacGot = rest.copyOfRange(srvPadLen, srvPadLen + MAC_LEN)
                 val srvMacWant = MxtrCrypto.hmacSha256(
-                    psk, nonceS, byteArrayOf(srvPadLen.toByte()), srvPad, "s2c-hs".toByteArray()
+                    psk,
+                    nonceS,
+                    byteArrayOf(srvPadLen.toByte()),
+                    srvPad,
+                    "s2c-hs".toByteArray()
                 ).copyOfRange(0, MAC_LEN)
                 // HI-03: constant-time MAC compare. Non-constant-time contentEquals
                 // would leak the position of the first differing byte via timing.
@@ -405,7 +425,12 @@ internal class MxtrSession private constructor(
                 ownsSocket = false
                 return sess
             } finally {
-                if (ownsSocket) try { raw.close() } catch (_: Throwable) {}
+                if (ownsSocket) {
+                    try {
+                    raw.close()
+                } catch (_: Throwable) {
+                    }
+                }
             }
         }
 

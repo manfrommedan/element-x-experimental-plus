@@ -52,8 +52,10 @@ import androidx.compose.ui.unit.dp
 import io.element.android.compound.theme.ElementTheme
 import io.element.android.compound.tokens.generated.CompoundIcons
 import io.element.android.features.messages.impl.crypto.sendfailure.resolve.ResolveVerifiedUserSendFailureView
+import io.element.android.features.messages.impl.selection.DragSelectAnchor
 import io.element.android.features.messages.impl.selection.DragSelectRegistry
 import io.element.android.features.messages.impl.selection.LocalDragSelectRegistry
+import io.element.android.features.messages.impl.selection.TimelineSelectionState
 import io.element.android.features.messages.impl.selection.dragToSelectMessages
 import io.element.android.features.messages.impl.timeline.components.FloatingDateBadgeOverlay
 import io.element.android.features.messages.impl.timeline.components.TimelineItemRow
@@ -82,6 +84,7 @@ import io.element.android.libraries.testtags.testTag
 import io.element.android.libraries.ui.strings.CommonStrings
 import io.element.android.libraries.ui.utils.a11y.isTalkbackActive
 import io.element.android.wysiwyg.link.Link
+import kotlinx.collections.immutable.ImmutableSet
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
@@ -111,13 +114,12 @@ fun TimelineView(
     forceJumpToBottomVisibility: Boolean = false,
     nestedScrollConnection: NestedScrollConnection = rememberNestedScrollInteropConnection(),
     floatingDateTopOffset: Dp = 0.dp,
-    selectedEventIds: kotlinx.collections.immutable.ImmutableSet<EventId>? = null,
+    selectedEventIds: ImmutableSet<EventId>? = null,
     dragSelectEnabled: Boolean = false,
-    dragAnchorState: androidx.compose.runtime.MutableState<EventId?>? = null,
-    onSelectionChange: (kotlinx.collections.immutable.ImmutableSet<EventId>) -> Unit = {},
+    dragAnchor: DragSelectAnchor? = null,
+    onSelectionChange: (ImmutableSet<EventId>) -> Unit = {},
 ) {
-    val effectiveDragAnchorState = dragAnchorState
-        ?: remember { androidx.compose.runtime.mutableStateOf<EventId?>(null) }
+    val effectiveDragAnchor = dragAnchor ?: remember { DragSelectAnchor() }
     fun clearFocusRequestState() {
         state.eventSink(TimelineEvent.ClearFocusRequestState)
     }
@@ -174,9 +176,9 @@ fun TimelineView(
                         items = state.timelineItems,
                         currentSelection = selectedEventIds,
                         enabled = dragSelectEnabled,
-                        maxSelection = io.element.android.features.messages.impl.selection.TimelineSelectionState.MAX_SELECTION,
+                        maxSelection = TimelineSelectionState.MAX_SELECTION,
                         reverseLayout = useReverseLayout,
-                        anchorState = effectiveDragAnchorState,
+                        anchor = effectiveDragAnchor,
                         onSelectionChange = onSelectionChange,
                     )
                     .testTag(TestTags.timeline),

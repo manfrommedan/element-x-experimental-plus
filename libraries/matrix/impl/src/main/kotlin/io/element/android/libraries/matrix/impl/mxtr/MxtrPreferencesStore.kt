@@ -18,13 +18,13 @@ import androidx.datastore.preferences.preferencesDataStore
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.retryWhen
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import timber.log.Timber
@@ -85,6 +85,7 @@ class MxtrPreferencesStore(private val context: Context) {
         // and kept fresh by the same collector. Reads from snapshotBlocking()
         // never touch DataStore once the first read completes.
         private val snapshotCache = AtomicReference<MxtrRuntimeConfig?>(null)
+
         // CR3-01: idempotency guard so multi-process Application onCreate (or
         // test harnesses) can't spawn N forever-collectors that compete on the
         // same AtomicReference.
