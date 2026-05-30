@@ -81,7 +81,8 @@ fun MessagesSelectionTopBar(
                 Icon(
                     imageVector = CompoundIcons.Delete(),
                     contentDescription = stringResource(CommonStrings.action_remove),
-                    tint = ElementTheme.colors.iconCriticalPrimary,
+                    // Critical red when actionable, muted grey when disabled, so the inactive state reads clearly.
+                    tint = if (canDeleteSelection) ElementTheme.colors.iconCriticalPrimary else ElementTheme.colors.iconDisabled,
                 )
             }
         },
