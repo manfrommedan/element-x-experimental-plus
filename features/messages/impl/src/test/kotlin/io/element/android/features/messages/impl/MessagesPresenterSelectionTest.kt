@@ -27,6 +27,8 @@ import io.element.android.features.messages.impl.timeline.aTimelineItemEvent
 import io.element.android.features.messages.impl.timeline.aTimelineState
 import io.element.android.features.messages.impl.timeline.model.TimelineItem
 import io.element.android.features.messages.impl.timeline.model.event.TimelineItemRedactedContent
+import io.element.android.features.messages.impl.timeline.model.event.aTimelineItemImageContent
+import io.element.android.features.messages.impl.timeline.model.event.aTimelineItemTextContent
 import io.element.android.features.messages.impl.timeline.protection.aTimelineProtectionState
 import io.element.android.features.messages.test.timeline.FakeHtmlConverterProvider
 import io.element.android.features.messages.test.timeline.voicemessages.composer.FakeDefaultVoiceMessageComposerPresenterFactory
@@ -230,6 +232,52 @@ class MessagesPresenterSelectionTest {
             readied.eventSink(MessagesEvent.BulkForwardSelected)
             advanceUntilIdle()
             assertThat(forwarded).containsExactly(e1.eventId, e2.eventId, e3.eventId).inOrder()
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    // --- BulkCopy ---
+
+    @Test
+    fun `BulkCopySelected joins bodies in chronological order and clears selection`() = runTest {
+        // Bodies are copied in sentTime order, not tap order, joined by a blank line.
+        val e1 = aTimelineItemEvent(eventId = EventId("\$C1"), content = aTimelineItemTextContent(body = "first")).copy(sentTimeMillis = 1000L)
+        val e2 = aTimelineItemEvent(eventId = EventId("\$C2"), content = aTimelineItemTextContent(body = "second")).copy(sentTimeMillis = 2000L)
+        val items = persistentListOf<TimelineItem>(e2, e1)
+        val clipboardHelper = FakeClipboardHelper()
+        val presenter = createMessagesPresenter(
+            clipboardHelper = clipboardHelper,
+            timelineItems = items,
+        )
+        presenter.testWithLifecycleOwner {
+            val initial = awaitItem()
+            initial.eventSink(MessagesEvent.ToggleSelection(e2))
+            initial.eventSink(MessagesEvent.ToggleSelection(e1))
+            val readied = consumeItemsUntilPredicate { it.selectionState.count == 2 }.last()
+            readied.eventSink(MessagesEvent.BulkCopySelected)
+            val finalState = consumeItemsUntilPredicate { !it.selectionState.isActive }.last()
+            assertThat(clipboardHelper.clipboardContents).isEqualTo("first\n\nsecond")
+            assertThat(finalState.selectionState.selectedIds).isEmpty()
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `BulkCopySelected with media-only selection writes nothing but still clears`() = runTest {
+        val image = aTimelineItemEvent(eventId = EventId("\$IMG"), content = aTimelineItemImageContent())
+        val clipboardHelper = FakeClipboardHelper()
+        val presenter = createMessagesPresenter(
+            clipboardHelper = clipboardHelper,
+            timelineItems = persistentListOf(image),
+        )
+        presenter.testWithLifecycleOwner {
+            val initial = awaitItem()
+            initial.eventSink(MessagesEvent.ToggleSelection(image))
+            val readied = consumeItemsUntilPredicate { it.selectionState.count == 1 }.last()
+            readied.eventSink(MessagesEvent.BulkCopySelected)
+            val finalState = consumeItemsUntilPredicate { !it.selectionState.isActive }.last()
+            assertThat(clipboardHelper.clipboardContents).isNull()
+            assertThat(finalState.selectionState.selectedIds).isEmpty()
             cancelAndIgnoreRemainingEvents()
         }
     }

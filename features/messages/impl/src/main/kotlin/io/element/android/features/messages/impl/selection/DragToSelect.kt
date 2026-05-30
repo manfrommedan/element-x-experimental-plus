@@ -153,9 +153,10 @@ fun Modifier.dragToSelectMessages(
 
             fun emitRange() {
                 if (anchorIndex < 0 || targetIndex < 0) return
-                val lo = minOf(anchorIndex, targetIndex)
-                val hi = maxOf(anchorIndex, targetIndex)
-                val range = (lo..hi).asSequence()
+                // Walk the swept run outward from the anchor so a take() cap drops the far end of
+                // the drag, never the anchor (an upward sweep keeps the anchor at the high index).
+                val sweep = if (targetIndex >= anchorIndex) anchorIndex..targetIndex else anchorIndex downTo targetIndex
+                val range = sweep.asSequence()
                     .mapNotNull { latestItems.getOrNull(it) as? TimelineItem.Event }
                     .filter { it.content.isBulkSelectable() }
                     .mapNotNull { it.eventId }
