@@ -93,6 +93,28 @@ jobs:
           set -euo pipefail
           short_sha="${GITHUB_SHA::7}"
           echo "short_sha=${short_sha}" >> "$GITHUB_OUTPUT"
+          # Derive the version name the same way Versions.kt does
+          # (year.month(2-digit).release + the "-plus" release suffix).
+          y=$(sed -n 's/^private const val versionYear = \([0-9]*\).*/\1/p' plugins/src/main/kotlin/Versions.kt)
+          m=$(sed -n 's/^private const val versionMonth = \([0-9]*\).*/\1/p' plugins/src/main/kotlin/Versions.kt)
+          r=$(sed -n 's/^private const val versionReleaseNumber = \([0-9]*\).*/\1/p' plugins/src/main/kotlin/Versions.kt)
+          version=$(printf '%d.%02d.%d' "$y" "$m" "$r")
+          echo "version=${version}" >> "$GITHUB_OUTPUT"
+          echo "Version: ${version}"
+
+      - name: Rename APKs (flavor + version)
+        # Default Gradle names (app-fdroid-plus-<abi>-release.apk) carry no
+        # version. Republish them as element-x-plus-fdroid-<version>-<abi>.apk
+        # so the release assets state both the F-Droid flavor and the version.
+        run: |
+          set -euo pipefail
+          v="${{ steps.meta.outputs.version }}"
+          src="app/build/outputs/apk/fdroidPlus/release"
+          mkdir -p dist
+          for abi in arm64-v8a armeabi-v7a x86_64 x86 universal; do
+            cp "$src/app-fdroid-plus-${abi}-release.apk" "dist/element-x-plus-fdroid-${v}-${abi}.apk"
+          done
+          ls -1 dist
 
       - name: Prune older experimental releases
         # Keep at most two historical releases alongside the build we're
@@ -144,7 +166,7 @@ jobs:
           set -euo pipefail
           gh run list \
             --repo "${{ github.repository }}" \
-            --workflow experimental-build.yml \
+            --workflow build-experimental.yml \
             --limit 100 \
             --json databaseId,status,createdAt \
             --jq '
@@ -167,13 +189,15 @@ jobs:
         uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2.6.2
         with:
           tag_name: experimental-${{ steps.meta.outputs.short_sha }}
-          name: Element X+ ${{ steps.meta.outputs.short_sha }}
+          name: Element X+ fdroid ${{ steps.meta.outputs.version }} (${{ steps.meta.outputs.short_sha }})
           target_commitish: ${{ github.sha }}
           fail_on_unmatched_files: true
           generate_release_notes: false
           body: |
-            **Unofficial experimental build of Element X Android.**
-            Not affiliated with Element Hq Ltd. Works as is, at your own risk.
+            **Like Element X, but better.**
+
+            Unofficial experimental build of Element X Android. Not affiliated
+            with Element Hq Ltd. Works as is, at your own risk.
 
             Built from commit [`${{ github.sha }}`](https://github.com/${{ github.repository }}/commit/${{ github.sha }}).
             See [EXPERIMENTS.md](https://github.com/${{ github.repository }}/blob/experiments/phone-layer/docs/EXPERIMENTS.md)
@@ -181,16 +205,12 @@ jobs:
 
             ### Pick the right APK
 
-            * `app-fdroid-plus-arm64-v8a-release.apk` for most modern Android phones (recommended).
-            * `app-fdroid-plus-armeabi-v7a-release.apk` for older 32-bit ARM phones.
-            * `app-fdroid-plus-x86_64-release.apk` / `app-fdroid-plus-x86-release.apk` for emulators or x86 devices.
-            * `app-fdroid-plus-universal-release.apk` is a fat APK with every ABI (largest, works everywhere).
+            * `element-x-plus-fdroid-${{ steps.meta.outputs.version }}-arm64-v8a.apk` for most modern Android phones (recommended).
+            * `element-x-plus-fdroid-${{ steps.meta.outputs.version }}-armeabi-v7a.apk` for older 32-bit ARM phones.
+            * `element-x-plus-fdroid-${{ steps.meta.outputs.version }}-x86_64.apk` / `element-x-plus-fdroid-${{ steps.meta.outputs.version }}-x86.apk` for emulators or x86 devices.
+            * `element-x-plus-fdroid-${{ steps.meta.outputs.version }}-universal.apk` is a fat APK with every ABI (largest, works everywhere).
 
             The `applicationId` is `io.element.android.x.plus`, so the build installs side
             by side with the official Element X without overwriting it.
           files: |
-            app/build/outputs/apk/fdroidPlus/release/app-fdroid-plus-arm64-v8a-release.apk
-            app/build/outputs/apk/fdroidPlus/release/app-fdroid-plus-armeabi-v7a-release.apk
-            app/build/outputs/apk/fdroidPlus/release/app-fdroid-plus-x86_64-release.apk
-            app/build/outputs/apk/fdroidPlus/release/app-fdroid-plus-x86-release.apk
-            app/build/outputs/apk/fdroidPlus/release/app-fdroid-plus-universal-release.apk
+            dist/element-x-plus-fdroid-*.apk

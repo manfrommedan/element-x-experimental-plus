@@ -1,5 +1,7 @@
 # Element X Android, experiments fork
 
+> **Like Element X, but better.**
+
 This branch carries experimental UX and platform-stability changes layered on
 top of [upstream `main`](https://github.com/element-hq/element-x-android).
 Everything is opt-in or behind a Labs toggle, so the rest of the app behaves
@@ -19,6 +21,38 @@ exactly like the official Element X release until the switch is flipped.
 * **Don't kick us.** This fork exists so we can test ideas safely without
   bothering upstream maintainers, so please don't open issues against
   `element-hq/element-x-android` for changes that originated here.
+
+## What's in this build (Element X v26.05.2 base)
+
+This fork tracks upstream Element X (currently **v26.05.2**) and adds a small set
+of opt-in features. Each is additive and, where it changes existing UI, gated
+behind a Labs toggle - with the toggles off the app behaves exactly like
+official Element X.
+
+* **Multi-select messages** (Labs -> "Multi-select messages", off by default).
+  *What:* long-press a message to enter selection, then sweep up/down to select
+  a whole range (the list auto-scrolls at the edges); long-press media opens its
+  menu where "Select" also starts selection; a top bar offers bulk copy /
+  forward / delete. *Why:* selecting many or non-adjacent messages with the
+  stock one-by-one flow is slow and disruptive; this keeps the timeline stable
+  and selection fast even across long histories (upstream issue #6737). *Why
+  this way:* state events, redactions and call notifications are excluded as
+  noise, and the selection is capped so bulk actions stay predictable.
+
+* **mxtr anti-censorship proxy** (Settings -> Anti-censorship proxy). *What:* an
+  in-app local proxy that tunnels Matrix traffic through your own server using
+  the mxtr protocol. *Why:* direct connections to homeservers are blocked by DPI
+  in some networks; mxtr restores access without a separate VPN app. *Why this
+  way:* it binds an OS-assigned local port (nothing fixed to fingerprint) and
+  falls back to a direct connection when disabled. Settings are available in
+  English and Russian.
+
+* **Other Labs toggles:** phone-style calls (see below), bulk image/video
+  picker, copy Matrix ID from settings, pin favourites to the top, plus
+  hide-redacted-events and Wi-Fi-only media download preferences.
+
+The version line in Settings -> About shows the Element X base version; the
+working branch name is not displayed.
 
 ## How this fork differs from upstream
 
