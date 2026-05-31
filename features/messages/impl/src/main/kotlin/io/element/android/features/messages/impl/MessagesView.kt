@@ -36,6 +36,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -194,9 +195,14 @@ fun MessagesView(
         block()
     }
 
+    // Live view of selection mode, read by the row click handlers below. They get captured by
+    // LazyColumn rows; a row retained across a selection-clear (a small scroll) keeps a stale
+    // snapshot, so reading a rememberUpdatedState value here avoids re-toggling on the next tap.
+    val selectionActive by rememberUpdatedState(state.selectionState.isActive)
+
     fun onContentClick(event: TimelineItem.Event) {
         Timber.v("onMessageClick= ${event.id}")
-        if (state.selectionState.isActive) {
+        if (selectionActive) {
             // In selection mode a tap toggles membership instead of opening the item.
             state.eventSink(MessagesEvent.ToggleSelection(event))
             return
@@ -229,7 +235,7 @@ fun MessagesView(
 
     fun onMessageLongClick(event: TimelineItem.Event) {
         Timber.v("OnMessageLongClicked= ${event.id}")
-        if (state.selectionState.isActive) {
+        if (selectionActive) {
             state.eventSink(MessagesEvent.ToggleSelection(event))
             return
         }
@@ -267,7 +273,7 @@ fun MessagesView(
     }
 
     fun onEmojiReactionClick(emoji: String, event: TimelineItem.Event) {
-        if (state.selectionState.isActive) {
+        if (selectionActive) {
             state.eventSink(MessagesEvent.ToggleSelection(event))
             return
         }
@@ -275,7 +281,7 @@ fun MessagesView(
     }
 
     fun onEmojiReactionLongClick(emoji: String, event: TimelineItem.Event) {
-        if (state.selectionState.isActive) {
+        if (selectionActive) {
             state.eventSink(MessagesEvent.ToggleSelection(event))
             return
         }
@@ -284,7 +290,7 @@ fun MessagesView(
     }
 
     fun onMoreReactionsClick(event: TimelineItem.Event) {
-        if (state.selectionState.isActive) {
+        if (selectionActive) {
             state.eventSink(MessagesEvent.ToggleSelection(event))
             return
         }
@@ -362,14 +368,14 @@ fun MessagesView(
                             onMessageLongClick = ::onMessageLongClick,
                             dragAnchor = dragAnchor,
                             onUserDataClick = {
-                                if (!state.selectionState.isActive) {
+                                if (!selectionActive) {
                                     hidingKeyboard {
                                         state.eventSink(MessagesEvent.OnUserClicked(it))
                                     }
                                 }
                             },
                             onLinkClick = { link, customTab ->
-                                if (!state.selectionState.isActive) {
+                                if (!selectionActive) {
                                     if (customTab) {
                                         onLinkClick(link.url, true)
                                         // Do not check those links, they are internal link only
@@ -382,7 +388,7 @@ fun MessagesView(
                             onReactionLongClick = ::onEmojiReactionLongClick,
                             onMoreReactionsClick = ::onMoreReactionsClick,
                             onReadReceiptClick = { event ->
-                                if (state.selectionState.isActive) {
+                                if (selectionActive) {
                                     state.eventSink(MessagesEvent.ToggleSelection(event))
                                 } else {
                                     state.readReceiptBottomSheetState.eventSink(ReadReceiptBottomSheetEvent.EventSelected(event))
@@ -391,7 +397,7 @@ fun MessagesView(
                             onSendLocationClick = onSendLocationClick,
                             onCreatePollClick = onCreatePollClick,
                             onSwipeToReply = { targetEvent ->
-                                if (!state.selectionState.isActive) {
+                                if (!selectionActive) {
                                     state.eventSink(MessagesEvent.HandleAction(TimelineItemAction.Reply, targetEvent))
                                 }
                             },
