@@ -90,7 +90,11 @@ class LabsPresenter(
     ): ImmutableList<LabsSection> {
         val byKey = uiModels.associateBy { it.key }
         // Categorise each feature; anything not categorised falls into the upstream Labs bucket.
-        val callsKeys = setOf(FeatureFlags.PhoneVoiceLayout.key)
+        val callsKeys = setOf(
+            FeatureFlags.PhoneVoiceLayout.key,
+            FeatureFlags.PhoneIncomingCall.key,
+            FeatureFlags.RoomListCallShortcut.key,
+        )
         val ourImprovementsKeys = setOf(
             FeatureFlags.BulkAttachmentsPicker.key,
             FeatureFlags.ShareMxidShortcut.key,
@@ -133,6 +137,10 @@ class LabsPresenter(
                         stringProvider.getString(R.string.screen_labs_enable_message_multi_select)
                     FeatureFlags.FavoritesPinnedToTop ->
                         stringProvider.getString(R.string.screen_labs_enable_favorites_pinned_to_top)
+                    FeatureFlags.PhoneIncomingCall ->
+                        stringProvider.getString(R.string.screen_labs_enable_phone_incoming_call)
+                    FeatureFlags.RoomListCallShortcut ->
+                        stringProvider.getString(R.string.screen_labs_enable_room_list_call_shortcut)
                     else -> enabledFeature.feature.title
                 }
                 val description = when (enabledFeature.feature) {
@@ -147,6 +155,10 @@ class LabsPresenter(
                         stringProvider.getString(R.string.screen_labs_enable_message_multi_select_description)
                     FeatureFlags.FavoritesPinnedToTop ->
                         stringProvider.getString(R.string.screen_labs_enable_favorites_pinned_to_top_description)
+                    FeatureFlags.PhoneIncomingCall ->
+                        stringProvider.getString(R.string.screen_labs_enable_phone_incoming_call_description)
+                    FeatureFlags.RoomListCallShortcut ->
+                        stringProvider.getString(R.string.screen_labs_enable_room_list_call_shortcut_description)
                     else -> enabledFeature.feature.description
                 }
                 val icon = when (enabledFeature.feature) {
@@ -156,6 +168,8 @@ class LabsPresenter(
                     FeatureFlags.ShareMxidShortcut -> CompoundIcons.Copy()
                     FeatureFlags.MessageMultiSelect -> CompoundIcons.CheckCircle()
                     FeatureFlags.FavoritesPinnedToTop -> CompoundIcons.Favourite()
+                    FeatureFlags.PhoneIncomingCall -> CompoundIcons.VoiceCallSolid()
+                    FeatureFlags.RoomListCallShortcut -> CompoundIcons.VideoCallSolid()
                     else -> null
                 }
                 remember(enabledFeature) {

@@ -6,6 +6,13 @@
   -->
 
 <resources>
+    <!-- Labs-тумблер: экран входящего звонка в стиле телефона. -->
+    <string name="screen_labs_enable_phone_incoming_call">"Входящие звонки как на телефоне"</string>
+    <string name="screen_labs_enable_phone_incoming_call_description">"Показывать полноэкранный входящий звонок с рингтоном, на который можно ответить с экрана блокировки - вместо тихого уведомления. Аудио- и видеозвонки помечаются по-разному."</string>
+    <!-- Labs-тумблер: присоединиться к звонку прямо из списка чатов. -->
+    <string name="screen_labs_enable_room_list_call_shortcut">"Звонок из списка чатов"</string>
+    <string name="screen_labs_enable_room_list_call_shortcut_description">"Нажми на иконку звонка у чата в списке, чтобы сразу присоединиться к идущему звонку, как в WhatsApp или Telegram."</string>
+
     <string name="screen_advanced_settings_mxtr_title">"АнтиЦензурный прокси"</string>
     <string name="screen_advanced_settings_mxtr_subtitle">"Обход DPI и ТСПУ через ваш сервер"</string>
 

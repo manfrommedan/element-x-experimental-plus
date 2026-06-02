@@ -179,4 +179,21 @@ enum class FeatureFlags(
         isFinished = false,
         isInLabs = true,
     ),
+    PhoneIncomingCall(
+        key = "feature.phone_incoming_call",
+        title = "Phone-style incoming calls",
+        description = "Show a full-screen ringing call (with ringtone, answerable over the lock screen) when a call comes in, instead of a quiet heads-up notification." +
+            " Voice and video calls are labelled distinctly. Disable to fall back to the upstream incoming-call notification.",
+        defaultValue = { true },
+        isFinished = false,
+        isInLabs = true,
+    ),
+    RoomListCallShortcut(
+        key = "feature.room_list_call_shortcut",
+        title = "Join calls from the chat list",
+        description = "Tap the call icon on a room in the chat list to join its ongoing call right away, like WhatsApp or Telegram.",
+        defaultValue = { true },
+        isFinished = false,
+        isInLabs = true,
+    ),
 }
