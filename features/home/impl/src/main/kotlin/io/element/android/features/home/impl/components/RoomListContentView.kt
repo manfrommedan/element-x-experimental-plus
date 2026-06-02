@@ -291,6 +291,7 @@ private fun RoomsViewList(
                 isInviteSeen = room.displayType == RoomSummaryDisplayType.INVITE &&
                     state.seenRoomInvites.contains(room.roomId),
                 onClick = onRoomClick,
+                canJoinCall = state.canJoinCallFromList,
                 eventSink = eventSink,
             )
             if (index != favorites.lastIndex) {
@@ -312,6 +313,7 @@ private fun RoomsViewList(
                 isInviteSeen = room.displayType == RoomSummaryDisplayType.INVITE &&
                     state.seenRoomInvites.contains(room.roomId),
                 onClick = onRoomClick,
+                canJoinCall = state.canJoinCallFromList,
                 eventSink = eventSink,
             )
             if (index != others.lastIndex) {

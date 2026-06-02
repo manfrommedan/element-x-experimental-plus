@@ -670,6 +670,8 @@ class RoomListPresenterTest {
         announcementService: AnnouncementService = FakeAnnouncementService(),
         featureFlagService: io.element.android.libraries.featureflag.api.FeatureFlagService =
             io.element.android.libraries.featureflag.test.FakeFeatureFlagService(),
+        elementCallEntryPoint: io.element.android.features.call.api.ElementCallEntryPoint =
+            io.element.android.features.call.test.FakeElementCallEntryPoint(),
     ) = RoomListPresenter(
         client = client,
         leaveRoomPresenter = { leaveRoomState },
@@ -699,5 +701,6 @@ class RoomListPresenterTest {
         announcementService = announcementService,
         coldStartWatcher = FakeAnalyticsColdStartWatcher(),
         featureFlagService = featureFlagService,
+        elementCallEntryPoint = elementCallEntryPoint,
     )
 }
