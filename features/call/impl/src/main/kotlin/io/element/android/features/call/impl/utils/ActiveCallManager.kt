@@ -10,6 +10,7 @@ package io.element.android.features.call.impl.utils
 
 import android.annotation.SuppressLint
 import android.content.Context
+import android.content.Intent
 import android.os.PowerManager
 import androidx.annotation.VisibleForTesting
 import androidx.core.app.NotificationManagerCompat
@@ -24,6 +25,7 @@ import io.element.android.features.call.api.CallData
 import io.element.android.features.call.api.CurrentCall
 import io.element.android.features.call.impl.notifications.CallNotificationData
 import io.element.android.features.call.impl.notifications.RingingCallNotificationCreator
+import io.element.android.features.call.impl.ui.IncomingCallActivity
 import io.element.android.libraries.core.extensions.runCatchingExceptions
 import io.element.android.libraries.di.annotations.AppCoroutineScope
 import io.element.android.libraries.di.annotations.ApplicationContext
@@ -92,7 +94,7 @@ interface ActiveCallManager {
 @SingleIn(AppScope::class)
 @ContributesBinding(AppScope::class)
 class DefaultActiveCallManager(
-    @ApplicationContext context: Context,
+    @ApplicationContext private val context: Context,
     @AppCoroutineScope
     private val coroutineScope: CoroutineScope,
     private val onMissedCallNotificationHandler: OnMissedCallNotificationHandler,
@@ -155,6 +157,7 @@ class DefaultActiveCallManager(
             timedOutCallJob = coroutineScope.launch {
                 setUpCoil(notificationData.sessionId)
                 showIncomingCallNotification(notificationData)
+                launchIncomingCallScreenIfForeground(notificationData)
 
                 // Wait for the ringing call to time out
                 delay(timeMillis = ringDuration)
@@ -260,6 +263,22 @@ class DefaultActiveCallManager(
             callData = callData,
             callState = CallState.InCall,
         )
+    }
+
+    // Android does not auto-launch the notification's full-screen intent while the
+    // app is in the foreground, so a callee with the app open would otherwise only
+    // get a heads-up banner. Launch the incoming-call screen ourselves in that case
+    // so a foregrounded recipient still gets a full-screen ring (like WhatsApp);
+    // background/locked is left to the full-screen intent. This is safe from
+    // background-activity-launch restrictions because we only do it while foreground.
+    private fun launchIncomingCallScreenIfForeground(notificationData: CallNotificationData) {
+        if (!appForegroundStateService.isInForeground.value) return
+        Timber.tag(tag).d("App in foreground, launching incoming call screen directly")
+        val intent = Intent(context, IncomingCallActivity::class.java).apply {
+            putExtra(IncomingCallActivity.EXTRA_NOTIFICATION_DATA, notificationData)
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        }
+        context.startActivity(intent)
     }
 
     @SuppressLint("MissingPermission")
