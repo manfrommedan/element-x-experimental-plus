@@ -192,8 +192,12 @@ enum class FeatureFlags(
         key = "feature.room_list_call_shortcut",
         title = "Join calls from the chat list",
         description = "Tap the call icon on a room in the chat list to join its ongoing call right away, like WhatsApp or Telegram.",
-        defaultValue = { true },
+        // Temporarily disabled and hidden from Labs: joining a call from the chat list leaves
+        // a dangling call membership (the ongoing-call event/indicator never clears). Off by
+        // default (canJoinCallFromList stays false) and not shown until the leave/cleanup path
+        // is fixed; the implementation is kept in place. Re-enable: defaultValue/isInLabs -> true.
+        defaultValue = { false },
         isFinished = false,
-        isInLabs = true,
+        isInLabs = false,
     ),
 }
