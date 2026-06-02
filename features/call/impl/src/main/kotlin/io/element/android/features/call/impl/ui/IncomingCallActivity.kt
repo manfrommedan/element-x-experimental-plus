@@ -8,6 +8,11 @@
 
 package io.element.android.features.call.impl.ui
 
+import android.app.KeyguardManager
+import android.media.AudioAttributes
+import android.media.AudioManager
+import android.media.MediaPlayer
+import android.media.RingtoneManager
 import android.os.Bundle
 import android.view.WindowManager
 import androidx.activity.compose.setContent
@@ -16,6 +21,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.core.content.IntentCompat
+import androidx.core.content.getSystemService
 import androidx.lifecycle.lifecycleScope
 import dev.zacsweers.metro.Inject
 import io.element.android.compound.colors.SemanticColorsLightDark
@@ -47,7 +53,15 @@ class IncomingCallActivity : AppCompatActivity() {
          * Extra key for the notification data.
          */
         const val EXTRA_NOTIFICATION_DATA = "EXTRA_NOTIFICATION_DATA"
+
+        // Set when the manager launches this activity directly (app in foreground) so
+        // it plays the ringtone itself. Left false when the notification's full-screen
+        // intent launches it (locked/background), since the notification rings then -
+        // this avoids a double ringtone.
+        const val EXTRA_PLAY_RINGTONE = "EXTRA_PLAY_RINGTONE"
     }
+
+    private var ringtonePlayer: MediaPlayer? = null
 
     @Inject
     lateinit var elementCallEntryPoint: ElementCallEntryPoint
@@ -84,6 +98,10 @@ class IncomingCallActivity : AppCompatActivity() {
                 WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON
         )
 
+        if (intent?.getBooleanExtra(EXTRA_PLAY_RINGTONE, false) == true) {
+            startRingtone()
+        }
+
         val notificationData = intent?.let { IntentCompat.getParcelableExtra(it, EXTRA_NOTIFICATION_DATA, CallNotificationData::class.java) }
         if (notificationData != null) {
             setContent {
@@ -117,6 +135,10 @@ class IncomingCallActivity : AppCompatActivity() {
     }
 
     private fun onAnswer(notificationData: CallNotificationData) {
+        stopRingtone()
+        // Dismiss the keyguard so the call screen is reachable when answering from
+        // the lock screen, instead of forcing the user to unlock first.
+        getSystemService<KeyguardManager>()?.requestDismissKeyguard(this, null)
         elementCallEntryPoint.startCall(
             CallData(
                 sessionId = notificationData.sessionId,
@@ -128,9 +150,45 @@ class IncomingCallActivity : AppCompatActivity() {
     }
 
     private fun onCancel() {
+        stopRingtone()
         val activeCall = activeCallManager.activeCall.value ?: return
         appCoroutineScope.launch {
             activeCallManager.hangUpCall(callData = activeCall.callData)
         }
+    }
+
+    override fun onDestroy() {
+        stopRingtone()
+        super.onDestroy()
+    }
+
+    private fun startRingtone() {
+        if (ringtonePlayer != null) return
+        // Respect the ringer: stay quiet on silent/vibrate, like a normal phone call.
+        val audioManager = getSystemService<AudioManager>()
+        if (audioManager?.ringerMode != AudioManager.RINGER_MODE_NORMAL) return
+        val uri = RingtoneManager.getActualDefaultRingtoneUri(this, RingtoneManager.TYPE_RINGTONE)
+            ?: return
+        ringtonePlayer = MediaPlayer().apply {
+            setDataSource(this@IncomingCallActivity, uri)
+            setAudioAttributes(
+                AudioAttributes.Builder()
+                    .setUsage(AudioAttributes.USAGE_NOTIFICATION_RINGTONE)
+                    .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
+                    .build()
+            )
+            isLooping = true
+            setOnErrorListener { _, _, _ -> true }
+            prepare()
+            start()
+        }
+    }
+
+    private fun stopRingtone() {
+        ringtonePlayer?.runCatching {
+            stop()
+            release()
+        }
+        ringtonePlayer = null
     }
 }

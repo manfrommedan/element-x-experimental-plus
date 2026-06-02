@@ -93,6 +93,23 @@ class DefaultActiveCallManagerTest {
         verify { notificationManagerCompat.notify(notificationId, any()) }
     }
 
+    @Test
+    fun `registerIncomingCall - when app is in foreground does not post a notification`() = runTest {
+        setupShadowPowerManager()
+        val notificationManagerCompat = mockk<NotificationManagerCompat>(relaxed = true)
+        val manager = createActiveCallManager(
+            notificationManagerCompat = notificationManagerCompat,
+            appForegroundStateService = FakeAppForegroundStateService(initialForegroundValue = true),
+        )
+
+        manager.registerIncomingCall(aCallNotificationData())
+        runCurrent()
+
+        // Foreground launches the incoming call screen directly, so no heads-up
+        // notification should be posted (avoids a duplicate surface).
+        verify(exactly = 0) { notificationManagerCompat.notify(notificationId, any()) }
+    }
+
     @OptIn(ExperimentalCoroutinesApi::class)
     @Test
     fun `registerIncomingCall - sets the incoming audio call as active`() = runTest {
@@ -523,6 +540,10 @@ class DefaultActiveCallManagerTest {
         onMissedCallNotificationHandler: FakeOnMissedCallNotificationHandler = FakeOnMissedCallNotificationHandler(),
         notificationManagerCompat: NotificationManagerCompat = mockk(relaxed = true),
         systemClock: FakeSystemClock = FakeSystemClock(),
+        // Incoming-call notifications are the background/locked path; in the foreground
+        // the call screen is launched directly instead. Default to background so these
+        // tests exercise the notification path.
+        appForegroundStateService: FakeAppForegroundStateService = FakeAppForegroundStateService(initialForegroundValue = false),
     ) = DefaultActiveCallManager(
         context = InstrumentationRegistry.getInstrumentation().targetContext,
         coroutineScope = backgroundScope,
@@ -536,7 +557,7 @@ class DefaultActiveCallManagerTest {
         notificationManagerCompat = notificationManagerCompat,
         matrixClientProvider = matrixClientProvider,
         defaultCurrentCallService = DefaultCurrentCallService(),
-        appForegroundStateService = FakeAppForegroundStateService(),
+        appForegroundStateService = appForegroundStateService,
         imageLoaderHolder = FakeImageLoaderHolder(),
         systemClock = systemClock,
     )

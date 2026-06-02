@@ -156,8 +156,14 @@ class DefaultActiveCallManager(
 
             timedOutCallJob = coroutineScope.launch {
                 setUpCoil(notificationData.sessionId)
-                showIncomingCallNotification(notificationData)
-                launchIncomingCallScreenIfForeground(notificationData)
+                if (appForegroundStateService.isInForeground.value) {
+                    // Foreground: Android won't auto-fire the notification's full-screen
+                    // intent, so launch the incoming-call screen ourselves (it rings).
+                    // Skip the heads-up notification so there is a single surface.
+                    launchIncomingCallScreen(notificationData)
+                } else {
+                    showIncomingCallNotification(notificationData)
+                }
 
                 // Wait for the ringing call to time out
                 delay(timeMillis = ringDuration)
@@ -265,17 +271,16 @@ class DefaultActiveCallManager(
         )
     }
 
-    // Android does not auto-launch the notification's full-screen intent while the
-    // app is in the foreground, so a callee with the app open would otherwise only
-    // get a heads-up banner. Launch the incoming-call screen ourselves in that case
-    // so a foregrounded recipient still gets a full-screen ring (like WhatsApp);
-    // background/locked is left to the full-screen intent. This is safe from
-    // background-activity-launch restrictions because we only do it while foreground.
-    private fun launchIncomingCallScreenIfForeground(notificationData: CallNotificationData) {
-        if (!appForegroundStateService.isInForeground.value) return
+    // Launch the incoming-call screen directly. Used when the app is in the
+    // foreground, where Android won't auto-fire the notification's full-screen
+    // intent (it would only show a heads-up banner). EXTRA_PLAY_RINGTONE tells the
+    // activity to ring itself, since we skip the (ringing) notification in this case.
+    // Safe from background-activity-launch limits because callers gate on foreground.
+    private fun launchIncomingCallScreen(notificationData: CallNotificationData) {
         Timber.tag(tag).d("App in foreground, launching incoming call screen directly")
         val intent = Intent(context, IncomingCallActivity::class.java).apply {
             putExtra(IncomingCallActivity.EXTRA_NOTIFICATION_DATA, notificationData)
+            putExtra(IncomingCallActivity.EXTRA_PLAY_RINGTONE, true)
             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         }
         context.startActivity(intent)
