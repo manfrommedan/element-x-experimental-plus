@@ -270,6 +270,7 @@ class CallScreenPresenter(
                 isAudioCall = callData.isAudioCall,
                 languageTag = languageTag,
                 theme = theme,
+                startVideoMuted = callData.startVideoMuted,
             ).getOrThrow()
             callWidgetDriver.value = result.driver
             Timber.d("Call widget driver initialized for sessionId: ${callData.sessionId}, roomId: ${callData.roomId}")

@@ -70,6 +70,7 @@ class DefaultCallWidgetProvider(
         clientId: String,
         languageTag: String?,
         theme: String?,
+        startVideoMuted: Boolean,
     ): Result<CallWidgetProvider.GetWidgetResult> = runCatchingExceptions {
         val matrixClient = matrixClientsProvider.getOrRestore(sessionId).getOrThrow()
         val room = activeRoomsHolder.getActiveRoomMatching(sessionId, roomId)
@@ -96,10 +97,20 @@ class DefaultCallWidgetProvider(
         ).getOrThrow()
 
         val phoneStyleEnabled = featureFlagService.isFeatureEnabled(FeatureFlags.PhoneVoiceLayout)
-        val finalUrl = phoneStyleUrlParams(phoneStyleEnabled, isAudioCall)
-            .fold(callUrl, ::appendUrlParam)
+        val urlParams = buildList {
+            addAll(phoneStyleUrlParams(phoneStyleEnabled, isAudioCall))
+            if (startVideoMuted && !isAudioCall) {
+                // Answer a video call with the camera initially off (Telegram-style):
+                // the audio intent starts the local camera muted while keeping the
+                // normal layout, so the remote video is still shown and the user can
+                // turn their camera on. Independent of the phone-voice layout flag.
+                add("callIntent=audio")
+                if (!contains("skipLobby=true")) add("skipLobby=true")
+            }
+        }
+        val finalUrl = urlParams.fold(callUrl, ::appendUrlParam)
         Timber.tag("Call").d(
-            "Widget URL built; isAudioCall=$isAudioCall, phoneStyleEnabled=$phoneStyleEnabled"
+            "Widget URL built; isAudioCall=$isAudioCall, startVideoMuted=$startVideoMuted, phoneStyleEnabled=$phoneStyleEnabled"
         )
 
         val driver = room.getWidgetDriver(widgetSettings).getOrThrow()

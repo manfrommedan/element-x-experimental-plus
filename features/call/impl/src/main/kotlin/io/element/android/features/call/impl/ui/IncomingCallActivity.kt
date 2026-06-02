@@ -123,6 +123,7 @@ class IncomingCallActivity : AppCompatActivity() {
                         notificationData = notificationData,
                         onAnswer = ::onAnswer,
                         onCancel = ::onCancel,
+                        onAnswerWithoutCamera = ::onAnswerWithoutCamera,
                         phoneStyleIncomingCall = phoneStyleIncomingCall,
                     )
                 }
@@ -140,6 +141,17 @@ class IncomingCallActivity : AppCompatActivity() {
     }
 
     private fun onAnswer(notificationData: CallNotificationData) {
+        answerCall(notificationData, startVideoMuted = false)
+    }
+
+    // Answer a video call with the camera initially off (Telegram-style): join
+    // the call muted-video while still seeing the remote video, with the camera
+    // toggle available in-call.
+    private fun onAnswerWithoutCamera(notificationData: CallNotificationData) {
+        answerCall(notificationData, startVideoMuted = true)
+    }
+
+    private fun answerCall(notificationData: CallNotificationData, startVideoMuted: Boolean) {
         stopRingtone()
         // Dismiss the keyguard so the call screen is reachable when answering from
         // the lock screen, instead of forcing the user to unlock first.
@@ -150,6 +162,7 @@ class IncomingCallActivity : AppCompatActivity() {
                 roomId = notificationData.roomId,
                 isAudioCall = notificationData.audioOnly,
                 notifyEventId = notificationData.eventId.value,
+                startVideoMuted = startVideoMuted,
             )
         )
     }

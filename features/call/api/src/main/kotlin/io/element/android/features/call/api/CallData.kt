@@ -25,4 +25,12 @@ data class CallData(
      * Null when the local user is the caller.
      */
     val notifyEventId: String? = null,
+    /**
+     * Join a video call ([isAudioCall] = false) with the local camera initially
+     * off, while still showing the remote video and letting the user turn their
+     * camera on - i.e. answering a video call "without camera", Telegram-style.
+     * Distinct from [isAudioCall], which switches to the phone-style voice UI.
+     * Ignored for audio calls.
+     */
+    val startVideoMuted: Boolean = false,
 ) : NodeInputs, Parcelable
