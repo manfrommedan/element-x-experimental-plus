@@ -37,6 +37,7 @@ import io.element.android.libraries.core.meta.BuildMeta
 import io.element.android.libraries.designsystem.theme.ElementThemeApp
 import io.element.android.libraries.di.annotations.AppCoroutineScope
 import io.element.android.libraries.featureflag.api.FeatureFlagService
+import io.element.android.libraries.featureflag.api.FeatureFlags
 import io.element.android.libraries.preferences.api.store.AppPreferencesStore
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.filter
@@ -108,6 +109,9 @@ class IncomingCallActivity : AppCompatActivity() {
                 val colors by remember {
                     enterpriseService.semanticColorsFlow(sessionId = notificationData.sessionId)
                 }.collectAsState(SemanticColorsLightDark.default)
+                val phoneStyleIncomingCall by featureFlagService
+                    .isFeatureEnabledFlow(FeatureFlags.PhoneIncomingCall)
+                    .collectAsState(initial = true)
                 ElementThemeApp(
                     appPreferencesStore = appPreferencesStore,
                     featureFlagService = featureFlagService,
@@ -119,6 +123,7 @@ class IncomingCallActivity : AppCompatActivity() {
                         notificationData = notificationData,
                         onAnswer = ::onAnswer,
                         onCancel = ::onCancel,
+                        phoneStyleIncomingCall = phoneStyleIncomingCall,
                     )
                 }
             }

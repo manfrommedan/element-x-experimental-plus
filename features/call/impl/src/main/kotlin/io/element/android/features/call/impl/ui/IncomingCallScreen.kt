@@ -56,6 +56,7 @@ internal fun IncomingCallScreen(
     notificationData: CallNotificationData,
     onAnswer: (CallNotificationData) -> Unit,
     onCancel: () -> Unit,
+    phoneStyleIncomingCall: Boolean = false,
 ) {
     OnboardingBackground()
     Column(
@@ -86,8 +87,17 @@ internal fun IncomingCallScreen(
                 textAlign = TextAlign.Center,
             )
             Spacer(modifier = Modifier.height(8.dp))
+            val subtitleRes = if (phoneStyleIncomingCall) {
+                if (notificationData.audioOnly) {
+                    R.string.screen_incoming_call_subtitle_audio_android
+                } else {
+                    R.string.screen_incoming_call_subtitle_video_android
+                }
+            } else {
+                R.string.screen_incoming_call_subtitle_android
+            }
             Text(
-                text = stringResource(R.string.screen_incoming_call_subtitle_android),
+                text = stringResource(subtitleRes),
                 style = ElementTheme.typography.fontBodyLgRegular,
                 color = ElementTheme.colors.textSecondary,
                 textAlign = TextAlign.Center,

@@ -29,6 +29,8 @@ import io.element.android.features.call.impl.ui.IncomingCallActivity
 import io.element.android.libraries.core.extensions.runCatchingExceptions
 import io.element.android.libraries.di.annotations.AppCoroutineScope
 import io.element.android.libraries.di.annotations.ApplicationContext
+import io.element.android.libraries.featureflag.api.FeatureFlagService
+import io.element.android.libraries.featureflag.api.FeatureFlags
 import io.element.android.libraries.matrix.api.MatrixClientProvider
 import io.element.android.libraries.matrix.api.core.SessionId
 import io.element.android.libraries.matrix.ui.media.ImageLoaderHolder
@@ -105,6 +107,7 @@ class DefaultActiveCallManager(
     private val appForegroundStateService: AppForegroundStateService,
     private val imageLoaderHolder: ImageLoaderHolder,
     private val systemClock: SystemClock,
+    private val featureFlagService: FeatureFlagService,
 ) : ActiveCallManager {
     private val tag = "ActiveCallManager"
     private var timedOutCallJob: Job? = null
@@ -156,7 +159,8 @@ class DefaultActiveCallManager(
 
             timedOutCallJob = coroutineScope.launch {
                 setUpCoil(notificationData.sessionId)
-                if (appForegroundStateService.isInForeground.value) {
+                val phoneStyleIncoming = featureFlagService.isFeatureEnabled(FeatureFlags.PhoneIncomingCall)
+                if (phoneStyleIncoming && appForegroundStateService.isInForeground.value) {
                     // Foreground: Android won't auto-fire the notification's full-screen
                     // intent, so launch the incoming-call screen ourselves (it rings).
                     // Skip the heads-up notification so there is a single surface.

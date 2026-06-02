@@ -544,6 +544,8 @@ class DefaultActiveCallManagerTest {
         // the call screen is launched directly instead. Default to background so these
         // tests exercise the notification path.
         appForegroundStateService: FakeAppForegroundStateService = FakeAppForegroundStateService(initialForegroundValue = false),
+        featureFlagService: io.element.android.libraries.featureflag.api.FeatureFlagService =
+            io.element.android.libraries.featureflag.test.FakeFeatureFlagService(),
     ) = DefaultActiveCallManager(
         context = InstrumentationRegistry.getInstrumentation().targetContext,
         coroutineScope = backgroundScope,
@@ -560,5 +562,6 @@ class DefaultActiveCallManagerTest {
         appForegroundStateService = appForegroundStateService,
         imageLoaderHolder = FakeImageLoaderHolder(),
         systemClock = systemClock,
+        featureFlagService = featureFlagService,
     )
 }
