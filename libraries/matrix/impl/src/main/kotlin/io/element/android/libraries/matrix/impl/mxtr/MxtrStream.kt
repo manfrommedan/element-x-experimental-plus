@@ -15,6 +15,7 @@ import java.util.concurrent.CountDownLatch
 import java.util.concurrent.LinkedBlockingQueue
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.locks.ReentrantLock
 
 /**
  * One logical bidirectional stream within an [MxtrSession]. Wraps the session's
@@ -32,6 +33,18 @@ internal class MxtrStream(
     @Volatile private var eofReceived = false
     private val closed = AtomicBoolean(false)
 
+    // Client->upstream send window (flow control). The server advertises the
+    // initial value in OPEN_OK and tops it up with WINDOW_UPDATE frames as it
+    // drains to the homeserver; outputStream.write blocks once it is exhausted,
+    // back-pressuring the SDK's upload thread to the homeserver's real rate so a
+    // large file streams through instead of overrunning the proxy buffer.
+    // flowControlled stays false against an older server that sends no window,
+    // preserving the previous unbounded-send behaviour for that case.
+    private val windowLock = ReentrantLock()
+    private val windowAvailable = windowLock.newCondition()
+    private var sendWindow: Long = 0L
+    @Volatile private var flowControlled: Boolean = false
+
     private var pendingChunk: ByteArray? = null
     private var pendingPos = 0
 
@@ -40,9 +53,42 @@ internal class MxtrStream(
 
     fun awaitOpen(timeoutMs: Long): Boolean = openLatch.await(timeoutMs, TimeUnit.MILLISECONDS)
 
-    internal fun markOpenOk() {
+    internal fun markOpenOk(initialWindow: ByteArray) {
+        // OPEN_OK from a flow-control-aware server carries the 4-byte initial
+        // send window; an older server sends an empty payload and we stay in the
+        // unbounded-send path (flowControlled = false).
+        if (initialWindow.size >= 4) {
+            val w = ((initialWindow[0].toLong() and 0xFFL) shl 24) or
+                ((initialWindow[1].toLong() and 0xFFL) shl 16) or
+                ((initialWindow[2].toLong() and 0xFFL) shl 8) or
+                (initialWindow[3].toLong() and 0xFFL)
+            windowLock.lock()
+            try {
+                sendWindow = w
+                flowControlled = true
+                windowAvailable.signalAll()
+            } finally {
+                windowLock.unlock()
+            }
+        }
         openOk = true
         openLatch.countDown()
+    }
+
+    /** Apply a server WINDOW_UPDATE credit and wake any writer blocked on it. */
+    internal fun creditWindow(delta: ByteArray) {
+        if (delta.size < 4) return
+        val d = ((delta[0].toLong() and 0xFFL) shl 24) or
+            ((delta[1].toLong() and 0xFFL) shl 16) or
+            ((delta[2].toLong() and 0xFFL) shl 8) or
+            (delta[3].toLong() and 0xFFL)
+        windowLock.lock()
+        try {
+            sendWindow += d
+            windowAvailable.signalAll()
+        } finally {
+            windowLock.unlock()
+        }
     }
 
     internal fun markOpenErr(payload: ByteArray) {
@@ -70,6 +116,14 @@ internal class MxtrStream(
         if (openLatch.count > 0) {
             openError = openError ?: "stream closed before open"
             openLatch.countDown()
+        }
+        // Wake a writer blocked on the send window: the server closed the stream
+        // (e.g. wedged upstream), so the pending write must fail, not hang.
+        windowLock.lock()
+        try {
+            windowAvailable.signalAll()
+        } finally {
+            windowLock.unlock()
         }
     }
 
@@ -119,6 +173,10 @@ internal class MxtrStream(
             var pos = off
             while (remaining > 0) {
                 val chunk = minOf(remaining, MxtrSession.MAX_STREAM_PAYLOAD)
+                // Flow control: block here until the server has credited room for
+                // this chunk. This is what bounds the proxy's buffer to the
+                // window and lets arbitrarily large files upload without loss.
+                acquireSendWindow(chunk)
                 val slice = b.copyOfRange(pos, pos + chunk)
                 session.writeStreamFrame(id, MxtrSession.TYPE_DATA, slice)
                 pos += chunk
@@ -133,11 +191,37 @@ internal class MxtrStream(
         override fun close() = this@MxtrStream.close()
     }
 
+    // Block until the send window has room for [n] bytes, the server credits
+    // us, or the stream closes. No-op when the server advertised no window
+    // (older build), so behaviour against such a server is unchanged.
+    private fun acquireSendWindow(n: Int) {
+        if (!flowControlled) return
+        windowLock.lock()
+        try {
+            while (sendWindow < n) {
+                if (closed.get() || eofReceived) throw IOException("stream closed while awaiting send window")
+                if (!windowAvailable.await(WINDOW_STALL_TIMEOUT_MS, TimeUnit.MILLISECONDS)) {
+                    throw IOException("mxtr send window stalled >${WINDOW_STALL_TIMEOUT_MS}ms; upstream not draining")
+                }
+            }
+            sendWindow -= n
+        } finally {
+            windowLock.unlock()
+        }
+    }
+
     override fun close() {
         // ME3-04: take the same lock as deliverData so a racing deliverData
         // never lands a chunk into `incoming` after we shut down.
         synchronized(closed) {
             if (!closed.compareAndSet(false, true)) return
+        }
+        // Wake a writer blocked on the send window so close() unblocks it.
+        windowLock.lock()
+        try {
+            windowAvailable.signalAll()
+        } finally {
+            windowLock.unlock()
         }
         try {
             session.writeStreamFrame(id, MxtrSession.TYPE_CLOSE, EMPTY)
@@ -149,6 +233,13 @@ internal class MxtrStream(
     companion object {
         private val EOF_MARKER = ByteArray(0)
         private val EMPTY = ByteArray(0)
+
+        // Upper bound on a single send-window stall. The server credits as it
+        // drains to the homeserver, so any live-but-slow upstream keeps this
+        // refreshed; only a genuinely wedged upstream (which the server also
+        // signals with CLOSE) can reach it, and we then fail the write instead
+        // of hanging the SDK's upload thread forever.
+        private const val WINDOW_STALL_TIMEOUT_MS = 60_000L
     }
 }
 

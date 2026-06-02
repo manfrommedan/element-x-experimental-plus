@@ -203,9 +203,10 @@ internal class MxtrSession private constructor(
                 val payload = pt.copyOfRange(FRAME_HEADER, FRAME_HEADER + payloadLen)
 
                 when (type) {
-                    TYPE_OPEN_OK -> streams[sid]?.markOpenOk()
+                    TYPE_OPEN_OK -> streams[sid]?.markOpenOk(payload)
                     TYPE_OPEN_ERR -> streams[sid]?.markOpenErr(payload)
                     TYPE_DATA -> streams[sid]?.deliverData(payload)
+                    TYPE_WINDOW_UPDATE -> streams[sid]?.creditWindow(payload)
                     TYPE_CLOSE -> {
                         val st = streams.remove(sid)
                         st?.deliverEof()
@@ -293,6 +294,7 @@ internal class MxtrSession private constructor(
         const val TYPE_PONG: Byte = 0x05
         const val TYPE_OPEN_OK: Byte = 0x06
         const val TYPE_OPEN_ERR: Byte = 0x07
+        const val TYPE_WINDOW_UPDATE: Byte = 0x08
 
         const val FRAME_HEADER = 7
 
