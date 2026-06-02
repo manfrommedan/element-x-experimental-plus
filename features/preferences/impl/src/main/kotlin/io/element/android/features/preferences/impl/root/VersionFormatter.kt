@@ -29,15 +29,9 @@ class DefaultVersionFormatter(
             buildMeta.versionName,
             buildMeta.versionCode.toString()
         )
-        // versionName already carries the Element X base version and the "-plus" fork marker, so
-        // the single version line is enough. The working branch name (buildMeta.gitBranchName) is
-        // intentionally not shown - it stays available in BuildMeta for bug reports.
-        return "$base\n$MXTR_PROXY_LABEL"
-    }
-
-    companion object {
-        // Brand line shown under the version in Settings -> About.
-        // mxtr = Matrix Transport, our anti-DPI tunnel protocol.
-        private const val MXTR_PROXY_LABEL = "mxtrproxy-antidpi"
+        // versionName/versionCode come from the static Versions.kt, so they only change on a
+        // manual bump, not per CI build. Show the build's git branch + revision (the 8-char
+        // commit == the experimental-<sha> release tag) so each build is identifiable in About.
+        return "$base\n${buildMeta.gitBranchName} (${buildMeta.gitRevision})"
     }
 }
