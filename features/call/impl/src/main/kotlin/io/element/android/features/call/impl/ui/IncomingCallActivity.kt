@@ -44,6 +44,7 @@ import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
+import timber.log.Timber
 
 /**
  * Activity that's displayed as a full screen intent when an incoming call is received.
@@ -187,18 +188,27 @@ class IncomingCallActivity : AppCompatActivity() {
         if (audioManager?.ringerMode != AudioManager.RINGER_MODE_NORMAL) return
         val uri = RingtoneManager.getActualDefaultRingtoneUri(this, RingtoneManager.TYPE_RINGTONE)
             ?: return
-        ringtonePlayer = MediaPlayer().apply {
-            setDataSource(this@IncomingCallActivity, uri)
-            setAudioAttributes(
+        // The resolved ringtone can be unplayable - e.g. a custom MIUI ringtone backed by
+        // another app's private file we are not allowed to read (EACCES). A ringtone that
+        // fails to start must not crash the incoming-call screen, so build the player
+        // defensively and stay silent on any failure.
+        val player = MediaPlayer()
+        try {
+            player.setDataSource(this, uri)
+            player.setAudioAttributes(
                 AudioAttributes.Builder()
                     .setUsage(AudioAttributes.USAGE_NOTIFICATION_RINGTONE)
                     .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
                     .build()
             )
-            isLooping = true
-            setOnErrorListener { _, _, _ -> true }
-            prepare()
-            start()
+            player.isLooping = true
+            player.setOnErrorListener { _, _, _ -> true }
+            player.prepare()
+            player.start()
+            ringtonePlayer = player
+        } catch (e: Exception) {
+            player.release()
+            Timber.w(e, "Unable to play incoming call ringtone")
         }
     }
 
