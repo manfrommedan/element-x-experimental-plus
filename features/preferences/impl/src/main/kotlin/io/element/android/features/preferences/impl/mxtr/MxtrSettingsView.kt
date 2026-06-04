@@ -148,13 +148,22 @@ fun MxtrSettingsView(
                             store.setShareString(shareString)
                             store.setEnabled(enabled)
                             showRestartHint = true
+                            // Auto-apply: relaunch the process so Application.onCreate
+                            // restarts the mxtr proxy daemon with the new state. A soft
+                            // (session) restart would leave the daemon unstarted on enable.
+                            restartApp(context)
                         }
                     }
                 },
                 onReset = {
+                    val wasEnabled = enabled
                     scope.launch {
                         store.clearShareString()
                         store.setEnabled(false)
+                        // Reset commits "off". If the proxy was live, relaunch so the
+                        // running daemon actually stops - it only re-reads config at
+                        // process start, like the Apply path above.
+                        if (wasEnabled) restartApp(context)
                     }
                     shareString = ""
                     enabled = false
@@ -570,4 +579,11 @@ private fun shareText(context: Context, text: String) {
     }
     val chooserTitle = context.getString(R.string.screen_mxtr_settings_share_chooser_title)
     context.startActivity(Intent.createChooser(send, chooserTitle).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+}
+
+private fun restartApp(context: Context) {
+    val intent = context.packageManager.getLaunchIntentForPackage(context.packageName) ?: return
+    intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
+    context.startActivity(intent)
+    Runtime.getRuntime().exit(0)
 }
