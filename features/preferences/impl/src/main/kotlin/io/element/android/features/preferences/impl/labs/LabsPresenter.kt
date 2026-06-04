@@ -94,6 +94,7 @@ class LabsPresenter(
             FeatureFlags.PhoneVoiceLayout.key,
             FeatureFlags.PhoneIncomingCall.key,
             FeatureFlags.RoomListCallShortcut.key,
+            FeatureFlags.AnswerCallOnLockScreen.key,
         )
         val ourImprovementsKeys = setOf(
             FeatureFlags.BulkAttachmentsPicker.key,
@@ -141,6 +142,8 @@ class LabsPresenter(
                         stringProvider.getString(R.string.screen_labs_enable_phone_incoming_call)
                     FeatureFlags.RoomListCallShortcut ->
                         stringProvider.getString(R.string.screen_labs_enable_room_list_call_shortcut)
+                    FeatureFlags.AnswerCallOnLockScreen ->
+                        stringProvider.getString(R.string.screen_labs_enable_answer_call_on_lock_screen)
                     else -> enabledFeature.feature.title
                 }
                 val description = when (enabledFeature.feature) {
@@ -159,6 +162,8 @@ class LabsPresenter(
                         stringProvider.getString(R.string.screen_labs_enable_phone_incoming_call_description)
                     FeatureFlags.RoomListCallShortcut ->
                         stringProvider.getString(R.string.screen_labs_enable_room_list_call_shortcut_description)
+                    FeatureFlags.AnswerCallOnLockScreen ->
+                        stringProvider.getString(R.string.screen_labs_enable_answer_call_on_lock_screen_description)
                     else -> enabledFeature.feature.description
                 }
                 val icon = when (enabledFeature.feature) {
@@ -170,6 +175,7 @@ class LabsPresenter(
                     FeatureFlags.FavoritesPinnedToTop -> CompoundIcons.Favourite()
                     FeatureFlags.PhoneIncomingCall -> CompoundIcons.VoiceCallSolid()
                     FeatureFlags.RoomListCallShortcut -> CompoundIcons.VideoCallSolid()
+                    FeatureFlags.AnswerCallOnLockScreen -> CompoundIcons.LockOff()
                     else -> null
                 }
                 remember(enabledFeature) {

@@ -65,6 +65,10 @@ class IncomingCallActivity : AppCompatActivity() {
 
     private var ringtonePlayer: MediaPlayer? = null
 
+    // When the AnswerCallOnLockScreen flag is on, answering does not dismiss the keyguard,
+    // so the call opens over the lock screen without forcing an unlock.
+    private var answerWithoutUnlocking = false
+
     @Inject
     lateinit var elementCallEntryPoint: ElementCallEntryPoint
 
@@ -90,6 +94,10 @@ class IncomingCallActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
 
         bindings<CallBindings>().inject(this)
+
+        featureFlagService.isFeatureEnabledFlow(FeatureFlags.AnswerCallOnLockScreen)
+            .onEach { answerWithoutUnlocking = it }
+            .launchIn(lifecycleScope)
 
         // Set flags so it can be displayed in the lock screen
         @Suppress("DEPRECATION")
@@ -154,9 +162,12 @@ class IncomingCallActivity : AppCompatActivity() {
 
     private fun answerCall(notificationData: CallNotificationData, startVideoMuted: Boolean) {
         stopRingtone()
-        // Dismiss the keyguard so the call screen is reachable when answering from
-        // the lock screen, instead of forcing the user to unlock first.
-        getSystemService<KeyguardManager>()?.requestDismissKeyguard(this, null)
+        if (!answerWithoutUnlocking) {
+            // Dismiss the keyguard so the call screen is reachable when answering from the
+            // lock screen. With AnswerCallOnLockScreen we skip this and let the call open
+            // over the lock screen (ElementCallActivity is shown-when-locked).
+            getSystemService<KeyguardManager>()?.requestDismissKeyguard(this, null)
+        }
         elementCallEntryPoint.startCall(
             CallData(
                 sessionId = notificationData.sessionId,

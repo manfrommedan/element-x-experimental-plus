@@ -200,4 +200,12 @@ enum class FeatureFlags(
         isFinished = false,
         isInLabs = false,
     ),
+    AnswerCallOnLockScreen(
+        key = "feature.answer_call_on_lock_screen",
+        title = "Answer calls without unlocking",
+        description = "Answer an incoming call straight from the lock screen, without unlocking the device first, like WhatsApp.",
+        defaultValue = { false },
+        isFinished = false,
+        isInLabs = true,
+    ),
 }

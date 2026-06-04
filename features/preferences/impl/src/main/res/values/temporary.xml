@@ -27,6 +27,9 @@
     <!-- Labs toggle: join an ongoing call from the chat list. -->
     <string name="screen_labs_enable_room_list_call_shortcut">"Join calls from the chat list"</string>
     <string name="screen_labs_enable_room_list_call_shortcut_description">"Tap the call icon on a room in the chat list to join its ongoing call right away, like WhatsApp or Telegram."</string>
+    <!-- Labs toggle: answer an incoming call from the lock screen without unlocking. -->
+    <string name="screen_labs_enable_answer_call_on_lock_screen">"Answer calls without unlocking"</string>
+    <string name="screen_labs_enable_answer_call_on_lock_screen_description">"Answer an incoming call straight from the lock screen, without unlocking the device first, like WhatsApp. You still need to unlock to leave the call for the rest of the app."</string>
     <!-- Advanced settings toggle: hide redacted (deleted) events in timelines. -->
     <string name="screen_advanced_settings_hide_redacted_events_toggle_title">"Hide deleted messages"</string>
     <string name="screen_advanced_settings_hide_redacted_events_toggle_subtitle">"Hide redacted events from the timeline entirely. They still exist on the server, but you won't see the tombstone."</string>

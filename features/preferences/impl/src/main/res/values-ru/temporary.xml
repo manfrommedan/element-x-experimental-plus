@@ -12,6 +12,9 @@
     <!-- Labs-тумблер: присоединиться к звонку прямо из списка чатов. -->
     <string name="screen_labs_enable_room_list_call_shortcut">"Звонок из списка чатов"</string>
     <string name="screen_labs_enable_room_list_call_shortcut_description">"Нажми на иконку звонка у чата в списке, чтобы сразу присоединиться к идущему звонку, как в WhatsApp или Telegram."</string>
+    <!-- Labs-тумблер: ответ на входящий с экрана блокировки без разблокировки. -->
+    <string name="screen_labs_enable_answer_call_on_lock_screen">"Ответ без разблокировки"</string>
+    <string name="screen_labs_enable_answer_call_on_lock_screen_description">"Отвечать на входящий звонок прямо с экрана блокировки, не разблокируя телефон, как в WhatsApp. Разблокировка нужна только чтобы выйти из звонка в остальное приложение."</string>
 
     <string name="screen_advanced_settings_mxtr_title">"АнтиЦензурный прокси"</string>
     <string name="screen_advanced_settings_mxtr_subtitle">"Обход DPI и ТСПУ через ваш сервер"</string>
@@ -34,7 +37,7 @@
     <string name="screen_mxtr_settings_action_share">"Поделиться"</string>
     <string name="screen_mxtr_settings_action_apply">"Применить"</string>
     <string name="screen_mxtr_settings_action_reset">"Сброс"</string>
-    <string name="screen_mxtr_settings_restart_hint">"Сохранено. Перезапусти приложение чтобы применить."</string>
+    <string name="screen_mxtr_settings_restart_hint">"Сохранено. Перезапуск, чтобы применить…"</string>
     <string name="screen_mxtr_settings_diagnostics">"Диагностика"</string>
     <string name="screen_mxtr_settings_diagnostics_summary">"Всего %1$d · ошибок %2$d · рестартов %3$d"</string>
     <string name="screen_mxtr_settings_collapse">"Свернуть"</string>
