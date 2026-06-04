@@ -11,6 +11,7 @@ package io.element.android.features.call.impl.utils
 import android.graphics.Bitmap
 import android.net.http.SslError
 import android.webkit.JavascriptInterface
+import android.webkit.RenderProcessGoneDetail
 import android.webkit.SslErrorHandler
 import android.webkit.WebResourceError
 import android.webkit.WebResourceRequest
@@ -29,6 +30,7 @@ class WebViewWidgetMessageInterceptor(
     private val webView: WebView,
     private val onUrlLoaded: (String) -> Unit,
     private val onError: (String?) -> Unit,
+    private val onRenderGone: () -> Unit,
 ) : WidgetMessageInterceptor {
     companion object {
         // We call both the WebMessageListener and the JavascriptInterface objects in JS with this
@@ -128,6 +130,18 @@ class WebViewWidgetMessageInterceptor(
                 }
 
                 super.onReceivedSslError(view, handler, error)
+            }
+
+            override fun onRenderProcessGone(view: WebView?, detail: RenderProcessGoneDetail?): Boolean {
+                // The render process died (a crash or a low-memory kill). The WebView is
+                // unusable from now on, and it can no longer post us a close message, so
+                // the call screen would be stuck on a dead blank page. Returning true
+                // stops Android from killing our whole process; we tear the call down
+                // ourselves instead. This is distinct from onReceivedError (which the
+                // presenter swallows after load) because render death is not recoverable.
+                Timber.e("Call WebView render process gone (didCrash=${detail?.didCrash()})")
+                onRenderGone()
+                return true
             }
 
             override fun shouldInterceptRequest(view: WebView?, request: WebResourceRequest): WebResourceResponse? {

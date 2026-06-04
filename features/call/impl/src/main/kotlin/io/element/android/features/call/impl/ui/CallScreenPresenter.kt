@@ -242,6 +242,16 @@ class CallScreenPresenter(
                     }
                     // Else ignore the error, give a chance the Element Call to recover by itself.
                 }
+                is CallScreenEvent.WebViewRenderGone -> {
+                    // The WebView render process died: it can't recover or send us a
+                    // close message, so close the call screen ourselves instead of
+                    // stranding the user on a dead blank page.
+                    if (!summarySaved) {
+                        summarySaved = true
+                        saveCallSummary(notifyEventId, callConnectedAtMs)
+                    }
+                    coroutineScope.launch { close(callWidgetDriver.value, navigator) }
+                }
             }
         }
 
