@@ -16,6 +16,7 @@ import java.net.InetSocketAddress
 import java.net.Socket
 import java.security.SecureRandom
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.LinkedBlockingQueue
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicLong
@@ -44,12 +45,32 @@ internal class MxtrSession private constructor(
     private val streams = ConcurrentHashMap<Int, MxtrStream>()
     private var seqRead: Long = 1
     private var seqWrite: Long = 1
-    private val writeLock = Any()
     private val closed = AtomicBoolean(false)
     private val lastWriteAtNanos = AtomicLong(System.nanoTime())
     @Volatile private var heartbeatThread: Thread? = null
 
+    // CR-W1: every socket write funnels through one dedicated writer thread.
+    // Producers (reader PONG, heartbeat PING, each stream's upload) only enqueue
+    // here and never touch the socket, so a bulk upload blocking on a
+    // backpressured output.write can no longer hold a lock the reader needs to
+    // answer a PING. Previously reader + heartbeat + uploads shared one writeLock
+    // around a blocking write; a slow upload stalled the reader, which then could
+    // not process WINDOW_UPDATE / DATA, wedging the whole session until the app
+    // was restarted. With a single writer the reader's only blocking point is the
+    // soTimeout-bounded socket read, so the session can no longer freeze
+    // permanently. The queue stays bounded in practice by per-stream flow
+    // control: an upload thread blocks in acquireSendWindow after enqueuing one
+    // window of DATA, so a stalled socket holds at most ~one window per stream.
+    private val writeQueue = LinkedBlockingQueue<ByteArray>()
+    private val writerPoison = ByteArray(0)
+    @Volatile private var writerThread: Thread? = null
+
     init {
+        // The writer owns the socket output stream; start it before any producer
+        // (heartbeat / reader / openStream) can enqueue a frame.
+        val wt = Thread(::writerLoop, "mxtr-session-writer").apply { isDaemon = true }
+        writerThread = wt
+        wt.start()
         // WR4-01: start heartbeat BEFORE reader. If we started reader first
         // and the reader hit EOF on its first frame, close() would fire while
         // heartbeatThread was still null and the interrupt would be a silent
@@ -116,10 +137,9 @@ internal class MxtrSession private constructor(
         return stream
     }
 
-    // WR4-02: best-effort CLOSE for cleanup paths (timeout / interrupt). If
-    // the session is already closed there's no point queuing a write — that
-    // would block under writeLock waiting for the OS write timeout on a dead
-    // socket and stall the caller's unwind. Skip silently when closed.
+    // WR4-02: best-effort CLOSE for cleanup paths (timeout / interrupt). If the
+    // session is already closed there is nothing to flush and writeStreamFrame
+    // would just throw SessionClosedException, so skip silently.
     private fun sendCloseBestEffort(sid: Int) {
         if (closed.get()) return
         try {
@@ -143,11 +163,37 @@ internal class MxtrSession private constructor(
         inner[6] = payload.size.toByte()
         System.arraycopy(payload, 0, inner, FRAME_HEADER, payload.size)
 
-        synchronized(writeLock) {
-            if (closed.get()) throw SessionClosedException()
-            writePaddedAead(output, keyC2S, seqWrite, inner)
-            seqWrite++
-            lastWriteAtNanos.set(System.nanoTime())
+        // Hand the framed plaintext to the single writer thread (CR-W1). We never
+        // touch the socket here, so this returns without ever blocking on a slow
+        // or backpressured write — which is what keeps the reader's PONG path and
+        // WINDOW_UPDATE processing alive during a large upload. A real socket error
+        // surfaces asynchronously: the writer tears the session down and callers
+        // observe it as SessionClosedException / stream EOF on their next op.
+        if (closed.get()) throw SessionClosedException()
+        writeQueue.offer(inner)
+    }
+
+    // Single owner of the socket output stream and seqWrite. Drains framed
+    // plaintexts enqueued by writeStreamFrame and writes them in FIFO order, so
+    // per-stream frame order is preserved without any lock guarding output /
+    // seqWrite. A write failure (peer gone / NAT teardown) or the poison marker
+    // enqueued by close() ends the loop and tears the session down so the caller
+    // reconnects.
+    private fun writerLoop() {
+        try {
+            while (true) {
+                val inner = writeQueue.take()
+                if (inner === writerPoison || closed.get()) return
+                writePaddedAead(output, keyC2S, seqWrite, inner)
+                seqWrite++
+                lastWriteAtNanos.set(System.nanoTime())
+            }
+        } catch (_: InterruptedException) {
+            // closed
+        } catch (e: Throwable) {
+            if (!closed.get()) Timber.tag(TAG).w(e, "writer loop ended")
+        } finally {
+            close()
         }
     }
 
@@ -234,6 +280,12 @@ internal class MxtrSession private constructor(
         // ME3-05: interrupt heartbeat thread so close() unblocks it within one
         // catch (InterruptedException) instead of up to heartbeatMaxMs (~70s).
         heartbeatThread?.interrupt()
+        // Stop the writer: drop anything still queued and wake a writer parked in
+        // take() with the poison marker; socket.close() below unblocks a writer
+        // parked in a backpressured output.write.
+        writeQueue.clear()
+        writeQueue.offer(writerPoison)
+        writerThread?.interrupt()
         for (st in streams.values) st.deliverEof()
         streams.clear()
         try {
