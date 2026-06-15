@@ -14,7 +14,11 @@ import com.google.common.truth.Truth.assertThat
 import io.element.android.features.messages.impl.attachments.preview.AttachmentsPreviewEvent
 import io.element.android.features.messages.impl.attachments.preview.AttachmentsPreviewPresenter
 import io.element.android.features.messages.impl.attachments.preview.OnDoneListener
+import io.element.android.features.messages.impl.attachments.preview.imageeditor.AttachmentImageEditor
+import io.element.android.features.messages.impl.attachments.preview.imageeditor.AttachmentImageEdits
+import io.element.android.features.messages.impl.attachments.preview.imageeditor.EditedLocalMedia
 import io.element.android.features.messages.impl.attachments.video.MediaOptimizationSelectorState
+import io.element.android.features.messages.impl.attachments.video.VideoCompressionPresetSelector
 import io.element.android.features.messages.impl.fixtures.aMediaAttachment
 import io.element.android.features.messages.test.attachments.video.FakeMediaOptimizationSelectorPresenterFactory
 import io.element.android.libraries.architecture.AsyncData
@@ -32,6 +36,7 @@ import io.element.android.libraries.mediaupload.api.MediaSenderFactory
 import io.element.android.libraries.mediaupload.impl.DefaultMediaSender
 import io.element.android.libraries.mediaupload.test.FakeMediaOptimizationConfigProvider
 import io.element.android.libraries.mediaupload.test.FakeMediaPreProcessor
+import io.element.android.libraries.mediaviewer.api.local.LocalMedia
 import io.element.android.libraries.mediaviewer.test.viewer.aLocalMedia
 import io.element.android.libraries.preferences.api.store.VideoCompressionPreset
 import io.element.android.tests.testutils.WarmUpRule
@@ -171,6 +176,12 @@ class AttachmentsPreviewCaptionTest {
             },
             permalinkBuilder = FakePermalinkBuilder(),
             temporaryUriDeleter = FakeTemporaryUriDeleter(deleteLambda = { /* no-op */ }),
+            attachmentImageEditor = object : AttachmentImageEditor {
+                override suspend fun canEdit(localMedia: LocalMedia) = false
+                override suspend fun exportEdits(localMedia: LocalMedia, edits: AttachmentImageEdits) =
+                    Result.failure<EditedLocalMedia>(NotImplementedError())
+            },
+            videoCompressionPresetSelector = VideoCompressionPresetSelector(),
             sessionCoroutineScope = this,
             dispatchers = testCoroutineDispatchers(useUnconfinedTestDispatcher = true),
             mediaOptimizationSelectorPresenterFactory = FakeMediaOptimizationSelectorPresenterFactory(

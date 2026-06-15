@@ -10,6 +10,7 @@ package io.element.android.features.messages.impl.attachments.preview
 
 import androidx.compose.runtime.Immutable
 import io.element.android.features.messages.impl.attachments.Attachment
+import io.element.android.features.messages.impl.attachments.preview.imageeditor.AttachmentImageEditorState
 import io.element.android.features.messages.impl.attachments.video.MediaOptimizationSelectorState
 import io.element.android.libraries.mediaupload.api.MediaUploadInfo
 import io.element.android.libraries.textcomposer.model.TextEditorState
@@ -17,6 +18,10 @@ import io.element.android.libraries.textcomposer.model.TextEditorState
 data class AttachmentsPreviewState(
     val attachments: kotlinx.collections.immutable.ImmutableList<Attachment>,
     val currentIndex: Int,
+    val imageEditorState: AttachmentImageEditorState?,
+    val canEditImage: Boolean,
+    val isApplyingImageEdits: Boolean,
+    val displayImageEditError: Boolean,
     val sendActionState: SendActionState,
     val textEditorState: TextEditorState,
     val mediaOptimizationSelectorState: MediaOptimizationSelectorState,

@@ -1,1 +1,0 @@
-var e=globalThis||self;export{e as t};

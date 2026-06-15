@@ -44,6 +44,7 @@ open class RoomListContentStateProvider : PreviewParameterProvider<RoomListConte
 internal fun aRoomsContentState(
     securityBannerState: SecurityBannerState = SecurityBannerState.None,
     showNewNotificationSoundBanner: Boolean = false,
+    showUnreadCount: Boolean = false,
     summaries: ImmutableList<RoomListRoomSummary> = aRoomListRoomSummaryList(),
     fullScreenIntentPermissionsState: FullScreenIntentPermissionsState = aFullScreenIntentPermissionsState(),
     batteryOptimizationState: BatteryOptimizationState = aBatteryOptimizationState(),
@@ -52,6 +53,7 @@ internal fun aRoomsContentState(
 ) = RoomListContentState.Rooms(
     securityBannerState = securityBannerState,
     showNewNotificationSoundBanner = showNewNotificationSoundBanner,
+    showUnreadCount = showUnreadCount,
     fullScreenIntentPermissionsState = fullScreenIntentPermissionsState,
     batteryOptimizationState = batteryOptimizationState,
     summaries = summaries,

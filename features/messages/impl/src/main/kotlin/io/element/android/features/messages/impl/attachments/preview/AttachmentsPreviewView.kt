@@ -47,6 +47,8 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.tooling.preview.PreviewParameter
 import androidx.compose.ui.unit.dp
@@ -56,11 +58,11 @@ import io.element.android.compound.tokens.generated.CompoundIcons
 import io.element.android.features.messages.impl.R
 import io.element.android.features.messages.impl.attachments.Attachment
 import io.element.android.features.messages.impl.attachments.preview.error.sendAttachmentError
+import io.element.android.features.messages.impl.attachments.preview.imageeditor.AttachmentImageEditorView
 import io.element.android.features.messages.impl.attachments.video.MediaOptimizationSelectorEvent
 import io.element.android.features.messages.impl.attachments.video.MediaOptimizationSelectorState
 import io.element.android.features.messages.impl.attachments.video.VideoUploadEstimation
 import io.element.android.libraries.core.bool.orFalse
-import io.element.android.libraries.core.mimetype.MimeTypes.isMimeTypeImage
 import io.element.android.libraries.core.mimetype.MimeTypes.isMimeTypeVideo
 import io.element.android.libraries.designsystem.components.ProgressDialog
 import io.element.android.libraries.designsystem.components.ProgressDialogType
@@ -77,6 +79,7 @@ import io.element.android.libraries.designsystem.theme.components.ListItem
 import io.element.android.libraries.designsystem.theme.components.Scaffold
 import io.element.android.libraries.designsystem.theme.components.Switch
 import io.element.android.libraries.designsystem.theme.components.Text
+import io.element.android.libraries.designsystem.theme.components.TextButton
 import io.element.android.libraries.designsystem.theme.components.TopAppBar
 import io.element.android.libraries.designsystem.utils.CommonDrawables
 import io.element.android.libraries.mediaviewer.api.local.LocalMedia
@@ -91,6 +94,9 @@ import io.element.android.wysiwyg.display.TextDisplay
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.persistentListOf
 
+/**
+ * Ref: https://www.figma.com/design/zftpgS6LjiczobJZ1GUNpt/Updates-to-Media---File-Upload?node-id=51-3514
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AttachmentsPreviewView(
@@ -99,6 +105,13 @@ fun AttachmentsPreviewView(
     modifier: Modifier = Modifier,
     onAddMoreClick: () -> Unit = {},
 ) {
+    val canShowEditAction = when (state.sendActionState) {
+        is SendActionState.Sending.Uploading -> false
+        is SendActionState.Sending.Processing -> !state.sendActionState.displayProgress
+        SendActionState.Done -> false
+        else -> true
+    }
+
     fun postSendAttachment() {
         state.eventSink(AttachmentsPreviewEvent.SendAttachment)
     }
@@ -111,41 +124,98 @@ fun AttachmentsPreviewView(
         state.eventSink(AttachmentsPreviewEvent.CancelAndClearSendState)
     }
 
-    BackHandler(enabled = state.sendActionState !is SendActionState.Sending.Uploading && state.sendActionState !is SendActionState.Done) {
-        postCancel()
+    fun postOpenImageEditor() {
+        state.eventSink(AttachmentsPreviewEvent.OpenImageEditor)
     }
 
-    Scaffold(
-        modifier = modifier,
-        topBar = {
-            TopAppBar(
-                navigationIcon = {
-                    BackButton(
-                        imageVector = CompoundIcons.Close(),
-                        onClick = ::postCancel,
-                    )
-                },
-                title = {
-                    if (state.totalCount > 1) {
-                        Text(
-                            text = "${state.currentIndex + 1} / ${state.totalCount}",
-                            style = ElementTheme.typography.fontBodyLgMedium,
+    fun postCloseImageEditor() {
+        state.eventSink(AttachmentsPreviewEvent.CloseImageEditor)
+    }
+
+    fun postResetImageEditor() {
+        state.eventSink(AttachmentsPreviewEvent.ResetImageEdits)
+    }
+
+    fun postApplyImageEdits() {
+        state.eventSink(AttachmentsPreviewEvent.ApplyImageEdits)
+    }
+
+    BackHandler(enabled = state.sendActionState !is SendActionState.Sending.Uploading && state.sendActionState !is SendActionState.Done) {
+        if (state.imageEditorState != null) {
+            postCloseImageEditor()
+        } else {
+            postCancel()
+        }
+    }
+
+    if (state.imageEditorState != null) {
+        AttachmentImageEditorView(
+            state = state.imageEditorState,
+            onCropRectChange = { cropRect ->
+                state.eventSink(AttachmentsPreviewEvent.UpdateImageCropRect(cropRect))
+            },
+            onRotateClick = { state.eventSink(AttachmentsPreviewEvent.RotateImageToTheLeft) },
+            onFlipHorizontallyClick = { state.eventSink(AttachmentsPreviewEvent.FlipImageHorizontally) },
+            onFlipVerticallyClick = { state.eventSink(AttachmentsPreviewEvent.FlipImageVertically) },
+            onCancelClick = ::postCloseImageEditor,
+            onResetClick = ::postResetImageEditor,
+            onDoneClick = ::postApplyImageEdits,
+            modifier = modifier,
+        )
+    } else {
+        Scaffold(
+            modifier = modifier,
+            topBar = {
+                TopAppBar(
+                    navigationIcon = {
+                        BackButton(
+                            onClick = ::postCancel,
                         )
+                    },
+                    title = {
+                        // Bulk picker: show the "current / total" position; otherwise the upstream title.
+                        if (state.totalCount > 1) {
+                            Text(
+                                modifier = Modifier.semantics {
+                                    heading()
+                                },
+                                text = "${state.currentIndex + 1} / ${state.totalCount}",
+                                style = ElementTheme.typography.fontBodyLgMedium,
+                            )
+                        } else {
+                            Text(
+                                modifier = Modifier.semantics {
+                                    heading()
+                                },
+                                text = stringResource(R.string.screen_media_upload_preview_title),
+                            )
+                        }
+                    },
+                    actions = {
+                        if (state.canEditImage && canShowEditAction) {
+                            TextButton(
+                                stringResource(CommonStrings.action_edit),
+                                onClick = ::postOpenImageEditor
+                            )
+                        }
                     }
-                },
+                )
+            }
+        ) { paddingValues ->
+            AttachmentPreviewContent(
+                modifier = Modifier.padding(paddingValues),
+                state = state,
+                localMediaRenderer = localMediaRenderer,
+                onSendClick = ::postSendAttachment,
+                onAddMoreClick = onAddMoreClick,
             )
         }
-    ) { paddingValues ->
-        AttachmentPreviewContent(
-            modifier = Modifier.padding(paddingValues),
-            state = state,
-            localMediaRenderer = localMediaRenderer,
-            onSendClick = ::postSendAttachment,
-            onAddMoreClick = onAddMoreClick,
-        )
     }
     AttachmentSendStateView(
         sendActionState = state.sendActionState,
+        isApplyingImageEdits = state.isApplyingImageEdits,
+        displayImageEditError = state.displayImageEditError,
+        onDismissImageEditError = { state.eventSink(AttachmentsPreviewEvent.ClearImageEditError) },
         onDismissClick = ::postClearSendState,
         onRetryClick = ::postSendAttachment
     )
@@ -154,36 +224,56 @@ fun AttachmentsPreviewView(
 @Composable
 private fun AttachmentSendStateView(
     sendActionState: SendActionState,
+    isApplyingImageEdits: Boolean,
+    displayImageEditError: Boolean,
+    onDismissImageEditError: () -> Unit,
     onDismissClick: () -> Unit,
     onRetryClick: () -> Unit
 ) {
-    when (sendActionState) {
-        is SendActionState.Sending.Processing -> {
-            if (sendActionState.displayProgress) {
+    when {
+        isApplyingImageEdits -> {
+            ProgressDialog(
+                type = ProgressDialogType.Indeterminate,
+                text = stringResource(CommonStrings.common_preparing),
+                showCancelButton = false,
+                onDismissRequest = {},
+            )
+        }
+        displayImageEditError -> {
+            AlertDialog(
+                title = stringResource(CommonStrings.common_error),
+                content = stringResource(CommonStrings.common_something_went_wrong_message),
+                onDismiss = onDismissImageEditError,
+            )
+        }
+        else -> when (sendActionState) {
+            is SendActionState.Sending.Processing -> {
+                if (sendActionState.displayProgress) {
+                    ProgressDialog(
+                        type = ProgressDialogType.Indeterminate,
+                        text = stringResource(CommonStrings.common_preparing),
+                        showCancelButton = true,
+                        onDismissRequest = onDismissClick,
+                    )
+                }
+            }
+            is SendActionState.Sending.Uploading -> {
                 ProgressDialog(
                     type = ProgressDialogType.Indeterminate,
-                    text = stringResource(CommonStrings.common_preparing),
+                    text = stringResource(id = CommonStrings.common_sending),
                     showCancelButton = true,
                     onDismissRequest = onDismissClick,
                 )
             }
+            is SendActionState.Failure -> {
+                RetryDialog(
+                    content = stringResource(sendAttachmentError(sendActionState.error)),
+                    onDismiss = onDismissClick,
+                    onRetry = onRetryClick
+                )
+            }
+            else -> Unit
         }
-        is SendActionState.Sending.Uploading -> {
-            ProgressDialog(
-                type = ProgressDialogType.Indeterminate,
-                text = stringResource(id = CommonStrings.common_sending),
-                showCancelButton = true,
-                onDismissRequest = onDismissClick,
-            )
-        }
-        is SendActionState.Failure -> {
-            RetryDialog(
-                content = stringResource(sendAttachmentError(sendActionState.error)),
-                onDismiss = onDismissClick,
-                onRetry = onRetryClick
-            )
-        }
-        else -> Unit
     }
 }
 
@@ -238,10 +328,10 @@ private fun AttachmentPreviewContent(
                 }
             }
         }
-        val mimeType = (state.attachment as? Attachment.Media)?.localMedia?.info?.mimeType
-        if (mimeType?.isMimeTypeImage() == true) {
+        val mediaInfo = (state.attachment as? Attachment.Media)?.localMedia?.info
+        if (mediaInfo?.isImageAttachment() == true) {
             ImageOptimizationSelector(state.mediaOptimizationSelectorState)
-        } else if (mimeType?.isMimeTypeVideo() == true) {
+        } else if (mediaInfo?.mimeType?.isMimeTypeVideo() == true) {
             VideoPresetSelector(state = state.mediaOptimizationSelectorState)
         }
 
@@ -349,7 +439,8 @@ private fun AttachmentsThumbnailStrip(
 private fun ImageOptimizationSelector(state: MediaOptimizationSelectorState) {
     if (state.displayMediaSelectorViews == true) {
         Row(
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier
+                .fillMaxWidth()
                 .niceClickable {
                     state.isImageOptimizationEnabled?.let { value ->
                         state.eventSink(MediaOptimizationSelectorEvent.SelectImageOptimization(!value))
@@ -358,7 +449,9 @@ private fun ImageOptimizationSelector(state: MediaOptimizationSelectorState) {
                 .padding(horizontal = 16.dp, vertical = 16.dp)
         ) {
             Text(
-                modifier = Modifier.weight(1f).align(Alignment.CenterVertically),
+                modifier = Modifier
+                    .weight(1f)
+                    .align(Alignment.CenterVertically),
                 text = stringResource(R.string.screen_media_upload_preview_optimize_image_quality_title),
                 style = ElementTheme.typography.fontBodyLgRegular,
             )
@@ -384,7 +477,8 @@ private fun VideoPresetSelector(
 
     if (state.displayMediaSelectorViews == true && videoPresets != null && state.selectedVideoPreset != null) {
         Column(
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier
+                .fillMaxWidth()
                 .padding(horizontal = 16.dp, vertical = 16.dp)
                 .niceClickable { state.eventSink(MediaOptimizationSelectorEvent.OpenVideoPresetSelectorDialog) }
         ) {
