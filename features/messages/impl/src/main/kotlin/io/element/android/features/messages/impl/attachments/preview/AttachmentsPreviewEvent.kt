@@ -15,10 +15,12 @@ sealed interface AttachmentsPreviewEvent {
     data object SendAttachment : AttachmentsPreviewEvent
     data object CancelAndDismiss : AttachmentsPreviewEvent
     data object CancelAndClearSendState : AttachmentsPreviewEvent
+
     // Bulk picker (fork)
     data class NavigateToPage(val index: Int) : AttachmentsPreviewEvent
     data class RemoveAttachment(val index: Int) : AttachmentsPreviewEvent
     data class AddMore(val picked: List<Pair<Uri, String?>>) : AttachmentsPreviewEvent
+
     // Image editor (upstream)
     data object OpenImageEditor : AttachmentsPreviewEvent
     data object CloseImageEditor : AttachmentsPreviewEvent

@@ -52,11 +52,6 @@ import androidx.compose.ui.unit.dp
 import io.element.android.compound.theme.ElementTheme
 import io.element.android.compound.tokens.generated.CompoundIcons
 import io.element.android.features.messages.impl.crypto.sendfailure.resolve.ResolveVerifiedUserSendFailureView
-import io.element.android.features.messages.impl.selection.DragSelectAnchor
-import io.element.android.features.messages.impl.selection.DragSelectRegistry
-import io.element.android.features.messages.impl.selection.LocalDragSelectRegistry
-import io.element.android.features.messages.impl.selection.TimelineSelectionState
-import io.element.android.features.messages.impl.selection.dragToSelectMessages
 import io.element.android.features.messages.impl.timeline.components.FloatingDateBadgeOverlay
 import io.element.android.features.messages.impl.timeline.components.TimelineItemRow
 import io.element.android.features.messages.impl.timeline.components.toText
@@ -115,11 +110,7 @@ fun TimelineView(
     nestedScrollConnection: NestedScrollConnection = rememberNestedScrollInteropConnection(),
     floatingDateTopOffset: Dp = 0.dp,
     selectedEventIds: ImmutableSet<EventId>? = null,
-    dragSelectEnabled: Boolean = false,
-    dragAnchor: DragSelectAnchor? = null,
-    onSelectionChange: (ImmutableSet<EventId>) -> Unit = {},
 ) {
-    val effectiveDragAnchor = dragAnchor ?: remember { DragSelectAnchor() }
     fun clearFocusRequestState() {
         state.eventSink(TimelineEvent.ClearFocusRequestState)
     }
@@ -160,27 +151,13 @@ fun TimelineView(
         state.eventSink(TimelineEvent.LoadMore(Timeline.PaginationDirection.BACKWARDS))
     }
 
-    val dragSelectRegistry = remember { DragSelectRegistry() }
     // Animate alpha when timeline is first displayed, to avoid flashes or glitching when viewing rooms
-    CompositionLocalProvider(
-        LocalDragSelectRegistry provides (if (dragSelectEnabled) dragSelectRegistry else null)
-    ) {
     AnimatedVisibility(visible = true, enter = fadeIn()) {
         Box(modifier) {
             LazyColumn(
                 modifier = Modifier
                     .fillMaxSize()
                     .nestedScroll(nestedScrollConnection)
-                    .dragToSelectMessages(
-                        lazyListState = lazyListState,
-                        items = state.timelineItems,
-                        currentSelection = selectedEventIds,
-                        enabled = dragSelectEnabled,
-                        maxSelection = TimelineSelectionState.MAX_SELECTION,
-                        reverseLayout = useReverseLayout,
-                        anchor = effectiveDragAnchor,
-                        onSelectionChange = onSelectionChange,
-                    )
                     .testTag(TestTags.timeline),
                 state = lazyListState,
                 reverseLayout = useReverseLayout,
@@ -248,7 +225,6 @@ fun TimelineView(
                 )
             }
         }
-    }
     }
 
     ResolveVerifiedUserSendFailureView(state = state.resolveVerifiedUserSendFailureState)

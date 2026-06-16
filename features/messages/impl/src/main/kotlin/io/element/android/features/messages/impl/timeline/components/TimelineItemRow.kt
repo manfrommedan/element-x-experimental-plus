@@ -25,7 +25,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawWithCache
@@ -34,8 +33,6 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.layout.boundsInWindow
-import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.isTraversalGroup
@@ -43,7 +40,6 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import io.element.android.compound.theme.ElementTheme
-import io.element.android.features.messages.impl.selection.LocalDragSelectRegistry
 import io.element.android.features.messages.impl.selection.SelectionIndicator
 import io.element.android.features.messages.impl.timeline.TimelineEvent
 import io.element.android.features.messages.impl.timeline.TimelineRoomInfo
@@ -151,21 +147,7 @@ internal fun TimelineItemRow(
     } else {
         Modifier
     }
-    // Report this row's on-screen bounds so drag-to-select can hit-test against it (window
-    // coordinates, like a DOM element). No-op when the registry isn't provided (drag off).
-    val dragRegistry = LocalDragSelectRegistry.current
-    val dragRegEventId = (timelineItem as? TimelineItem.Event)?.eventId
-    if (dragRegistry != null && dragRegEventId != null) {
-        DisposableEffect(dragRegEventId) {
-            onDispose { dragRegistry.remove(dragRegEventId) }
-        }
-    }
-    val dragRegisterModifier = if (dragRegistry != null && dragRegEventId != null) {
-        Modifier.onGloballyPositioned { dragRegistry.put(dragRegEventId, it.boundsInWindow()) }
-    } else {
-        Modifier
-    }
-    Box(modifier = modifier.then(backgroundModifier).then(selectionTint).then(selectionClick).then(dragRegisterModifier)) {
+    Box(modifier = modifier.then(backgroundModifier).then(selectionTint).then(selectionClick)) {
         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
             AnimatedVisibility(
                 visible = selectableEvent != null,

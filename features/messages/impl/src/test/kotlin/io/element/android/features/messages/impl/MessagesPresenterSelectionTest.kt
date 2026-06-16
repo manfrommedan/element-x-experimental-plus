@@ -66,7 +66,6 @@ import io.element.android.tests.testutils.testWithLifecycleOwner
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.toImmutableList
-import kotlinx.collections.immutable.toImmutableSet
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.advanceUntilIdle
@@ -79,20 +78,20 @@ class MessagesPresenterSelectionTest {
     @get:Rule
     val warmUpRule = WarmUpRule()
 
-    // --- Drag range / SetSelection ---
+    // --- Selection cap ---
 
     @Test
-    fun `SetSelection caps the swept range at maxSelection`() = runTest {
-        // A drag can sweep more events than the cap; the presenter is the backstop.
+    fun `ToggleSelection stops adding at maxSelection`() = runTest {
+        // Tapping more events than the cap keeps the selection at the limit; extra taps are ignored.
         val cap = TimelineSelectionState.MAX_SELECTION
-        val ids = (0 until cap + 5).map { EventId("\$E-$it") }
+        val events = (0 until cap + 5).map { aTimelineItemEvent(eventId = EventId("\$E-$it")) }
         val presenter = createMessagesPresenter(
-            timelineItems = ids.map { aTimelineItemEvent(eventId = it) }.toImmutableList(),
+            timelineItems = events.toImmutableList(),
         )
         presenter.testWithLifecycleOwner {
             val initial = awaitItem()
-            initial.eventSink(MessagesEvent.SetSelection(ids.toImmutableSet()))
-            val state = consumeItemsUntilPredicate { it.selectionState.isActive }.last()
+            events.forEach { initial.eventSink(MessagesEvent.ToggleSelection(it)) }
+            val state = consumeItemsUntilPredicate { it.selectionState.isAtCap }.last()
             assertThat(state.selectionState.count).isEqualTo(cap)
             assertThat(state.selectionState.isAtCap).isTrue()
             cancelAndIgnoreRemainingEvents()

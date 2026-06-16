@@ -309,20 +309,6 @@ class MessagesPresenter(
                         selectedIds = next.toPersistentSet(),
                     )
                 }
-                is MessagesEvent.SetSelection -> {
-                    // Drag-to-select emits the whole swept set at once. Cap silently
-                    // (the drag handler already stops growing past maxSelection, this
-                    // is just a backstop) and keep the order deterministic.
-                    val ids = if (event.eventIds.size > selectionState.maxSelection) {
-                        event.eventIds.asSequence().take(selectionState.maxSelection).toPersistentSet()
-                    } else {
-                        event.eventIds.toPersistentSet()
-                    }
-                    selectionState = selectionState.copy(
-                        isActive = ids.isNotEmpty(),
-                        selectedIds = ids,
-                    )
-                }
                 MessagesEvent.ClearSelection -> {
                     selectionState = TimelineSelectionState()
                 }

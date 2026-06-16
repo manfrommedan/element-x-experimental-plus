@@ -74,7 +74,6 @@ import io.element.android.features.messages.impl.messagecomposer.suggestions.Sug
 import io.element.android.features.messages.impl.pinned.banner.PinnedMessagesBannerState
 import io.element.android.features.messages.impl.pinned.banner.PinnedMessagesBannerView
 import io.element.android.features.messages.impl.pinned.banner.PinnedMessagesBannerViewDefaults
-import io.element.android.features.messages.impl.selection.DragSelectAnchor
 import io.element.android.features.messages.impl.timeline.FOCUS_ON_PINNED_EVENT_DEBOUNCE_DURATION_IN_MILLIS
 import io.element.android.features.messages.impl.timeline.TimelineEvent
 import io.element.android.features.messages.impl.timeline.TimelineView
@@ -187,10 +186,6 @@ fun MessagesView(
     // This is needed because the composer is inside an AndroidView that can't be affected by the FocusManager in Compose
     val localView = LocalView.current
 
-    // Exact anchor for drag-to-select: the event the long-press fired on. Read by the
-    // drag gesture instead of hit-testing the pointer position (which is fragile).
-    val dragAnchor = remember { DragSelectAnchor() }
-
     fun hidingKeyboard(block: () -> Unit) {
         localView.hideKeyboard()
         block()
@@ -253,8 +248,7 @@ fun MessagesView(
                     )
                 }
             } else {
-                // Text & friends: long-press enters selection directly (fast drag anchor).
-                dragAnchor.eventId = event.eventId
+                // Text & friends: long-press enters selection directly.
                 state.eventSink(MessagesEvent.EnterSelection(event))
             }
             return
@@ -367,7 +361,6 @@ fun MessagesView(
                             state = state,
                             onContentClick = ::onContentClick,
                             onMessageLongClick = ::onMessageLongClick,
-                            dragAnchor = dragAnchor,
                             onUserDataClick = {
                                 if (!selectionActive) {
                                     hidingKeyboard {
@@ -583,7 +576,6 @@ private fun MessagesViewContent(
     onViewAllPinnedMessagesClick: () -> Unit,
     forceJumpToBottomVisibility: Boolean,
     onSwipeToReply: (TimelineItem.Event) -> Unit,
-    dragAnchor: DragSelectAnchor? = null,
     modifier: Modifier = Modifier,
     knockRequestsBannerView: @Composable () -> Unit,
 ) {
@@ -640,9 +632,6 @@ private fun MessagesViewContent(
                 nestedScrollConnection = scrollBehavior.nestedScrollConnection,
                 floatingDateTopOffset = pinnedBannerHeightDp,
                 selectedEventIds = if (state.selectionState.isActive) state.selectionState.selectedIds else null,
-                dragSelectEnabled = state.isMultiSelectEnabled,
-                dragAnchor = dragAnchor,
-                onSelectionChange = { ids -> state.eventSink(MessagesEvent.SetSelection(ids)) },
             )
 
             if (state.timelineState.timelineMode !is Timeline.Mode.Thread) {
