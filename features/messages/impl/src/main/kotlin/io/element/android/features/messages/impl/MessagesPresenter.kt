@@ -94,7 +94,7 @@ import io.element.android.libraries.ui.strings.CommonStrings
 import io.element.android.services.analytics.api.AnalyticsService
 import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.toImmutableList
-import kotlinx.collections.immutable.toPersistentSet
+import kotlinx.collections.immutable.toImmutableSet
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
@@ -194,7 +194,7 @@ class MessagesPresenter(
         multiSelectSeen = isMultiSelectEnabled
         // rememberSaveable so a large in-progress selection survives rotation / process death.
         var selectionState by rememberSaveable(stateSaver = TimelineSelectionState.Saver) {
-            mutableStateOf(TimelineSelectionState())
+            mutableStateOf(TimelineSelectionState.Empty)
         }
         val isCurrentlySharingLiveLocationInRoom by remember { liveLocationShareManager.isCurrentlySharing(room.roomId) }.collectAsState()
 
@@ -290,7 +290,7 @@ class MessagesPresenter(
                     ) {
                         selectionState = selectionState.copy(
                             isActive = true,
-                            selectedIds = (selectionState.selectedIds + anchorEventId).toPersistentSet(),
+                            selectedIds = (selectionState.selectedIds + anchorEventId).toImmutableSet(),
                         )
                     }
                 }
@@ -306,11 +306,11 @@ class MessagesPresenter(
                     }
                     selectionState = selectionState.copy(
                         isActive = next.isNotEmpty(),
-                        selectedIds = next.toPersistentSet(),
+                        selectedIds = next.toImmutableSet(),
                     )
                 }
                 MessagesEvent.ClearSelection -> {
-                    selectionState = TimelineSelectionState()
+                    selectionState = TimelineSelectionState.Empty
                 }
                 MessagesEvent.BulkRedactSelected -> {
                     // Only redact events the user is actually permitted to, skipping the rest so we
@@ -324,7 +324,7 @@ class MessagesPresenter(
                         .mapNotNull { it.eventId }
                         .toList()
                     if (targets.isEmpty()) return@handleEvent
-                    selectionState = TimelineSelectionState()
+                    selectionState = TimelineSelectionState.Empty
                     sessionCoroutineScope.launch {
                         var failures = 0
                         targets.forEachIndexed { index, id ->
@@ -356,7 +356,7 @@ class MessagesPresenter(
                         clipboardHelper.copyPlainText(text)
                         snackbarDispatcher.post(SnackbarMessage(CommonStrings.common_copied_to_clipboard))
                     }
-                    selectionState = TimelineSelectionState()
+                    selectionState = TimelineSelectionState.Empty
                 }
                 MessagesEvent.BulkForwardSelected -> {
                     val selected = selectionState.selectedIds
@@ -370,7 +370,7 @@ class MessagesPresenter(
                         .mapNotNull { event -> event.eventId?.let { it to event.sentTimeMillis } }
                         .toMap()
                     val orderedTargets = selected.sortedBy { sentTimeById[it] ?: Long.MAX_VALUE }
-                    selectionState = TimelineSelectionState()
+                    selectionState = TimelineSelectionState.Empty
                     navigator.forwardEvents(orderedTargets)
                 }
                 is MessagesEvent.ToggleReaction -> {
