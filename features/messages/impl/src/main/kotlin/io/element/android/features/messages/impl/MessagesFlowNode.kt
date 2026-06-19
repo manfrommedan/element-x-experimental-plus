@@ -191,6 +191,9 @@ class MessagesFlowNode(
 
         @Parcelize
         data object ThreadsList : NavTarget
+
+        @Parcelize
+        data class AvatarPreview(val name: String, val avatarUrl: String) : NavTarget
     }
 
     private val callback: MessagesEntryPoint.Callback = callback()
@@ -332,6 +335,10 @@ class MessagesFlowNode(
 
                     override fun navigateToDeveloperSettings() {
                         callback.navigateToDeveloperSettings()
+                    }
+
+                    override fun navigateToAvatarPreview(username: String, avatarUrl: String) {
+                        overlay.show(NavTarget.AvatarPreview(username, avatarUrl))
                     }
                 }
                 val inputs = MessagesNode.Inputs(focusedEventId = navTarget.focusedEventId)
@@ -579,6 +586,10 @@ class MessagesFlowNode(
                     override fun navigateToDeveloperSettings() {
                         callback.navigateToDeveloperSettings()
                     }
+
+                    override fun navigateToAvatarPreview(username: String, avatarUrl: String) {
+                        overlay.show(NavTarget.AvatarPreview(username, avatarUrl))
+                    }
                 }
                 createNode<ThreadedMessagesNode>(buildContext, listOf(inputs, callback))
             }
@@ -589,6 +600,31 @@ class MessagesFlowNode(
                     }
                 }
                 createNode<ThreadsListNode>(buildContext, listOf(callback))
+            }
+            is NavTarget.AvatarPreview -> {
+                val callback = object : MediaViewerEntryPoint.Callback {
+                    override fun onDone() {
+                        overlay.hide()
+                    }
+
+                    override fun viewInTimeline(eventId: EventId) {
+                        // Cannot happen
+                    }
+
+                    override fun forwardEvent(eventId: EventId, fromPinnedEvents: Boolean) {
+                        // Cannot happen
+                    }
+                }
+                val params = mediaViewerEntryPoint.createParamsForAvatar(
+                    filename = navTarget.name,
+                    avatarUrl = navTarget.avatarUrl,
+                )
+                mediaViewerEntryPoint.createNode(
+                    parentNode = this,
+                    buildContext = buildContext,
+                    params = params,
+                    callback = callback,
+                )
             }
         }
     }

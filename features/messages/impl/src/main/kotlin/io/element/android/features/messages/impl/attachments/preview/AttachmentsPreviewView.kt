@@ -33,7 +33,6 @@ import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -75,11 +74,12 @@ import io.element.android.libraries.designsystem.modifiers.niceClickable
 import io.element.android.libraries.designsystem.preview.ElementPreview
 import io.element.android.libraries.designsystem.preview.ElementPreviewDark
 import io.element.android.libraries.designsystem.preview.PreviewsDayNight
+import io.element.android.libraries.designsystem.theme.components.Icon
+import io.element.android.libraries.designsystem.theme.components.IconButton
 import io.element.android.libraries.designsystem.theme.components.ListItem
 import io.element.android.libraries.designsystem.theme.components.Scaffold
 import io.element.android.libraries.designsystem.theme.components.Switch
 import io.element.android.libraries.designsystem.theme.components.Text
-import io.element.android.libraries.designsystem.theme.components.TextButton
 import io.element.android.libraries.designsystem.theme.components.TopAppBar
 import io.element.android.libraries.designsystem.utils.CommonDrawables
 import io.element.android.libraries.mediaviewer.api.local.LocalMedia
@@ -193,10 +193,14 @@ fun AttachmentsPreviewView(
                     },
                     actions = {
                         if (state.canEditImage && canShowEditAction) {
-                            TextButton(
-                                stringResource(CommonStrings.action_edit),
-                                onClick = ::postOpenImageEditor
-                            )
+                            IconButton(
+                                onClick = ::postOpenImageEditor,
+                            ) {
+                                Icon(
+                                    imageVector = CompoundIcons.Crop(),
+                                    contentDescription = stringResource(CommonStrings.action_edit),
+                                )
+                            }
                         }
                     }
                 )

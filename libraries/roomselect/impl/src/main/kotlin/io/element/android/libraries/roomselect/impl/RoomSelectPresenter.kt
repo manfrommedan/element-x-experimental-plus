@@ -29,17 +29,20 @@ import io.element.android.libraries.roomselect.api.RoomSelectMode
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.toImmutableList
-import kotlinx.collections.immutable.toPersistentList
 import kotlinx.coroutines.launch
 
 @AssistedInject
 class RoomSelectPresenter(
     @Assisted private val mode: RoomSelectMode,
+    @Assisted private val maxNumberOfRooms: Int,
     private val dataSourceFactory: RoomSelectSearchDataSource.Factory,
 ) : Presenter<RoomSelectState> {
     @AssistedFactory
     fun interface Factory {
-        fun create(mode: RoomSelectMode): RoomSelectPresenter
+        fun create(
+            mode: RoomSelectMode,
+            maxNumberOfRooms: Int,
+        ): RoomSelectPresenter
     }
 
     @Composable
@@ -68,21 +71,18 @@ class RoomSelectPresenter(
             }
         }
 
-        fun handleEvent(event: RoomSelectEvents) {
+        fun handleEvent(event: RoomSelectEvent) {
             when (event) {
-                is RoomSelectEvents.SetSelectedRoom -> {
+                is RoomSelectEvent.ToggleSelectedRoom -> {
                     val index = selectedRooms.indexOfFirst { it.roomId == event.room.roomId }
                     selectedRooms = if (index >= 0) {
-                        selectedRooms.removeAt(index)
+                        selectedRooms.removingAt(index)
                     } else {
-                        selectedRooms.add(event.room)
+                        selectedRooms.adding(event.room)
                     }
                 }
-                is RoomSelectEvents.RemoveSelectedRoom -> {
-                    selectedRooms = selectedRooms.removeAll { it.roomId == event.roomId }.toPersistentList()
-                }
-                RoomSelectEvents.ToggleSearchActive -> isSearchActive = !isSearchActive
-                is RoomSelectEvents.UpdateVisibleRange -> coroutineScope.launch {
+                RoomSelectEvent.ToggleSearchActive -> isSearchActive = !isSearchActive
+                is RoomSelectEvent.UpdateVisibleRange -> coroutineScope.launch {
                     dataSource.updateVisibleRange(event.range)
                 }
             }
@@ -90,6 +90,7 @@ class RoomSelectPresenter(
 
         return RoomSelectState(
             mode = mode,
+            maxNumberOfRooms = maxNumberOfRooms,
             resultState = searchResults,
             searchQuery = queryState,
             isSearchActive = isSearchActive,

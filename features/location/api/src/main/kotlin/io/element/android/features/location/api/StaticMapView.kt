@@ -8,6 +8,7 @@
 
 package io.element.android.features.location.api
 
+import android.graphics.Bitmap
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -26,13 +27,17 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalInspectionMode
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.core.graphics.createBitmap
 import coil3.Extras
+import coil3.asImage
 import coil3.compose.AsyncImagePainter
 import coil3.compose.rememberAsyncImagePainter
 import coil3.request.ImageRequest
+import coil3.request.SuccessResult
 import io.element.android.compound.theme.ElementTheme
 import io.element.android.features.location.api.internal.StaticMapPlaceholder
 import io.element.android.features.location.api.internal.StaticMapUrlBuilder
@@ -42,6 +47,7 @@ import io.element.android.libraries.designsystem.components.PinVariant
 import io.element.android.libraries.designsystem.components.media.LocalAutoLoadMedia
 import io.element.android.libraries.designsystem.preview.ElementPreview
 import io.element.android.libraries.designsystem.preview.PreviewsDayNight
+import io.element.android.libraries.designsystem.utils.CommonDrawables
 
 /**
  * Shows a static map image downloaded via a third party service's static maps API.
@@ -134,35 +140,49 @@ private fun BoxWithConstraintsScope.LoadableMapContent(
     var userTapped by rememberSaveable { mutableStateOf(false) }
     val shouldLoad = autoLoad || userTapped
 
-    val painter = rememberAsyncImagePainter(
-        model = if (constraints.isZero || !shouldLoad) {
-            // Avoid building a URL if any of the size constraints is zero,
-            // or if wifi-only auto-download is on and we're not on wifi yet
-            // (the StaticMapPlaceholder below renders with canReload=true so
-            // the user can opt in per-message).
-            null
-        } else {
-            ImageRequest.Builder(context)
-                .data(
-                    builder.build(
-                        lat = location.lat,
-                        lon = location.lon,
-                        zoom = zoom,
-                        darkMode = darkMode,
-                        width = constraints.maxWidth,
-                        height = constraints.maxHeight,
-                        density = LocalDensity.current.density,
+    val (painter, state, contentScale) = if (LocalInspectionMode.current) {
+        val painter = painterResource(CommonDrawables.sample_map)
+        val state = AsyncImagePainter.State.Success(
+            painter = painter,
+            result = SuccessResult(
+                image = createBitmap(1, 1, Bitmap.Config.ALPHA_8).asImage(),
+                request = ImageRequest.Builder(context).build()
+            )
+        )
+        Triple(painter, state, ContentScale.Crop)
+    } else {
+        val painter = rememberAsyncImagePainter(
+            model = if (constraints.isZero || !shouldLoad) {
+                // Avoid building a URL if any of the size constraints is zero,
+                // or if wifi-only auto-download is on and we're not on wifi yet
+                // (the StaticMapPlaceholder below renders with canReload=true so
+                // the user can opt in per-message).
+                null
+            } else {
+                ImageRequest.Builder(context)
+                    .data(
+                        builder.build(
+                            lat = location.lat,
+                            lon = location.lon,
+                            zoom = zoom,
+                            darkMode = darkMode,
+                            width = constraints.maxWidth,
+                            height = constraints.maxHeight,
+                            density = LocalDensity.current.density,
+                        )
                     )
-                )
-                .size(width = constraints.maxWidth, height = constraints.maxHeight)
-                .apply {
-                    extras.set(Extras.Key("retry_hash"), retryHash).build()
-                }
-                .build()
-        }
-    )
+                    .size(width = constraints.maxWidth, height = constraints.maxHeight)
+                    .apply {
+                        extras.set(Extras.Key("retry_hash"), retryHash).build()
+                    }
+                    .build()
+            }
+        )
 
-    val state by painter.state.collectAsState()
+        val state by painter.state.collectAsState()
+        Triple(painter, state, ContentScale.Fit)
+    }
+
     when (state) {
         is AsyncImagePainter.State.Success -> {
             Image(
@@ -171,7 +191,7 @@ private fun BoxWithConstraintsScope.LoadableMapContent(
                 modifier = Modifier.size(width = maxWidth, height = maxHeight),
                 // The returned image can be smaller than the requested size due to the static maps API having
                 // a max width and height of 2048 px. We apply ContentScale.Fit to handle this.
-                contentScale = ContentScale.Fit,
+                contentScale = contentScale,
             )
             LocationPin(variant = pinVariant, modifier = Modifier.centerBottomEdge(this))
         }

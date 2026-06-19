@@ -140,9 +140,6 @@ class TimelinePresenter(
         val messageShieldDialogData: MutableState<MessageShieldData?> = remember { mutableStateOf(null) }
 
         val resolveVerifiedUserSendFailureState = resolveVerifiedUserSendFailurePresenter.present()
-        val renderReadReceipts by remember {
-            sessionPreferencesStore.isRenderReadReceiptsEnabled()
-        }.collectAsState(initial = true)
         val isLive by remember {
             timelineController.isLive()
         }.collectAsState(initial = true)
@@ -259,13 +256,18 @@ class TimelinePresenter(
                 }
                 .launchIn(this)
 
-            combine(timelineController.timelineItems(), room.membersStateFlow) { items, membersState ->
+            combine(
+                timelineController.timelineItems(),
+                room.membersStateFlow,
+                sessionPreferencesStore.isRenderReadReceiptsEnabled(),
+            ) { items, membersState, renderReadReceipts ->
                 val parent = analyticsService.getLongRunningTransaction(DisplayFirstTimelineItems)
                 val transaction = parent?.startChild("timelineItemsFactory.replaceWith", "Processing timeline items")
                 transaction?.putExtraData(AnalyticsUserData.TIMELINE_ITEM_COUNT, items.count().toString())
                 timelineItemsFactory.replaceWith(
                     timelineItems = items,
-                    roomMembers = membersState.roomMembers().orEmpty()
+                    roomMembers = membersState.roomMembers().orEmpty(),
+                    renderReadReceipts = renderReadReceipts,
                 )
                 transaction?.finish()
                 items
@@ -337,7 +339,6 @@ class TimelinePresenter(
             timelineItems = visibleTimelineItems,
             timelineMode = timelineMode,
             timelineRoomInfo = timelineRoomInfo,
-            renderReadReceipts = renderReadReceipts,
             newEventState = newEventState.value,
             isLive = isLive,
             focusRequestState = focusRequestState.value,
