@@ -73,3 +73,39 @@ suspend fun LazyListState.animateScrollToItemCenter(index: Int) {
         animateScrollToItem(index, offset)
     }
 }
+
+/**
+ * Like [animateScrollToItemCenter] but lands the item against the top edge of the viewport.
+ *
+ * The timeline uses reverseLayout, so the layout start is at the bottom and a negative scroll
+ * offset moves the item up; -(container - item) places the item's top edge at the viewport top.
+ * When the item is taller than the viewport the offset is clamped to 0 so its top stays aligned.
+ */
+suspend fun LazyListState.animateScrollToItemTop(index: Int) {
+    fun LazyListLayoutInfo.containerSize(): Int {
+        return if (orientation == Orientation.Vertical) {
+            viewportSize.height
+        } else {
+            viewportSize.width
+        } - beforeContentPadding - afterContentPadding
+    }
+
+    fun LazyListLayoutInfo.resolveItemOffsetToTop(index: Int): Int? {
+        val itemInfo = visibleItemsInfo.firstOrNull { it.index == index } ?: return null
+        return -(containerSize() - itemInfo.size).coerceAtLeast(0)
+    }
+
+    // await for the first layout.
+    scroll { }
+    layoutInfo.resolveItemOffsetToTop(index)?.let { offset ->
+        // Item is already visible, just scroll to top.
+        animateScrollToItem(index, offset)
+        return
+    }
+    // Item is not visible, jump to it...
+    scrollToItem(index)
+    // and then adjust according to the actual item size.
+    layoutInfo.resolveItemOffsetToTop(index)?.let { offset ->
+        animateScrollToItem(index, offset)
+    }
+}

@@ -15,7 +15,6 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.lazy.LazyListLayoutInfo
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.minimumInteractiveComponentSize
@@ -23,10 +22,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
@@ -43,10 +40,8 @@ import io.element.android.libraries.designsystem.theme.components.Surface
 import io.element.android.libraries.designsystem.theme.components.Text
 import io.element.android.libraries.designsystem.theme.floatingDateBadgeBackground
 import kotlinx.collections.immutable.ImmutableList
-import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
-import kotlinx.coroutines.launch
 import kotlin.time.Duration.Companion.milliseconds
 
 @Composable
@@ -55,12 +50,10 @@ internal fun BoxScope.FloatingDateBadgeOverlay(
     timelineItems: ImmutableList<TimelineItem>,
     isLive: Boolean,
     topOffset: Dp = 0.dp,
+    onDateClick: ((String) -> Unit)? = null,
 ) {
     // This needs to be a state to trigger a `derivedState` recalculation
     val updatedTimelineItems by rememberUpdatedState(timelineItems)
-    val scope = rememberCoroutineScope()
-    // Cancels any in-flight tap-driven scroll so rapid taps don't queue.
-    var scrollJob: Job? by remember { mutableStateOf(null) }
 
     // Look for the last visible item with a timestamp, starting from the last visible item and going backwards until we find one or reach the start of the list
     val lastVisibleItemWithTimestamp by remember {
@@ -81,17 +74,9 @@ internal fun BoxScope.FloatingDateBadgeOverlay(
 
     // Store the formatted date so we recompute it lazily and can keep it around even if we need to dispose the badge because the timeline items changed
     var formattedDate: String? by remember { mutableStateOf(null) }
-    // While a tap-driven scroll is running, the badge text stays
-    // anchored on the tapped date. Only a real (finger) scroll afterwards advances
-    // the badge as items cross the viewport's top edge. A counter (not a flag)
-    // avoids a race where the previous tap's `finally` clears the flag while the
-    // next tap is still running.
-    var activeTapScrolls by remember { mutableIntStateOf(0) }
-    val suppressBadgeUpdates by remember { derivedStateOf { activeTapScrolls > 0 } }
+    // Update the formatted date when we have a new non-null timestamp
     LaunchedEffect(lastVisibleItemWithTimestamp) {
-        if (!suppressBadgeUpdates) {
-            lastVisibleItemWithTimestamp?.formattedDate()?.let { formattedDate = it }
-        }
+        lastVisibleItemWithTimestamp?.formattedDate()?.let { formattedDate = it }
     }
 
     val isAtBottom by remember {
@@ -128,42 +113,7 @@ internal fun BoxScope.FloatingDateBadgeOverlay(
             FloatingDateBadge(
                 modifier = Modifier.padding(8.dp),
                 dateText = dateText,
-                onClick = {
-                    scrollJob?.cancel()
-                    scrollJob = scope.launch {
-                        activeTapScrolls++
-                        try {
-                            // The divider for the tapped date may not be loaded yet
-                            // (matrix-rust-sdk paginates lazily). Snap to the oldest loaded
-                            // item so TimelinePrefetchingHelper fetches more history, then
-                            // retry the lookup until the divider appears. If the oldest index
-                            // stops growing across iterations the pagination has hit the room
-                            // start; bail out instead of spinning. The final approach to the
-                            // found divider is smoothly animated.
-                            var previousOldest = -1
-                            var stuckIterations = 0
-                            repeat(10) {
-                                val divider = findDayDividerIndex(updatedTimelineItems, dateText)
-                                if (divider >= 0) {
-                                    lazyListState.animateScrollToItemTop(divider)
-                                    return@launch
-                                }
-                                val oldest = updatedTimelineItems.lastIndex
-                                if (oldest <= 0) return@launch
-                                if (oldest == previousOldest) {
-                                    if (++stuckIterations >= 2) return@launch
-                                } else {
-                                    stuckIterations = 0
-                                    previousOldest = oldest
-                                }
-                                lazyListState.scrollToItem(oldest)
-                                delay(300.milliseconds)
-                            }
-                        } finally {
-                            activeTapScrolls--
-                        }
-                    }
-                },
+                onClick = onDateClick?.let { onClick -> { onClick(dateText) } },
             )
         }
     }
@@ -177,28 +127,6 @@ internal fun findDayDividerIndex(items: List<TimelineItem>, formattedDate: Strin
         item is TimelineItem.Virtual &&
             (item.model as? TimelineItemDaySeparatorModel)?.formattedDate == formattedDate
     }
-
-// Mirrors the codebase's animateScrollToItemCenter pattern but lands the item at the TOP of
-// the viewport instead of the centre. In reverseLayout=true the layout-start is at the bottom,
-// so a negative scrollOffset shifts the item up; -(viewport - item) places its top edge at
-// the viewport's top edge. If the item is not currently in the viewport we snap to it first,
-// then measure and animate to the precise offset (same two-phase approach as the centre helper).
-private suspend fun LazyListState.animateScrollToItemTop(index: Int) {
-    fun LazyListLayoutInfo.topOffsetFor(idx: Int): Int? {
-        val info = visibleItemsInfo.firstOrNull { it.index == idx } ?: return null
-        val containerSize = viewportSize.height - beforeContentPadding - afterContentPadding
-        return -(containerSize - info.size).coerceAtLeast(0)
-    }
-    scroll { }
-    layoutInfo.topOffsetFor(index)?.let { offset ->
-        animateScrollToItem(index, offset)
-        return
-    }
-    scrollToItem(index)
-    layoutInfo.topOffsetFor(index)?.let { offset ->
-        animateScrollToItem(index, offset)
-    }
-}
 
 @Composable
 internal fun FloatingDateBadge(

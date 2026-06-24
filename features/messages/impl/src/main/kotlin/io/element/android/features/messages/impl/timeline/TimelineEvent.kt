@@ -24,6 +24,17 @@ sealed interface TimelineEvent {
     data object OnFocusEventRender : TimelineEvent
     data object JumpToLive : TimelineEvent
 
+    /**
+     * Scroll the timeline to the start of the given day, loading older history if needed.
+     * [formattedDate] is the label shown by the floating date pill.
+     */
+    data class ScrollToDate(val formattedDate: String) : TimelineEvent
+
+    /**
+     * Acknowledge that a [ScrollToDate] request has been consumed by the view.
+     */
+    data object ConsumeScrollToDate : TimelineEvent
+
     data object HideShieldDialog : TimelineEvent
 
     /**

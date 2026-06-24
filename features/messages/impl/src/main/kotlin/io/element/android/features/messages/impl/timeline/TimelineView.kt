@@ -71,6 +71,7 @@ import io.element.android.libraries.designsystem.preview.PreviewsDayNight
 import io.element.android.libraries.designsystem.theme.components.FloatingActionButton
 import io.element.android.libraries.designsystem.theme.components.Icon
 import io.element.android.libraries.designsystem.utils.animateScrollToItemCenter
+import io.element.android.libraries.designsystem.utils.animateScrollToItemTop
 import io.element.android.libraries.matrix.api.core.EventId
 import io.element.android.libraries.matrix.api.timeline.Timeline
 import io.element.android.libraries.matrix.api.user.MatrixUser
@@ -221,7 +222,15 @@ fun TimelineView(
                     timelineItems = state.timelineItems,
                     isLive = state.isLive,
                     topOffset = floatingDateTopOffset,
+                    onDateClick = { state.eventSink(TimelineEvent.ScrollToDate(it)) },
                 )
+                val scrollToDateIndex = state.scrollToDateIndex
+                LaunchedEffect(scrollToDateIndex) {
+                    if (scrollToDateIndex != null) {
+                        lazyListState.animateScrollToItemTop(scrollToDateIndex)
+                        state.eventSink(TimelineEvent.ConsumeScrollToDate)
+                    }
+                }
             }
         }
     }

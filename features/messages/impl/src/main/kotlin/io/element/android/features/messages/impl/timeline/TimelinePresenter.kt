@@ -29,6 +29,7 @@ import io.element.android.features.messages.impl.UserEventPermissions
 import io.element.android.features.messages.impl.crypto.sendfailure.resolve.ResolveVerifiedUserSendFailureEvent
 import io.element.android.features.messages.impl.crypto.sendfailure.resolve.ResolveVerifiedUserSendFailureState
 import io.element.android.features.messages.impl.timeline.components.MessageShieldData
+import io.element.android.features.messages.impl.timeline.components.findDayDividerIndex
 import io.element.android.features.messages.impl.timeline.factories.TimelineItemsFactory
 import io.element.android.features.messages.impl.timeline.factories.TimelineItemsFactoryConfig
 import io.element.android.features.messages.impl.timeline.model.NewEventState
@@ -118,6 +119,12 @@ class TimelinePresenter(
     private var timelineItems by mutableStateOf<ImmutableList<TimelineItem>>(persistentListOf())
 
     private val focusRequestState: MutableState<FocusRequestState> = mutableStateOf(FocusRequestState.None)
+
+    // The day label the user tapped on the floating date pill, while its divider is being loaded.
+    private val pendingScrollToDate: MutableState<String?> = mutableStateOf(null)
+
+    // The resolved index of that day's divider, handed to the view to scroll to, then consumed.
+    private val scrollToDateIndex: MutableState<Int?> = mutableStateOf(null)
 
     @Composable
     override fun present(): TimelineState {
@@ -224,6 +231,13 @@ class TimelinePresenter(
                 is TimelineEvent.JumpToLive -> {
                     timelineController.focusOnLive()
                 }
+                is TimelineEvent.ScrollToDate -> {
+                    pendingScrollToDate.value = event.formattedDate
+                    localScope.launch { loadUntilDateDividerVisible(event.formattedDate) }
+                }
+                is TimelineEvent.ConsumeScrollToDate -> {
+                    scrollToDateIndex.value = null
+                }
                 TimelineEvent.HideShieldDialog -> messageShieldDialogData.value = null
                 is TimelineEvent.ShowShieldDialog -> messageShieldDialogData.value = event.messageShieldData
                 is TimelineEvent.ComputeVerifiedUserSendFailure -> {
@@ -294,6 +308,18 @@ class TimelinePresenter(
             }
         }
 
+        // Resolve the tapped day's divider to an index once it is loaded. Keyed on the item count so
+        // it re-runs as loadUntilDateDividerVisible pages older history in, surfacing the divider even
+        // if the loader's own read lagged behind the timeline items pipeline.
+        LaunchedEffect(timelineItems.size, pendingScrollToDate.value) {
+            val date = pendingScrollToDate.value ?: return@LaunchedEffect
+            val index = findDayDividerIndex(timelineItems, date)
+            if (index >= 0) {
+                scrollToDateIndex.value = index
+                pendingScrollToDate.value = null
+            }
+        }
+
         val typingNotificationState = typingNotificationPresenter.present()
         val roomCallState = roomCallStatePresenter.present()
         val userEventPermissions by room.permissionsAsState(UserEventPermissions.DEFAULT) { perms ->
@@ -345,8 +371,23 @@ class TimelinePresenter(
             messageShieldDialogData = messageShieldDialogData.value,
             resolveVerifiedUserSendFailureState = resolveVerifiedUserSendFailureState,
             displayThreadSummaries = displayThreadSummaries,
+            scrollToDateIndex = scrollToDateIndex.value,
             eventSink = ::handleEvent,
         )
+    }
+
+    /**
+     * Page older history in until the day divider labelled [formattedDate] is loaded, or the start
+     * of the room is reached. [Timeline.paginate] suspends until each batch is loaded and returns
+     * whether the start was reached, so there is no fixed delay and no premature give-up on slow
+     * connections. The resolved index is published by the LaunchedEffect keyed on the item count.
+     */
+    private suspend fun loadUntilDateDividerVisible(formattedDate: String) {
+        while (findDayDividerIndex(timelineItems, formattedDate) < 0) {
+            val reachedStart = timelineController.paginate(Timeline.PaginationDirection.BACKWARDS)
+                .getOrDefault(true)
+            if (reachedStart) break
+        }
     }
 
     private suspend fun focusOnEvent(
