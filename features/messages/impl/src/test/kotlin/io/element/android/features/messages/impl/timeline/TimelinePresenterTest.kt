@@ -43,6 +43,7 @@ import io.element.android.libraries.matrix.api.timeline.Timeline
 import io.element.android.libraries.matrix.api.timeline.item.event.EventReaction
 import io.element.android.libraries.matrix.api.timeline.item.event.ReactionSender
 import io.element.android.libraries.matrix.api.timeline.item.event.Receipt
+import io.element.android.libraries.matrix.api.timeline.item.event.RedactedContent
 import io.element.android.libraries.matrix.api.timeline.item.virtual.VirtualTimelineItem
 import io.element.android.libraries.matrix.test.AN_EVENT_ID
 import io.element.android.libraries.matrix.test.AN_EVENT_ID_2
@@ -60,6 +61,7 @@ import io.element.android.libraries.matrix.test.timeline.FakeTimeline
 import io.element.android.libraries.matrix.test.timeline.aMessageContent
 import io.element.android.libraries.matrix.test.timeline.anEventTimelineItem
 import io.element.android.libraries.matrix.ui.components.aMatrixUserList
+import io.element.android.libraries.preferences.test.InMemoryAppPreferencesStore
 import io.element.android.libraries.preferences.test.InMemorySessionPreferencesStore
 import io.element.android.services.analytics.test.FakeAnalyticsService
 import io.element.android.tests.testutils.WarmUpRule
@@ -362,6 +364,50 @@ class TimelinePresenterTest {
             awaitLastSequentialItem().also { state ->
                 assertThat(state.newEventState).isEqualTo(NewEventState.FromOther)
             }
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `present - collapses a run of redacted events into a group when hiding deleted messages`() = runTest {
+        val appPreferencesStore = InMemoryAppPreferencesStore().apply { setHideRedactedEvents(true) }
+        val timeline = FakeTimeline(
+            timelineItems = flowOf(
+                (0 until 3).map { index ->
+                    MatrixTimelineItem.Event(
+                        uniqueId = UniqueId("redacted_$index"),
+                        event = anEventTimelineItem(eventId = EventId("\$R$index"), content = RedactedContent),
+                    )
+                }
+            ),
+        )
+        val presenter = createTimelinePresenter(timeline = timeline, appPreferencesStore = appPreferencesStore)
+        presenter.test {
+            val state = consumeItemsUntilPredicate { it.timelineItems.size == 1 }.last()
+            val group = state.timelineItems.single()
+            assertThat(group).isInstanceOf(TimelineItem.GroupedEvents::class.java)
+            assertThat((group as TimelineItem.GroupedEvents).events).hasSize(3)
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `present - keeps redacted events individual when not hiding deleted messages`() = runTest {
+        val appPreferencesStore = InMemoryAppPreferencesStore() // hideRedactedEvents defaults to false
+        val timeline = FakeTimeline(
+            timelineItems = flowOf(
+                (0 until 3).map { index ->
+                    MatrixTimelineItem.Event(
+                        uniqueId = UniqueId("redacted_$index"),
+                        event = anEventTimelineItem(eventId = EventId("\$R$index"), content = RedactedContent),
+                    )
+                }
+            ),
+        )
+        val presenter = createTimelinePresenter(timeline = timeline, appPreferencesStore = appPreferencesStore)
+        presenter.test {
+            val state = consumeItemsUntilPredicate { it.timelineItems.size == 3 }.last()
+            assertThat(state.timelineItems.all { it is TimelineItem.Event }).isTrue()
             cancelAndIgnoreRemainingEvents()
         }
     }
