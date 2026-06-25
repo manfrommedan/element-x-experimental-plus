@@ -116,12 +116,14 @@ fun GroupHeaderView(
                 )
                 Icon(
                     // When the header wraps to several lines, keep the chevron on the first line at
-                    // the right edge (in line with the read-receipt avatars) instead of floating in
-                    // the vertical centre of the whole block. The leading avatars are left as they are.
+                    // the right edge instead of floating in the vertical centre of the whole block.
+                    // The end padding (8.dp Row padding + this = 18.dp) lines the chevron up with the
+                    // read-receipt avatars' right edge (TimelineItemReadReceiptView padding=18.dp).
+                    // The leading avatars are left as they are.
                     modifier = if (leadingAvatars.isNotEmpty()) {
-                        Modifier.align(Alignment.Top).rotate(rotation)
+                        Modifier.align(Alignment.Top).padding(end = 10.dp).rotate(rotation)
                     } else {
-                        Modifier.rotate(rotation)
+                        Modifier.padding(end = 10.dp).rotate(rotation)
                     },
                     imageVector = CompoundIcons.ChevronRight(),
                     contentDescription = null,
