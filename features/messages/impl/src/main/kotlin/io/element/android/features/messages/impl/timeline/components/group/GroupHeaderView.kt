@@ -74,10 +74,7 @@ fun GroupHeaderView(
         Surface(
             modifier = Modifier
                 .clip(shape)
-                .clickable(onClick = onClick)
-                // With avatars the text can be long, so take the full width and let the text wrap;
-                // this keeps the expand chevron on screen instead of pushing it off the edge.
-                .then(if (leadingAvatars.isNotEmpty()) Modifier.fillMaxWidth() else Modifier),
+                .clickable(onClick = onClick),
             color = backgroundColor,
             shape = shape,
         ) {
@@ -101,7 +98,6 @@ fun GroupHeaderView(
                     }
                 }
                 Text(
-                    modifier = if (leadingAvatars.isNotEmpty()) Modifier.weight(1f) else Modifier,
                     text = text,
                     color = ElementTheme.colors.textSecondary,
                     style = ElementTheme.typography.fontBodyMdRegular,
@@ -115,16 +111,10 @@ fun GroupHeaderView(
                     label = "chevron"
                 )
                 Icon(
-                    // When the header wraps to several lines, keep the chevron on the first line at
-                    // the right edge instead of floating in the vertical centre of the whole block.
-                    // The end padding (8.dp Row padding + this = 18.dp) lines the chevron up with the
-                    // read-receipt avatars' right edge (TimelineItemReadReceiptView padding=18.dp).
-                    // The leading avatars are left as they are.
-                    modifier = if (leadingAvatars.isNotEmpty()) {
-                        Modifier.align(Alignment.Top).padding(end = 10.dp).rotate(rotation)
-                    } else {
-                        Modifier.padding(end = 10.dp).rotate(rotation)
-                    },
+                    // The whole header is centred by the parent Box (same as the state-change
+                    // "N room changes" group), so the chevron sits right after the text and a
+                    // single-author label no longer hangs orphaned against the left edge.
+                    modifier = Modifier.rotate(rotation),
                     imageVector = CompoundIcons.ChevronRight(),
                     contentDescription = null,
                     tint = ElementTheme.colors.iconSecondary
