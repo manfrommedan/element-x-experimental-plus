@@ -98,6 +98,12 @@ fun GroupHeaderView(
                     }
                 }
                 Text(
+                    // Only the redacted header carries a leading avatar stack and a potentially long
+                    // multi-author label. weight(fill = false) caps it at its share of the row, so a
+                    // long label wraps and the chevron always keeps its place, while a short label
+                    // stays its natural size and the whole header is still centred by the Box (same
+                    // as the state-change "N room changes" group, which is left untouched here).
+                    modifier = if (leadingAvatars.isNotEmpty()) Modifier.weight(1f, fill = false) else Modifier,
                     text = text,
                     color = ElementTheme.colors.textSecondary,
                     style = ElementTheme.typography.fontBodyMdRegular,
