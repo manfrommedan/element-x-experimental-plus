@@ -13,12 +13,12 @@
     <string name="screen_messages_selection_cap_reached">"Maximum messages selected"</string>
     <string name="screen_composer_attachments_cap_reached">"You can share up to 30 items at a time"</string>
     <string name="screen_messages_forwarded">"Forwarded"</string>
-    <plurals name="screen_room_timeline_redacted_messages">
-        <item quantity="one">"%1$d deleted message"</item>
-        <item quantity="other">"%1$d deleted messages"</item>
-    </plurals>
     <plurals name="screen_room_timeline_redacted_messages_from_sender">
         <item quantity="one">"%1$d message from %2$s"</item>
         <item quantity="other">"%1$d messages from %2$s"</item>
+    </plurals>
+    <plurals name="screen_room_timeline_redacted_messages_and_others">
+        <item quantity="one">"and %1$d other"</item>
+        <item quantity="other">"and %1$d others"</item>
     </plurals>
 </resources>

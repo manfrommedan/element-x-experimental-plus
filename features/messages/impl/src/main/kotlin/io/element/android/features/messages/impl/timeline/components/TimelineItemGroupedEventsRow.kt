@@ -166,25 +166,27 @@ private fun TimelineItemGroupedEventsRowContent(
         if (isRedactedGroup) {
             // The SDK does not expose who performed the redaction, only whose messages were
             // removed, so the breakdown is by original author ("N messages from X"). Beyond a few
-            // authors the list gets unwieldy, so fall back to the bare total.
+            // authors we list the first ones and add "and N others".
             val senders = timelineItem.redactedSendersSummary()
-            headerText = if (senders.size in 1..MAX_REDACTED_SENDERS) {
-                val clauses = ArrayList<String>(senders.size)
-                for (sender in senders) {
-                    clauses.add(
-                        pluralStringResource(
-                            R.plurals.screen_room_timeline_redacted_messages_from_sender,
-                            sender.count,
-                            sender.count,
-                            sender.senderName,
-                        )
+            val shown = senders.take(MAX_REDACTED_SENDERS)
+            val clauses = ArrayList<String>(shown.size)
+            for (sender in shown) {
+                clauses.add(
+                    pluralStringResource(
+                        R.plurals.screen_room_timeline_redacted_messages_from_sender,
+                        sender.count,
+                        sender.count,
+                        sender.senderName,
                     )
-                }
-                clauses.joinToString(separator = ", ")
-            } else {
-                pluralStringResource(R.plurals.screen_room_timeline_redacted_messages, count, count)
+                )
             }
-            leadingAvatars = senders.take(MAX_REDACTED_SENDERS).map { it.avatarData }.toImmutableList()
+            var text = clauses.joinToString(separator = ", ")
+            val others = senders.size - shown.size
+            if (others > 0) {
+                text += " " + pluralStringResource(R.plurals.screen_room_timeline_redacted_messages_and_others, others, others)
+            }
+            headerText = text
+            leadingAvatars = shown.map { it.avatarData }.toImmutableList()
         } else {
             headerText = pluralStringResource(R.plurals.screen_room_timeline_state_changes, count, count)
             leadingAvatars = persistentListOf()
@@ -333,6 +335,36 @@ internal fun TimelineItemRedactedMessagesGroupSingleSenderPreview() = ElementPre
         isExpanded = false,
         onExpandGroupClick = {},
         timelineItem = aRedactedMessagesGroupedEvents(sendersToCount = listOf("Alice" to 5)),
+        timelineMode = Timeline.Mode.Live,
+        timelineRoomInfo = aTimelineRoomInfo(),
+        timelineProtectionState = aTimelineProtectionState(),
+        focusedEventId = null,
+        isLastOutgoingMessage = false,
+        displayThreadSummaries = false,
+        onClick = {},
+        onLongClick = {},
+        onLinkLongClick = {},
+        inReplyToClick = {},
+        onUserDataClick = {},
+        onLinkClick = {},
+        onReactionClick = { _, _ -> },
+        onReactionLongClick = { _, _ -> },
+        onMoreReactionsClick = {},
+        onReadReceiptClick = {},
+        eventSink = {},
+    )
+}
+
+@PreviewsDayNight
+@Composable
+internal fun TimelineItemRedactedMessagesGroupManyAuthorsPreview() = ElementPreview {
+    // More than the listed limit of authors: first few are named, then "and N others".
+    TimelineItemGroupedEventsRowContent(
+        isExpanded = false,
+        onExpandGroupClick = {},
+        timelineItem = aRedactedMessagesGroupedEvents(
+            sendersToCount = listOf("Alice" to 5, "Bob" to 3, "Carol" to 2, "Dave" to 1, "Erin" to 1),
+        ),
         timelineMode = Timeline.Mode.Live,
         timelineRoomInfo = aTimelineRoomInfo(),
         timelineProtectionState = aTimelineProtectionState(),
