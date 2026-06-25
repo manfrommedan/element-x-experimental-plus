@@ -17,7 +17,6 @@ import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
@@ -136,7 +135,7 @@ internal fun FloatingDateBadge(
 ) {
     Surface(
         modifier = if (onClick != null) {
-            modifier.minimumInteractiveComponentSize().clickable(onClick = onClick)
+            modifier.clickable(onClick = onClick)
         } else {
             modifier
         },
