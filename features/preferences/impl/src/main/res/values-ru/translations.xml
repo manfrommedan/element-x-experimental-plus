@@ -146,7 +146,7 @@
   <string name="screen_labs_enable_favorites_pinned_to_top">"Избранные чаты наверху"</string>
   <string name="screen_labs_enable_favorites_pinned_to_top_description">"Избранные чаты показываются отдельным разделом над остальным списком, как в SchildiChat или закреплённых чатах Telegram."</string>
   <string name="screen_advanced_settings_hide_redacted_events_toggle_title">"Сворачивать удалённые сообщения"</string>
-  <string name="screen_advanced_settings_hide_redacted_events_toggle_subtitle">"Три и более удалённых сообщения подряд сворачиваются в один разворачиваемый блок: сколько удалено и от кого. Нажми, чтобы раскрыть. Одиночные остаются обычными плашками."</string>
+  <string name="screen_advanced_settings_hide_redacted_events_toggle_subtitle">"Три и более удалённых подряд сворачиваются в один блок. Нажми, чтобы раскрыть."</string>
   <string name="screen_advanced_settings_media_wifi_only_title">"Подгружать медиа только по Wi-Fi"</string>
   <string name="screen_advanced_settings_media_wifi_only_subtitle">"На мобильной сети превью картинок, видео и карт не качаются автоматом. Тапни по каждому чтобы догрузить."</string>
   <string name="screen_advanced_settings_geoapify_api_key_title">"Geoapify API ключ (Локация)"</string>
