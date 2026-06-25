@@ -30,9 +30,9 @@
     <!-- Labs toggle: answer an incoming call from the lock screen without unlocking. -->
     <string name="screen_labs_enable_answer_call_on_lock_screen">"Answer calls without unlocking"</string>
     <string name="screen_labs_enable_answer_call_on_lock_screen_description">"Answer an incoming call straight from the lock screen, without unlocking the device first, like WhatsApp. You still need to unlock to leave the call for the rest of the app."</string>
-    <!-- Advanced settings toggle: hide redacted (deleted) events in timelines. -->
-    <string name="screen_advanced_settings_hide_redacted_events_toggle_title">"Hide deleted messages"</string>
-    <string name="screen_advanced_settings_hide_redacted_events_toggle_subtitle">"Hide redacted events from the timeline entirely. They still exist on the server, but you won't see the tombstone."</string>
+    <!-- Advanced settings toggle: collapse runs of redacted (deleted) events in timelines. -->
+    <string name="screen_advanced_settings_hide_redacted_events_toggle_title">"Collapse deleted messages"</string>
+    <string name="screen_advanced_settings_hide_redacted_events_toggle_subtitle">"Three or more deleted messages in a row are collapsed into a single expandable item showing how many were deleted and from whom. Tap it to see them. Shorter runs stay as individual placeholders."</string>
     <!-- Advanced settings toggle: do not auto-download thumbnails/previews on mobile data; user taps to load each one. -->
     <string name="screen_advanced_settings_media_wifi_only_title">"Auto-download media on Wi-Fi only"</string>
     <string name="screen_advanced_settings_media_wifi_only_subtitle">"On mobile data, image/video thumbnails and map previews aren't fetched automatically. Tap each one to download it."</string>

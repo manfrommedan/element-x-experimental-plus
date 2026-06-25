@@ -17,8 +17,8 @@
         <item quantity="one">"%1$d deleted message"</item>
         <item quantity="other">"%1$d deleted messages"</item>
     </plurals>
-    <plurals name="screen_room_timeline_redacted_messages_own_suffix">
-        <item quantity="one">", %1$d of them yours"</item>
-        <item quantity="other">", %1$d of them yours"</item>
+    <plurals name="screen_room_timeline_redacted_messages_from_sender">
+        <item quantity="one">"%1$d message from %2$s"</item>
+        <item quantity="other">"%1$d messages from %2$s"</item>
     </plurals>
 </resources>

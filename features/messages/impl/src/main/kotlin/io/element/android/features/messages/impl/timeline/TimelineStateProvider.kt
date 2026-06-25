@@ -142,6 +142,7 @@ internal fun aTimelineItemEvent(
     isMine: Boolean = false,
     isEditable: Boolean = false,
     canBeRepliedTo: Boolean = false,
+    senderId: UserId = UserId("@senderId:domain"),
     senderDisplayName: String = USER_NAME_SENDER,
     displayNameAmbiguous: Boolean = false,
     content: TimelineItemEventContent = aTimelineItemTextContent(),
@@ -158,8 +159,8 @@ internal fun aTimelineItemEvent(
         id = UniqueId(UUID.randomUUID().toString()),
         eventId = eventId,
         transactionId = transactionId,
-        senderId = UserId("@senderId:domain"),
-        senderAvatar = AvatarData("@senderId:domain", USER_NAME_SENDER, size = AvatarSize.TimelineSender),
+        senderId = senderId,
+        senderAvatar = AvatarData(senderId.value, senderDisplayName, size = AvatarSize.TimelineSender),
         content = content,
         reactionsState = timelineItemReactions,
         readReceiptState = readReceiptState,
@@ -253,15 +254,18 @@ internal fun aGroupedEvents(
 
 internal fun aRedactedMessagesGroupedEvents(
     id: UniqueId = UniqueId("redacted_group"),
-    count: Int = 30,
-    ownCount: Int = 10,
+    sendersToCount: List<Pair<String, Int>> = listOf("Alice" to 4, "Bob" to 1),
 ): TimelineItem.GroupedEvents {
-    val events = (0 until count).map { index ->
-        aTimelineItemEvent(
-            eventId = EventId("\$redacted_$index"),
-            isMine = index < ownCount,
-            content = TimelineItemRedactedContent,
-        )
+    var index = 0
+    val events = sendersToCount.flatMap { (name, count) ->
+        (0 until count).map {
+            aTimelineItemEvent(
+                eventId = EventId("\$redacted_${index++}"),
+                senderId = UserId("@${name.lowercase()}:domain"),
+                senderDisplayName = name,
+                content = TimelineItemRedactedContent,
+            )
+        }
     }
     return TimelineItem.GroupedEvents(
         id = id,
