@@ -34,7 +34,7 @@ data class TimelineState(
     val resolveVerifiedUserSendFailureState: ResolveVerifiedUserSendFailureState,
     val displayThreadSummaries: Boolean,
     // When not null, the view should scroll the item at this index to the top (floating date pill tap).
-    val scrollToDateIndex: Int? = null,
+    val scrollToDateIndex: Int?,
     val eventSink: (TimelineEvent) -> Unit,
 ) {
     private val lastTimelineEvent = timelineItems.firstOrNull { it is TimelineItem.Event } as? TimelineItem.Event

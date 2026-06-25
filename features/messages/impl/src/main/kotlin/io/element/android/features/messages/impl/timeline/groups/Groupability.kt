@@ -57,7 +57,7 @@ internal fun TimelineItem.GroupedEvents.isRedactedMessagesGroup(): Boolean =
  * not expose who performed the redaction, so this is keyed on the original sender (whose messages
  * were removed), not the redacter. Authors are kept in first-seen (newest-first) order.
  */
-data class RedactedSenderSummary(
+internal data class RedactedSenderSummary(
     val senderId: UserId,
     val senderName: String,
     val avatarData: AvatarData,
