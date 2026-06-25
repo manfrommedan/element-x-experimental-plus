@@ -15,6 +15,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.res.stringResource
 import io.element.android.features.messages.impl.R
 import io.element.android.features.messages.impl.timeline.TimelineEvent
 import io.element.android.features.messages.impl.timeline.TimelineRoomInfo
@@ -165,27 +166,22 @@ private fun TimelineItemGroupedEventsRowContent(
         val leadingAvatars: ImmutableList<AvatarData>
         if (isRedactedGroup) {
             // The SDK does not expose who performed the redaction, only whose messages were
-            // removed, so the breakdown is by original author ("N messages from X"). Beyond a few
-            // authors we list the first ones and add "and N others".
+            // removed, so we show the total count and list the original authors ("Deleted N
+            // messages from A, B, C"), adding "and others" when there are more than we list.
             val senders = timelineItem.redactedSendersSummary()
             val shown = senders.take(MAX_REDACTED_SENDERS)
-            val clauses = ArrayList<String>(shown.size)
-            for (sender in shown) {
-                clauses.add(
-                    pluralStringResource(
-                        R.plurals.screen_room_timeline_redacted_messages_from_sender,
-                        sender.count,
-                        sender.count,
-                        sender.senderName,
-                    )
-                )
+            val joinedNames = shown.joinToString(separator = ", ") { it.senderName }
+            val names = if (senders.size > shown.size) {
+                joinedNames + " " + stringResource(R.string.screen_room_timeline_redacted_messages_others_suffix)
+            } else {
+                joinedNames
             }
-            var text = clauses.joinToString(separator = ", ")
-            val others = senders.size - shown.size
-            if (others > 0) {
-                text += " " + pluralStringResource(R.plurals.screen_room_timeline_redacted_messages_and_others, others, others)
-            }
-            headerText = text
+            headerText = pluralStringResource(
+                R.plurals.screen_room_timeline_redacted_messages_from,
+                count,
+                count,
+                names,
+            )
             leadingAvatars = shown.map { it.avatarData }.toImmutableList()
         } else {
             headerText = pluralStringResource(R.plurals.screen_room_timeline_state_changes, count, count)

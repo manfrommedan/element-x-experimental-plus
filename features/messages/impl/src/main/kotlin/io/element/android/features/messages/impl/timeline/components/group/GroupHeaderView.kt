@@ -74,7 +74,10 @@ fun GroupHeaderView(
         Surface(
             modifier = Modifier
                 .clip(shape)
-                .clickable(onClick = onClick),
+                .clickable(onClick = onClick)
+                // With avatars the text can be long, so take the full width and let the text wrap;
+                // this keeps the expand chevron on screen instead of pushing it off the edge.
+                .then(if (leadingAvatars.isNotEmpty()) Modifier.fillMaxWidth() else Modifier),
             color = backgroundColor,
             shape = shape,
         ) {
@@ -98,6 +101,7 @@ fun GroupHeaderView(
                     }
                 }
                 Text(
+                    modifier = if (leadingAvatars.isNotEmpty()) Modifier.weight(1f) else Modifier,
                     text = text,
                     color = ElementTheme.colors.textSecondary,
                     style = ElementTheme.typography.fontBodyMdRegular,

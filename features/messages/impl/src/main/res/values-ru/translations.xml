@@ -102,14 +102,10 @@
     <item quantity="many">"%1$s печатают"</item>
   </plurals>
   <string name="screen_room_typing_two_members">"%1$s и %2$s"</string>
-  <plurals name="screen_room_timeline_redacted_messages_from_sender">
-    <item quantity="one">"%1$d сообщение от %2$s"</item>
-    <item quantity="few">"%1$d сообщения от %2$s"</item>
-    <item quantity="many">"%1$d сообщений от %2$s"</item>
+  <plurals name="screen_room_timeline_redacted_messages_from">
+    <item quantity="one">"Удалено %1$d сообщение от %2$s"</item>
+    <item quantity="few">"Удалено %1$d сообщения от %2$s"</item>
+    <item quantity="many">"Удалено %1$d сообщений от %2$s"</item>
   </plurals>
-  <plurals name="screen_room_timeline_redacted_messages_and_others">
-    <item quantity="one">"и ещё %1$d"</item>
-    <item quantity="few">"и ещё %1$d"</item>
-    <item quantity="many">"и ещё %1$d"</item>
-  </plurals>
+  <string name="screen_room_timeline_redacted_messages_others_suffix">"и другие"</string>
 </resources>
