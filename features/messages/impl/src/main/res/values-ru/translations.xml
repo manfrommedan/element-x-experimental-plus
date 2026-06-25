@@ -107,4 +107,9 @@
     <item quantity="few">"%1$d удалённых сообщения"</item>
     <item quantity="many">"%1$d удалённых сообщений"</item>
   </plurals>
+  <plurals name="screen_room_timeline_redacted_messages_own_suffix">
+    <item quantity="one">", %1$d из них ваше"</item>
+    <item quantity="few">", %1$d из них ваши"</item>
+    <item quantity="many">", %1$d из них ваши"</item>
+  </plurals>
 </resources>

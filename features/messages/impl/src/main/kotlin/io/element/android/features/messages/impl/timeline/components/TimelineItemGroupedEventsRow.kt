@@ -150,16 +150,22 @@ private fun TimelineItemGroupedEventsRowContent(
         // A group made entirely of redacted events is a collapsed run of deleted messages
         // (element-web style); anything else is the regular run of state changes.
         val isRedactedGroup = timelineItem.isRedactedMessagesGroup()
+        val count = timelineItem.events.size
+        val headerText = if (isRedactedGroup) {
+            val base = pluralStringResource(R.plurals.screen_room_timeline_redacted_messages, count, count)
+            // Only break down the count when it is a genuine mix; if all or none are the user's own,
+            // the bare total reads cleaner ("30 deleted messages").
+            val ownCount = timelineItem.events.count { it.isMine }
+            if (ownCount in 1 until count) {
+                base + pluralStringResource(R.plurals.screen_room_timeline_redacted_messages_own_suffix, ownCount, ownCount)
+            } else {
+                base
+            }
+        } else {
+            pluralStringResource(R.plurals.screen_room_timeline_state_changes, count, count)
+        }
         GroupHeaderView(
-            text = pluralStringResource(
-                id = if (isRedactedGroup) {
-                    R.plurals.screen_room_timeline_redacted_messages
-                } else {
-                    R.plurals.screen_room_timeline_state_changes
-                },
-                count = timelineItem.events.size,
-                timelineItem.events.size
-            ),
+            text = headerText,
             isExpanded = isExpanded,
             isHighlighted = !isExpanded && timelineItem.events.any { it.isEvent(focusedEventId) },
             onClick = onExpandGroupClick,
