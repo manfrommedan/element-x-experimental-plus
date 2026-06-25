@@ -53,6 +53,17 @@ fun AppDeveloperSettingsView(
             FeatureListContent(state)
         }
         ElementCallCategory(state = state)
+        PreferenceCategory(title = "App language") {
+            PreferenceDropdown(
+                title = "App language",
+                supportingText = "Override the app language, e.g. for screenshots. Applies immediately.",
+                selectedOption = state.appLanguage,
+                options = AppLanguageItem.entries.toImmutableList(),
+                onSelectOption = { language ->
+                    state.eventSink(AppDeveloperSettingsEvent.SetAppLanguage(language))
+                }
+            )
+        }
         PreferenceCategory(title = "Rust SDK") {
             PreferenceDropdown(
                 title = "Tracing log level",
