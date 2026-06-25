@@ -32,8 +32,10 @@ import io.element.android.features.messages.impl.timeline.components.MessageShie
 import io.element.android.features.messages.impl.timeline.components.findDayDividerIndex
 import io.element.android.features.messages.impl.timeline.factories.TimelineItemsFactory
 import io.element.android.features.messages.impl.timeline.factories.TimelineItemsFactoryConfig
+import io.element.android.features.messages.impl.timeline.groups.computeGroupIdWith
 import io.element.android.features.messages.impl.timeline.model.NewEventState
 import io.element.android.features.messages.impl.timeline.model.TimelineItem
+import io.element.android.features.messages.impl.timeline.model.event.TimelineItemRedactedContent
 import io.element.android.features.messages.impl.timeline.model.virtual.TimelineItemTypingNotificationModel
 import io.element.android.features.messages.impl.typing.TypingNotificationState
 import io.element.android.features.messages.impl.userEventPermissions
@@ -308,12 +310,27 @@ class TimelinePresenter(
             }
         }
 
-        // Resolve the tapped day's divider to an index once it is loaded. Keyed on the item count so
-        // it re-runs as loadUntilDateDividerVisible pages older history in, surfacing the divider even
-        // if the loader's own read lagged behind the timeline items pipeline.
-        LaunchedEffect(timelineItems.size, pendingScrollToDate.value) {
+        val hideRedactedEvents by remember {
+            appPreferencesStore.getHideRedactedEventsFlow()
+        }.collectAsState(initial = false)
+        // When the user opts to hide deleted messages, collapse runs of 3+ consecutive redacted
+        // events into a single expandable group (element-web style) instead of removing them.
+        // Shorter runs stay as individual tiles. Day dividers are untouched, so a day is never
+        // emptied and the floating date pill / jump-to-date stay aligned with the rendered list.
+        val visibleTimelineItems = remember(timelineItems, hideRedactedEvents) {
+            if (hideRedactedEvents) {
+                timelineItems.collapseRedactedRuns().toImmutableList()
+            } else {
+                timelineItems
+            }
+        }
+
+        // Resolve the tapped day's divider to an index once it is loaded. Computed against the
+        // rendered list so the index matches the LazyColumn even while redacted runs are collapsed.
+        // Keyed on the item count so it re-runs as loadUntilDateDividerVisible pages older history in.
+        LaunchedEffect(visibleTimelineItems.size, pendingScrollToDate.value) {
             val date = pendingScrollToDate.value ?: return@LaunchedEffect
-            val index = findDayDividerIndex(timelineItems, date)
+            val index = findDayDividerIndex(visibleTimelineItems, date)
             if (index >= 0) {
                 scrollToDateIndex.value = index
                 pendingScrollToDate.value = null
@@ -342,23 +359,6 @@ class TimelinePresenter(
 
         LaunchedEffect(focusRequestState.value) {
             Timber.tag(tag).d("Timeline: $timelineMode | focus state: ${focusRequestState.value}")
-        }
-
-        val hideRedactedEvents by remember {
-            appPreferencesStore.getHideRedactedEventsFlow()
-        }.collectAsState(initial = false)
-        val visibleTimelineItems = remember(timelineItems, hideRedactedEvents) {
-            if (hideRedactedEvents) {
-                timelineItems
-                    .filterNot { item ->
-                        item is io.element.android.features.messages.impl.timeline.model.TimelineItem.Event &&
-                            item.content is io.element.android.features.messages.impl.timeline.model.event.TimelineItemRedactedContent
-                    }
-                    .dropOrphanDaySeparators()
-                    .toImmutableList()
-            } else {
-                timelineItems
-            }
         }
 
         return TimelineState(
@@ -517,33 +517,45 @@ private fun FocusRequestState.onFocusEventRender(): FocusRequestState {
     }
 }
 
-// The timeline list is newest-first (index 0 is the most recent item; the factory builds it by
-// iterating the SDK list in reverse). A day separator therefore sits ABOVE its own day's events,
-// i.e. at a HIGHER index than them: its events are the items immediately preceding it, down to the
-// previous separator. To decide whether a separator is orphaned (all of its day's events were
-// filtered out, e.g. redacted-and-hidden) we scan towards lower indices until the previous
-// separator and keep it only if a real event is found there.
-internal fun List<TimelineItem>.dropOrphanDaySeparators(): List<TimelineItem> {
+// Runs shorter than this are left as individual "message deleted" tiles, like element-web.
+internal const val MIN_REDACTED_RUN_SIZE = 3
+
+/**
+ * Collapse runs of [MIN_REDACTED_RUN_SIZE] or more consecutive redacted events into a single
+ * [TimelineItem.GroupedEvents], so they render as one expandable "N deleted messages" block the way
+ * element-web does. Shorter runs and every non-redacted item are passed through untouched, day
+ * dividers included. The grouped events are stored oldest-first to match the existing grouper, and
+ * the group id is derived from the newest event of the run (its first element in this newest-first
+ * list) so it stays stable as older history pages in and the run grows at its older end.
+ */
+internal fun List<TimelineItem>.collapseRedactedRuns(): List<TimelineItem> {
     val result = mutableListOf<TimelineItem>()
-    for ((index, item) in this.withIndex()) {
-        val isDaySeparator = item is TimelineItem.Virtual &&
-            item.model is io.element.android.features.messages.impl.timeline.model.virtual.TimelineItemDaySeparatorModel
-        if (!isDaySeparator) {
-            result.add(item)
-            continue
+    val run = mutableListOf<TimelineItem.Event>()
+
+    fun flushRun() {
+        when {
+            run.isEmpty() -> Unit
+            run.size < MIN_REDACTED_RUN_SIZE -> result.addAll(run)
+            else -> result.add(
+                TimelineItem.GroupedEvents(
+                    id = computeGroupIdWith(run.first()),
+                    events = run.reversed().toImmutableList(),
+                    aggregatedReadReceipts = run.flatMap { it.readReceiptState.receipts }.toImmutableList(),
+                )
+            )
         }
-        val hasEvent = ((index - 1) downTo 0).asSequence()
-            .takeWhile { i ->
-                val prev = this[i]
-                !(prev is TimelineItem.Virtual &&
-                    prev.model is io.element.android.features.messages.impl.timeline.model.virtual.TimelineItemDaySeparatorModel)
-            }
-            .any { i ->
-                val prev = this[i]
-                prev is TimelineItem.Event || prev is TimelineItem.GroupedEvents
-            }
-        if (hasEvent) result.add(item)
+        run.clear()
     }
+
+    for (item in this) {
+        if (item is TimelineItem.Event && item.content is TimelineItemRedactedContent) {
+            run.add(item)
+        } else {
+            flushRun()
+            result.add(item)
+        }
+    }
+    flushRun()
     return result
 }
 

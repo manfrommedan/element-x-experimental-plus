@@ -26,6 +26,7 @@ import io.element.android.features.messages.impl.timeline.components.layout.Cont
 import io.element.android.features.messages.impl.timeline.components.receipt.ReadReceiptViewState
 import io.element.android.features.messages.impl.timeline.components.receipt.TimelineItemReadReceiptView
 import io.element.android.features.messages.impl.timeline.model.TimelineItem
+import io.element.android.features.messages.impl.timeline.model.event.TimelineItemRedactedContent
 import io.element.android.features.messages.impl.timeline.protection.TimelineProtectionEvent
 import io.element.android.features.messages.impl.timeline.protection.TimelineProtectionState
 import io.element.android.features.messages.impl.timeline.protection.aTimelineProtectionState
@@ -146,9 +147,16 @@ private fun TimelineItemGroupedEventsRowContent(
         },
 ) {
     Column(modifier = modifier.animateContentSize()) {
+        // A group made entirely of redacted events is a collapsed run of deleted messages
+        // (element-web style); anything else is the regular run of state changes.
+        val isRedactedGroup = timelineItem.events.all { it.content is TimelineItemRedactedContent }
         GroupHeaderView(
             text = pluralStringResource(
-                id = R.plurals.screen_room_timeline_state_changes,
+                id = if (isRedactedGroup) {
+                    R.plurals.screen_room_timeline_redacted_messages
+                } else {
+                    R.plurals.screen_room_timeline_state_changes
+                },
                 count = timelineItem.events.size,
                 timelineItem.events.size
             ),
