@@ -88,9 +88,7 @@ fun GroupHeaderView(
             ) {
                 if (leadingAvatars.isNotEmpty()) {
                     Row(
-                        modifier = Modifier
-                            .align(Alignment.Top)
-                            .padding(end = 6.dp),
+                        modifier = Modifier.padding(end = 8.dp),
                         horizontalArrangement = Arrangement.spacedBy((-4).dp),
                     ) {
                         leadingAvatars.forEach { avatarData ->
@@ -117,9 +115,9 @@ fun GroupHeaderView(
                     label = "chevron"
                 )
                 Icon(
-                    // With avatars the text can wrap to several lines; keep the chevron on the
-                    // first line, in the same plane as the avatars, instead of floating in the
-                    // vertical centre of the whole block.
+                    // When the header wraps to several lines, keep the chevron on the first line at
+                    // the right edge (in line with the read-receipt avatars) instead of floating in
+                    // the vertical centre of the whole block. The leading avatars are left as they are.
                     modifier = if (leadingAvatars.isNotEmpty()) {
                         Modifier.align(Alignment.Top).rotate(rotation)
                     } else {
