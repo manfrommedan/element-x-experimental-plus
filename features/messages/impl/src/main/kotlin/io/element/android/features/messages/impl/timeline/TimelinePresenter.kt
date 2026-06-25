@@ -517,6 +517,12 @@ private fun FocusRequestState.onFocusEventRender(): FocusRequestState {
     }
 }
 
+// The timeline list is newest-first (index 0 is the most recent item; the factory builds it by
+// iterating the SDK list in reverse). A day separator therefore sits ABOVE its own day's events,
+// i.e. at a HIGHER index than them: its events are the items immediately preceding it, down to the
+// previous separator. To decide whether a separator is orphaned (all of its day's events were
+// filtered out, e.g. redacted-and-hidden) we scan towards lower indices until the previous
+// separator and keep it only if a real event is found there.
 internal fun List<TimelineItem>.dropOrphanDaySeparators(): List<TimelineItem> {
     val result = mutableListOf<TimelineItem>()
     for ((index, item) in this.withIndex()) {
@@ -526,15 +532,15 @@ internal fun List<TimelineItem>.dropOrphanDaySeparators(): List<TimelineItem> {
             result.add(item)
             continue
         }
-        val hasEvent = (index + 1 until size).asSequence()
+        val hasEvent = ((index - 1) downTo 0).asSequence()
             .takeWhile { i ->
-                val next = this[i]
-                !(next is TimelineItem.Virtual &&
-                    next.model is io.element.android.features.messages.impl.timeline.model.virtual.TimelineItemDaySeparatorModel)
+                val prev = this[i]
+                !(prev is TimelineItem.Virtual &&
+                    prev.model is io.element.android.features.messages.impl.timeline.model.virtual.TimelineItemDaySeparatorModel)
             }
             .any { i ->
-                val next = this[i]
-                next is TimelineItem.Event || next is TimelineItem.GroupedEvents
+                val prev = this[i]
+                prev is TimelineItem.Event || prev is TimelineItem.GroupedEvents
             }
         if (hasEvent) result.add(item)
     }
