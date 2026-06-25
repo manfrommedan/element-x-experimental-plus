@@ -19,6 +19,7 @@ import io.element.android.features.messages.impl.R
 import io.element.android.features.messages.impl.timeline.TimelineEvent
 import io.element.android.features.messages.impl.timeline.TimelineRoomInfo
 import io.element.android.features.messages.impl.timeline.aGroupedEvents
+import io.element.android.features.messages.impl.timeline.aRedactedMessagesGroupedEvents
 import io.element.android.features.messages.impl.timeline.aTimelineRoomInfo
 import io.element.android.features.messages.impl.timeline.components.event.TimelineItemEventContentView
 import io.element.android.features.messages.impl.timeline.components.group.GroupHeaderView
@@ -251,6 +252,62 @@ internal fun TimelineItemGroupedEventsRowContentCollapsePreview() = ElementPrevi
         isExpanded = false,
         onExpandGroupClick = {},
         timelineItem = aGroupedEvents(withReadReceipts = true),
+        timelineMode = Timeline.Mode.Live,
+        timelineRoomInfo = aTimelineRoomInfo(),
+        timelineProtectionState = aTimelineProtectionState(),
+        focusedEventId = null,
+        isLastOutgoingMessage = false,
+        displayThreadSummaries = false,
+        onClick = {},
+        onLongClick = {},
+        onLinkLongClick = {},
+        inReplyToClick = {},
+        onUserDataClick = {},
+        onLinkClick = {},
+        onReactionClick = { _, _ -> },
+        onReactionLongClick = { _, _ -> },
+        onMoreReactionsClick = {},
+        onReadReceiptClick = {},
+        eventSink = {},
+    )
+}
+
+@PreviewsDayNight
+@Composable
+internal fun TimelineItemRedactedMessagesGroupMixedPreview() = ElementPreview {
+    // A mix of the user's own and others' deleted messages: header shows the breakdown.
+    TimelineItemGroupedEventsRowContent(
+        isExpanded = false,
+        onExpandGroupClick = {},
+        timelineItem = aRedactedMessagesGroupedEvents(count = 30, ownCount = 10),
+        timelineMode = Timeline.Mode.Live,
+        timelineRoomInfo = aTimelineRoomInfo(),
+        timelineProtectionState = aTimelineProtectionState(),
+        focusedEventId = null,
+        isLastOutgoingMessage = false,
+        displayThreadSummaries = false,
+        onClick = {},
+        onLongClick = {},
+        onLinkLongClick = {},
+        inReplyToClick = {},
+        onUserDataClick = {},
+        onLinkClick = {},
+        onReactionClick = { _, _ -> },
+        onReactionLongClick = { _, _ -> },
+        onMoreReactionsClick = {},
+        onReadReceiptClick = {},
+        eventSink = {},
+    )
+}
+
+@PreviewsDayNight
+@Composable
+internal fun TimelineItemRedactedMessagesGroupAllOwnPreview() = ElementPreview {
+    // All of the deleted messages are the user's own: header shows the plain total.
+    TimelineItemGroupedEventsRowContent(
+        isExpanded = false,
+        onExpandGroupClick = {},
+        timelineItem = aRedactedMessagesGroupedEvents(count = 5, ownCount = 5),
         timelineMode = Timeline.Mode.Live,
         timelineRoomInfo = aTimelineRoomInfo(),
         timelineProtectionState = aTimelineProtectionState(),
