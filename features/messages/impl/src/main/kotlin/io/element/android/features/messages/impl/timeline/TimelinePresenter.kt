@@ -32,10 +32,9 @@ import io.element.android.features.messages.impl.timeline.components.MessageShie
 import io.element.android.features.messages.impl.timeline.components.findDayDividerIndex
 import io.element.android.features.messages.impl.timeline.factories.TimelineItemsFactory
 import io.element.android.features.messages.impl.timeline.factories.TimelineItemsFactoryConfig
-import io.element.android.features.messages.impl.timeline.groups.computeGroupIdWith
+import io.element.android.features.messages.impl.timeline.groups.collapseRedactedRuns
 import io.element.android.features.messages.impl.timeline.model.NewEventState
 import io.element.android.features.messages.impl.timeline.model.TimelineItem
-import io.element.android.features.messages.impl.timeline.model.event.TimelineItemRedactedContent
 import io.element.android.features.messages.impl.timeline.model.virtual.TimelineItemTypingNotificationModel
 import io.element.android.features.messages.impl.typing.TypingNotificationState
 import io.element.android.features.messages.impl.userEventPermissions
@@ -92,7 +91,6 @@ class TimelinePresenter(
     private val sendPollResponseAction: SendPollResponseAction,
     private val endPollAction: EndPollAction,
     private val sessionPreferencesStore: SessionPreferencesStore,
-    private val appPreferencesStore: io.element.android.libraries.preferences.api.store.AppPreferencesStore,
     @Assisted private val timelineController: TimelineController,
     private val timelineItemIndexer: TimelineItemIndexer = TimelineItemIndexer(),
     private val resolveVerifiedUserSendFailurePresenter: Presenter<ResolveVerifiedUserSendFailureState>,
@@ -310,19 +308,12 @@ class TimelinePresenter(
             }
         }
 
-        val hideRedactedEvents by remember {
-            appPreferencesStore.getHideRedactedEventsFlow()
-        }.collectAsState(initial = false)
-        // When the user opts to hide deleted messages, collapse runs of 3+ consecutive redacted
-        // events into a single expandable group (element-web style) instead of removing them.
-        // Shorter runs stay as individual tiles. Day dividers are untouched, so a day is never
-        // emptied and the floating date pill / jump-to-date stay aligned with the rendered list.
-        val visibleTimelineItems = remember(timelineItems, hideRedactedEvents) {
-            if (hideRedactedEvents) {
-                timelineItems.collapseRedactedRuns().toImmutableList()
-            } else {
-                timelineItems
-            }
+        // Collapse runs of consecutive deleted messages into a single expandable group instead of
+        // showing each as its own placeholder, like element-web. Day dividers stay untouched, so a
+        // day is never emptied and the floating date pill / jump-to-date stay aligned with the
+        // rendered list.
+        val visibleTimelineItems = remember(timelineItems) {
+            timelineItems.collapseRedactedRuns().toImmutableList()
         }
 
         // Resolve the tapped day's divider to an index once it is loaded. Computed against the
@@ -515,48 +506,6 @@ private fun FocusRequestState.onFocusEventRender(): FocusRequestState {
         is FocusRequestState.Success -> copy(rendered = true)
         else -> this
     }
-}
-
-// Runs shorter than this are left as individual "message deleted" tiles, like element-web.
-internal const val MIN_REDACTED_RUN_SIZE = 3
-
-/**
- * Collapse runs of [MIN_REDACTED_RUN_SIZE] or more consecutive redacted events into a single
- * [TimelineItem.GroupedEvents], so they render as one expandable "N deleted messages" block the way
- * element-web does. Shorter runs and every non-redacted item are passed through untouched, day
- * dividers included. The grouped events are stored oldest-first to match the existing grouper, and
- * the group id is derived from the newest event of the run (its first element in this newest-first
- * list) so it stays stable as older history pages in and the run grows at its older end.
- */
-internal fun List<TimelineItem>.collapseRedactedRuns(): List<TimelineItem> {
-    val result = mutableListOf<TimelineItem>()
-    val run = mutableListOf<TimelineItem.Event>()
-
-    fun flushRun() {
-        when {
-            run.isEmpty() -> Unit
-            run.size < MIN_REDACTED_RUN_SIZE -> result.addAll(run)
-            else -> result.add(
-                TimelineItem.GroupedEvents(
-                    id = computeGroupIdWith(run.first()),
-                    events = run.reversed().toImmutableList(),
-                    aggregatedReadReceipts = run.flatMap { it.readReceiptState.receipts }.toImmutableList(),
-                )
-            )
-        }
-        run.clear()
-    }
-
-    for (item in this) {
-        if (item is TimelineItem.Event && item.content is TimelineItemRedactedContent) {
-            run.add(item)
-        } else {
-            flushRun()
-            result.add(item)
-        }
-    }
-    flushRun()
-    return result
 }
 
 // Workaround for not having the server names available, get possible server names from the user ids of the room members

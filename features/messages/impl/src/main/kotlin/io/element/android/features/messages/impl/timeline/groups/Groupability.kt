@@ -26,8 +26,6 @@ import io.element.android.features.messages.impl.timeline.model.event.TimelineIt
 import io.element.android.features.messages.impl.timeline.model.event.TimelineItemUnknownContent
 import io.element.android.features.messages.impl.timeline.model.event.TimelineItemVideoContent
 import io.element.android.features.messages.impl.timeline.model.event.TimelineItemVoiceContent
-import io.element.android.libraries.designsystem.components.avatar.AvatarData
-import io.element.android.libraries.matrix.api.core.UserId
 import io.element.android.libraries.matrix.api.timeline.MatrixTimelineItem
 import io.element.android.libraries.matrix.api.timeline.item.event.CallNotifyContent
 import io.element.android.libraries.matrix.api.timeline.item.event.FailedToParseMessageLikeContent
@@ -43,6 +41,7 @@ import io.element.android.libraries.matrix.api.timeline.item.event.StateContent
 import io.element.android.libraries.matrix.api.timeline.item.event.StickerContent
 import io.element.android.libraries.matrix.api.timeline.item.event.UnableToDecryptContent
 import io.element.android.libraries.matrix.api.timeline.item.event.UnknownContent
+import kotlinx.collections.immutable.toImmutableList
 
 /**
  * Return true when every event in the group is a redacted (deleted) message, i.e. the group is a
@@ -52,31 +51,46 @@ import io.element.android.libraries.matrix.api.timeline.item.event.UnknownConten
 internal fun TimelineItem.GroupedEvents.isRedactedMessagesGroup(): Boolean =
     events.isNotEmpty() && events.all { it.content is TimelineItemRedactedContent }
 
-/**
- * How many deleted messages each original author has in a collapsed redacted group. The SDK does
- * not expose who performed the redaction, so this is keyed on the original sender (whose messages
- * were removed), not the redacter. Authors are kept in first-seen (newest-first) order.
- */
-internal data class RedactedSenderSummary(
-    val senderId: UserId,
-    val senderName: String,
-    val avatarData: AvatarData,
-    val count: Int,
-)
+// Runs shorter than this are left as individual "Message removed" tiles, like element-web.
+internal const val MIN_REDACTED_RUN_SIZE = 3
 
-internal fun TimelineItem.GroupedEvents.redactedSendersSummary(): List<RedactedSenderSummary> {
-    val bySender = LinkedHashMap<UserId, RedactedSenderSummary>()
-    events.forEach { event ->
-        val existing = bySender[event.senderId]
-        bySender[event.senderId] = existing?.copy(count = existing.count + 1)
-            ?: RedactedSenderSummary(
-                senderId = event.senderId,
-                senderName = event.safeSenderName,
-                avatarData = event.senderAvatar,
-                count = 1,
+/**
+ * Collapse runs of [MIN_REDACTED_RUN_SIZE] or more consecutive redacted events into a single
+ * [TimelineItem.GroupedEvents], so they render as one expandable "N deleted messages" block the way
+ * element-web does. Shorter runs and every non-redacted item are passed through untouched, day
+ * dividers included. The grouped events are stored oldest-first to match the existing grouper, and
+ * the group id is derived from the newest event of the run (its first element in this newest-first
+ * list) so it stays stable as older history pages in and the run grows at its older end.
+ */
+internal fun List<TimelineItem>.collapseRedactedRuns(): List<TimelineItem> {
+    val result = mutableListOf<TimelineItem>()
+    val run = mutableListOf<TimelineItem.Event>()
+
+    fun flushRun() {
+        when {
+            run.isEmpty() -> Unit
+            run.size < MIN_REDACTED_RUN_SIZE -> result.addAll(run)
+            else -> result.add(
+                TimelineItem.GroupedEvents(
+                    id = computeGroupIdWith(run.first()),
+                    events = run.reversed().toImmutableList(),
+                    aggregatedReadReceipts = run.flatMap { it.readReceiptState.receipts }.toImmutableList(),
+                )
             )
+        }
+        run.clear()
     }
-    return bySender.values.toList()
+
+    for (item in this) {
+        if (item is TimelineItem.Event && item.content is TimelineItemRedactedContent) {
+            run.add(item)
+        } else {
+            flushRun()
+            result.add(item)
+        }
+    }
+    flushRun()
+    return result
 }
 
 /**

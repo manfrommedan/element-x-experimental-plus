@@ -61,7 +61,6 @@ import io.element.android.libraries.matrix.test.timeline.FakeTimeline
 import io.element.android.libraries.matrix.test.timeline.aMessageContent
 import io.element.android.libraries.matrix.test.timeline.anEventTimelineItem
 import io.element.android.libraries.matrix.ui.components.aMatrixUserList
-import io.element.android.libraries.preferences.test.InMemoryAppPreferencesStore
 import io.element.android.libraries.preferences.test.InMemorySessionPreferencesStore
 import io.element.android.services.analytics.test.FakeAnalyticsService
 import io.element.android.tests.testutils.WarmUpRule
@@ -369,8 +368,7 @@ class TimelinePresenterTest {
     }
 
     @Test
-    fun `present - collapses a run of redacted events into a group when hiding deleted messages`() = runTest {
-        val appPreferencesStore = InMemoryAppPreferencesStore().apply { setHideRedactedEvents(true) }
+    fun `present - collapses a run of three or more redacted events into a single group`() = runTest {
         val timeline = FakeTimeline(
             timelineItems = flowOf(
                 (0 until 3).map { index ->
@@ -381,33 +379,12 @@ class TimelinePresenterTest {
                 }
             ),
         )
-        val presenter = createTimelinePresenter(timeline = timeline, appPreferencesStore = appPreferencesStore)
+        val presenter = createTimelinePresenter(timeline = timeline)
         presenter.test {
             val state = consumeItemsUntilPredicate { it.timelineItems.size == 1 }.last()
             val group = state.timelineItems.single()
             assertThat(group).isInstanceOf(TimelineItem.GroupedEvents::class.java)
             assertThat((group as TimelineItem.GroupedEvents).events).hasSize(3)
-            cancelAndIgnoreRemainingEvents()
-        }
-    }
-
-    @Test
-    fun `present - keeps redacted events individual when not hiding deleted messages`() = runTest {
-        val appPreferencesStore = InMemoryAppPreferencesStore() // hideRedactedEvents defaults to false
-        val timeline = FakeTimeline(
-            timelineItems = flowOf(
-                (0 until 3).map { index ->
-                    MatrixTimelineItem.Event(
-                        uniqueId = UniqueId("redacted_$index"),
-                        event = anEventTimelineItem(eventId = EventId("\$R$index"), content = RedactedContent),
-                    )
-                }
-            ),
-        )
-        val presenter = createTimelinePresenter(timeline = timeline, appPreferencesStore = appPreferencesStore)
-        presenter.test {
-            val state = consumeItemsUntilPredicate { it.timelineItems.size == 3 }.last()
-            assertThat(state.timelineItems.all { it is TimelineItem.Event }).isTrue()
             cancelAndIgnoreRemainingEvents()
         }
     }
@@ -1060,8 +1037,6 @@ class TimelinePresenterTest {
         timelineItemIndexer: TimelineItemIndexer = TimelineItemIndexer(),
         featureFlagService: FakeFeatureFlagService = FakeFeatureFlagService(),
         liveLocationShareManager: FakeActiveLiveLocationShareManager = FakeActiveLiveLocationShareManager(),
-        appPreferencesStore: io.element.android.libraries.preferences.api.store.AppPreferencesStore =
-            io.element.android.libraries.preferences.test.InMemoryAppPreferencesStore(),
     ): TimelinePresenter {
         return TimelinePresenter(
             timelineItemsFactoryCreator = aTimelineItemsFactoryCreator(),
@@ -1073,7 +1048,6 @@ class TimelinePresenterTest {
             endPollAction = endPollAction,
             sendPollResponseAction = sendPollResponseAction,
             sessionPreferencesStore = sessionPreferencesStore,
-            appPreferencesStore = appPreferencesStore,
             timelineItemIndexer = timelineItemIndexer,
             timelineController = TimelineController(room, timeline),
             resolveVerifiedUserSendFailurePresenter = { aResolveVerifiedUserSendFailureState() },

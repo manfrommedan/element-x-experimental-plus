@@ -15,7 +15,6 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.pluralStringResource
-import androidx.compose.ui.res.stringResource
 import io.element.android.features.messages.impl.R
 import io.element.android.features.messages.impl.timeline.TimelineEvent
 import io.element.android.features.messages.impl.timeline.TimelineRoomInfo
@@ -28,12 +27,10 @@ import io.element.android.features.messages.impl.timeline.components.layout.Cont
 import io.element.android.features.messages.impl.timeline.components.receipt.ReadReceiptViewState
 import io.element.android.features.messages.impl.timeline.components.receipt.TimelineItemReadReceiptView
 import io.element.android.features.messages.impl.timeline.groups.isRedactedMessagesGroup
-import io.element.android.features.messages.impl.timeline.groups.redactedSendersSummary
 import io.element.android.features.messages.impl.timeline.model.TimelineItem
 import io.element.android.features.messages.impl.timeline.protection.TimelineProtectionEvent
 import io.element.android.features.messages.impl.timeline.protection.TimelineProtectionState
 import io.element.android.features.messages.impl.timeline.protection.aTimelineProtectionState
-import io.element.android.libraries.designsystem.components.avatar.AvatarData
 import io.element.android.libraries.designsystem.preview.ElementPreview
 import io.element.android.libraries.designsystem.preview.PreviewsDayNight
 import io.element.android.libraries.matrix.api.core.EventId
@@ -41,13 +38,6 @@ import io.element.android.libraries.matrix.api.timeline.Timeline
 import io.element.android.libraries.matrix.api.user.MatrixUser
 import io.element.android.libraries.ui.utils.a11y.isTalkbackActive
 import io.element.android.wysiwyg.link.Link
-import kotlinx.collections.immutable.ImmutableList
-import kotlinx.collections.immutable.persistentListOf
-import kotlinx.collections.immutable.toImmutableList
-
-// Above this many distinct authors the per-author breakdown gets too long, so the header shows the
-// bare total instead. Also caps how many avatars are shown.
-private const val MAX_REDACTED_SENDERS = 3
 
 @Composable
 fun TimelineItemGroupedEventsRow(
@@ -159,40 +149,20 @@ private fun TimelineItemGroupedEventsRowContent(
 ) {
     Column(modifier = modifier.animateContentSize()) {
         // A group made entirely of redacted events is a collapsed run of deleted messages
-        // (element-web style); anything else is the regular run of state changes.
-        val isRedactedGroup = timelineItem.isRedactedMessagesGroup()
+        // (element-web style); anything else is the regular run of room state changes. For the
+        // redacted case we show only the count: the SDK does not expose who performed the
+        // redaction, and showing the original authors would be misleading.
         val count = timelineItem.events.size
-        val headerText: String
-        val leadingAvatars: ImmutableList<AvatarData>
-        if (isRedactedGroup) {
-            // The SDK does not expose who performed the redaction, only whose messages were
-            // removed, so we show the total count and list the original authors ("Deleted N
-            // messages from A, B, C"), adding "and others" when there are more than we list.
-            val senders = timelineItem.redactedSendersSummary()
-            val shown = senders.take(MAX_REDACTED_SENDERS)
-            val joinedNames = shown.joinToString(separator = ", ") { it.senderName }
-            val names = if (senders.size > shown.size) {
-                joinedNames + " " + stringResource(R.string.screen_room_timeline_redacted_messages_others_suffix)
-            } else {
-                joinedNames
-            }
-            headerText = pluralStringResource(
-                R.plurals.screen_room_timeline_redacted_messages_from,
-                count,
-                count,
-                names,
-            )
-            leadingAvatars = shown.map { it.avatarData }.toImmutableList()
+        val headerText = if (timelineItem.isRedactedMessagesGroup()) {
+            pluralStringResource(R.plurals.screen_room_timeline_redacted_messages, count, count)
         } else {
-            headerText = pluralStringResource(R.plurals.screen_room_timeline_state_changes, count, count)
-            leadingAvatars = persistentListOf()
+            pluralStringResource(R.plurals.screen_room_timeline_state_changes, count, count)
         }
         GroupHeaderView(
             text = headerText,
             isExpanded = isExpanded,
             isHighlighted = !isExpanded && timelineItem.events.any { it.isEvent(focusedEventId) },
             onClick = onExpandGroupClick,
-            leadingAvatars = leadingAvatars,
         )
         if (isExpanded) {
             Column {
@@ -297,70 +267,12 @@ internal fun TimelineItemGroupedEventsRowContentCollapsePreview() = ElementPrevi
 
 @PreviewsDayNight
 @Composable
-internal fun TimelineItemRedactedMessagesGroupMixedPreview() = ElementPreview {
-    // Deleted messages from several authors: header breaks the count down per author with avatars.
+internal fun TimelineItemRedactedMessagesGroupPreview() = ElementPreview {
+    // A collapsed run of deleted messages, shown as a single "N deleted messages" header.
     TimelineItemGroupedEventsRowContent(
         isExpanded = false,
         onExpandGroupClick = {},
-        timelineItem = aRedactedMessagesGroupedEvents(sendersToCount = listOf("Alice" to 30, "Bob" to 1)),
-        timelineMode = Timeline.Mode.Live,
-        timelineRoomInfo = aTimelineRoomInfo(),
-        timelineProtectionState = aTimelineProtectionState(),
-        focusedEventId = null,
-        isLastOutgoingMessage = false,
-        displayThreadSummaries = false,
-        onClick = {},
-        onLongClick = {},
-        onLinkLongClick = {},
-        inReplyToClick = {},
-        onUserDataClick = {},
-        onLinkClick = {},
-        onReactionClick = { _, _ -> },
-        onReactionLongClick = { _, _ -> },
-        onMoreReactionsClick = {},
-        onReadReceiptClick = {},
-        eventSink = {},
-    )
-}
-
-@PreviewsDayNight
-@Composable
-internal fun TimelineItemRedactedMessagesGroupSingleSenderPreview() = ElementPreview {
-    // Deleted messages from a single author.
-    TimelineItemGroupedEventsRowContent(
-        isExpanded = false,
-        onExpandGroupClick = {},
-        timelineItem = aRedactedMessagesGroupedEvents(sendersToCount = listOf("Alice" to 5)),
-        timelineMode = Timeline.Mode.Live,
-        timelineRoomInfo = aTimelineRoomInfo(),
-        timelineProtectionState = aTimelineProtectionState(),
-        focusedEventId = null,
-        isLastOutgoingMessage = false,
-        displayThreadSummaries = false,
-        onClick = {},
-        onLongClick = {},
-        onLinkLongClick = {},
-        inReplyToClick = {},
-        onUserDataClick = {},
-        onLinkClick = {},
-        onReactionClick = { _, _ -> },
-        onReactionLongClick = { _, _ -> },
-        onMoreReactionsClick = {},
-        onReadReceiptClick = {},
-        eventSink = {},
-    )
-}
-
-@PreviewsDayNight
-@Composable
-internal fun TimelineItemRedactedMessagesGroupManyAuthorsPreview() = ElementPreview {
-    // More than the listed limit of authors: first few are named, then "and N others".
-    TimelineItemGroupedEventsRowContent(
-        isExpanded = false,
-        onExpandGroupClick = {},
-        timelineItem = aRedactedMessagesGroupedEvents(
-            sendersToCount = listOf("Alice" to 5, "Bob" to 3, "Carol" to 2, "Dave" to 1, "Erin" to 1),
-        ),
+        timelineItem = aRedactedMessagesGroupedEvents(count = 11),
         timelineMode = Timeline.Mode.Live,
         timelineRoomInfo = aTimelineRoomInfo(),
         timelineProtectionState = aTimelineProtectionState(),
