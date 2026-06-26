@@ -19,7 +19,7 @@
     </plurals>
     <string name="screen_room_timeline_redacted_messages_others_suffix">"and others"</string>
     <plurals name="screen_room_timeline_redacted_messages">
-        <item quantity="one">"%1$d deleted message"</item>
-        <item quantity="other">"%1$d deleted messages"</item>
+        <item quantity="one">"%1$d removed message"</item>
+        <item quantity="other">"%1$d removed messages"</item>
     </plurals>
 </resources>
