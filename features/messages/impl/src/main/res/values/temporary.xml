@@ -18,8 +18,4 @@
         <item quantity="other">"Deleted %1$d messages from %2$s"</item>
     </plurals>
     <string name="screen_room_timeline_redacted_messages_others_suffix">"and others"</string>
-    <plurals name="screen_room_timeline_redacted_messages">
-        <item quantity="one">"%1$d removed message"</item>
-        <item quantity="other">"%1$d removed messages"</item>
-    </plurals>
 </resources>

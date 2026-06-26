@@ -14,13 +14,16 @@ import io.element.android.features.messages.impl.timeline.model.TimelineItem
 import io.element.android.features.messages.impl.timeline.model.event.TimelineItemRedactedContent
 import io.element.android.libraries.matrix.api.core.EventId
 import io.element.android.libraries.matrix.api.core.UniqueId
+import io.element.android.libraries.matrix.api.core.UserId
 import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.toImmutableList
 import org.junit.Test
 
 class GroupabilityTest {
-    private fun redacted(id: String) = aTimelineItemEvent(
+    private fun redacted(id: String, sender: String = "alice") = aTimelineItemEvent(
         eventId = EventId(id),
+        senderId = UserId("@$sender:domain"),
+        senderDisplayName = sender,
         content = TimelineItemRedactedContent,
     )
 
@@ -56,5 +59,28 @@ class GroupabilityTest {
             aggregatedReadReceipts = persistentListOf(),
         )
         assertThat(group.isRedactedMessagesGroup()).isFalse()
+    }
+
+    @Test
+    fun `redacted senders summary groups by author and counts each, keeping first-seen order`() {
+        val group = groupOf(
+            redacted("\$R1", sender = "alice"),
+            redacted("\$R2", sender = "bob"),
+            redacted("\$R3", sender = "alice"),
+            redacted("\$R4", sender = "alice"),
+        )
+        val summary = group.redactedSendersSummary()
+        assertThat(summary.map { it.senderId.value }).containsExactly("@alice:domain", "@bob:domain").inOrder()
+        assertThat(summary.first { it.senderId == UserId("@alice:domain") }.count).isEqualTo(3)
+        assertThat(summary.first { it.senderId == UserId("@bob:domain") }.count).isEqualTo(1)
+        assertThat(summary.first().senderName).isEqualTo("alice")
+    }
+
+    @Test
+    fun `redacted senders summary of a single author is one entry with the full count`() {
+        val group = groupOf(redacted("\$R1"), redacted("\$R2"), redacted("\$R3"))
+        val summary = group.redactedSendersSummary()
+        assertThat(summary).hasSize(1)
+        assertThat(summary.single().count).isEqualTo(3)
     }
 }

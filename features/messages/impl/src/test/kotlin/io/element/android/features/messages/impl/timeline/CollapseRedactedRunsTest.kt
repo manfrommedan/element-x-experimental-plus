@@ -9,7 +9,6 @@ package io.element.android.features.messages.impl.timeline
 
 import com.google.common.truth.Truth.assertThat
 import io.element.android.features.messages.impl.timeline.components.receipt.aReadReceiptData
-import io.element.android.features.messages.impl.timeline.groups.collapseRedactedRuns
 import io.element.android.features.messages.impl.timeline.groups.computeGroupIdWith
 import io.element.android.features.messages.impl.timeline.model.TimelineItem
 import io.element.android.features.messages.impl.timeline.model.TimelineItemReadReceipts

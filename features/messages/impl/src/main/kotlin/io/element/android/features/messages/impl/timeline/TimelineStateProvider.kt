@@ -256,13 +256,18 @@ internal fun aGroupedEvents(
 
 internal fun aRedactedMessagesGroupedEvents(
     id: UniqueId = UniqueId("redacted_group"),
-    count: Int = 4,
+    sendersToCount: List<Pair<String, Int>> = listOf("Alice" to 4, "Bob" to 1),
 ): TimelineItem.GroupedEvents {
-    val events = (0 until count).map { index ->
-        aTimelineItemEvent(
-            eventId = EventId("\$redacted_$index"),
-            content = TimelineItemRedactedContent,
-        )
+    var index = 0
+    val events = sendersToCount.flatMap { (name, count) ->
+        (0 until count).map {
+            aTimelineItemEvent(
+                eventId = EventId("\$redacted_${index++}"),
+                senderId = UserId("@${name.lowercase()}:domain"),
+                senderDisplayName = name,
+                content = TimelineItemRedactedContent,
+            )
+        }
     }
     return TimelineItem.GroupedEvents(
         id = id,
