@@ -148,11 +148,11 @@ private fun TimelineItemGroupedEventsRowContent(
         },
 ) {
     Column(modifier = modifier.animateContentSize()) {
+        val count = timelineItem.events.size
         // A group made entirely of redacted events is a collapsed run of deleted messages
         // (element-web style); anything else is the regular run of room state changes. For the
-        // redacted case we show only the count: the SDK does not expose who performed the
-        // redaction, and showing the original authors would be misleading.
-        val count = timelineItem.events.size
+        // redacted case we show only the count: the SDK does not expose who performed the redaction,
+        // and showing the original authors would be misleading.
         val headerText = if (timelineItem.isRedactedMessagesGroup()) {
             pluralStringResource(R.plurals.screen_room_timeline_redacted_messages, count, count)
         } else {
