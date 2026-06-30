@@ -12,6 +12,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -115,7 +116,7 @@ class AttachmentsPreviewPresenter(
         val editedTempFiles = remember {
             mutableStateListOf<File?>().apply { repeat(attachments.size) { add(null) } }
         }
-        var currentIndex by remember { mutableStateOf(0) }
+        var currentIndex by remember { mutableIntStateOf(0) }
         // Guard against currentIndex falling past the end after a Remove.
         if (currentIndex > attachmentList.lastIndex) {
             currentIndex = attachmentList.lastIndex.coerceAtLeast(0)

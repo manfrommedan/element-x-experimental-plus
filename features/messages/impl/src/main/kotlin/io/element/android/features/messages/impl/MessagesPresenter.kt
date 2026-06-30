@@ -284,10 +284,10 @@ class MessagesPresenter(
                     // noise (state changes / redacted) or push past the cap, whatever the caller.
                     val alreadySelected = anchorEventId != null && anchorEventId in selectionState.selectedIds
                     val underCap = selectionState.selectedIds.size < selectionState.maxSelection
-                    if (anchorEventId != null &&
+                    val canSelectAnchor = anchorEventId != null &&
                         event.anchor.content.isBulkSelectable() &&
                         (alreadySelected || underCap)
-                    ) {
+                    if (canSelectAnchor) {
                         selectionState = selectionState.copy(
                             isActive = true,
                             selectedIds = (selectionState.selectedIds + anchorEventId).toImmutableSet(),
