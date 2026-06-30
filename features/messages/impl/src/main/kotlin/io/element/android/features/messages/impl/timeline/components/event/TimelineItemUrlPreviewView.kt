@@ -38,6 +38,7 @@ import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -90,37 +91,61 @@ fun TimelineItemUrlPreviewView(
             val activePlayer = LocalActiveYouTubePlayer.current
             val localActive = rememberSaveable(preview.url) { mutableStateOf(false) }
             val isPlaying = if (activePlayer != null) activePlayer.value == preview.url else localActive.value
+            // If the embedded player reports an error, surface the exact code and let a tap open the
+            // video in the YouTube app instead of leaving a stuck error screen.
+            val playerError = remember(preview.url) { mutableStateOf<String?>(null) }
             val mediaModifier = Modifier
                 .fillMaxWidth()
                 .aspectRatio(16f / 9f)
-            if (isPlaying) {
-                YouTubeVideoPlayer(videoId = youTubeVideoId, modifier = mediaModifier)
-            } else {
-                Box(
-                    modifier = mediaModifier
-                        .background(Color.Black)
-                        .clickable {
-                            if (activePlayer != null) activePlayer.value = preview.url else localActive.value = true
-                        },
-                    contentAlignment = Alignment.Center,
-                ) {
-                    preview.imageUrl?.let(::previewImageModel)?.let { imageModel ->
-                        AsyncImage(
-                            model = imageModel,
-                            contentDescription = null,
-                            contentScale = ContentScale.Crop,
-                            modifier = Modifier.fillMaxSize(),
-                        )
-                    }
+            when {
+                playerError.value != null -> {
                     Box(
-                        modifier = Modifier.roundedBackground(),
+                        modifier = mediaModifier.background(Color.Black),
                         contentAlignment = Alignment.Center,
                     ) {
-                        Image(
-                            imageVector = CompoundIcons.PlaySolid(),
-                            contentDescription = stringResource(CommonStrings.a11y_play),
-                            colorFilter = ColorFilter.tint(Color.White),
+                        Text(
+                            text = "YouTube: ${playerError.value}\nнажми, чтобы открыть в приложении",
+                            color = Color.White,
+                            textAlign = TextAlign.Center,
+                            style = ElementTheme.typography.fontBodySmRegular,
+                            modifier = Modifier.padding(12.dp),
                         )
+                    }
+                }
+                isPlaying -> {
+                    YouTubeVideoPlayer(
+                        videoId = youTubeVideoId,
+                        modifier = mediaModifier,
+                        onPlayerError = { playerError.value = it },
+                    )
+                }
+                else -> {
+                    Box(
+                        modifier = mediaModifier
+                            .background(Color.Black)
+                            .clickable {
+                                if (activePlayer != null) activePlayer.value = preview.url else localActive.value = true
+                            },
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        preview.imageUrl?.let(::previewImageModel)?.let { imageModel ->
+                            AsyncImage(
+                                model = imageModel,
+                                contentDescription = null,
+                                contentScale = ContentScale.Crop,
+                                modifier = Modifier.fillMaxSize(),
+                            )
+                        }
+                        Box(
+                            modifier = Modifier.roundedBackground(),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Image(
+                                imageVector = CompoundIcons.PlaySolid(),
+                                contentDescription = stringResource(CommonStrings.a11y_play),
+                                colorFilter = ColorFilter.tint(Color.White),
+                            )
+                        }
                     }
                 }
             }
