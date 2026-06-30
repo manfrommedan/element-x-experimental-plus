@@ -9,6 +9,8 @@
 package io.element.android.features.messages.impl.urlpreview
 
 import android.annotation.SuppressLint
+import android.graphics.Color
+import android.webkit.WebChromeClient
 import android.webkit.WebResourceError
 import android.webkit.WebResourceRequest
 import android.webkit.WebView
@@ -37,11 +39,17 @@ internal fun YouTubeVideoPlayer(
         modifier = modifier,
         factory = { context ->
             WebView(context).apply {
+                setBackgroundColor(Color.BLACK)
                 settings.javaScriptEnabled = true
                 settings.domStorageEnabled = true
+                settings.useWideViewPort = true
+                settings.loadWithOverviewMode = true
                 // Allow the embed to start playing without a further tap, since the user already
                 // tapped the play button to open the player.
                 settings.mediaPlaybackRequiresUserGesture = false
+                // HTML5 <video> (the YouTube player) only renders when a WebChromeClient is set;
+                // without one the WebView stays blank white.
+                webChromeClient = WebChromeClient()
                 webViewClient = object : WebViewClient() {
                     override fun onReceivedError(view: WebView, request: WebResourceRequest, error: WebResourceError) {
                         if (request.isForMainFrame) {
