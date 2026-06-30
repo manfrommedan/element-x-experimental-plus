@@ -64,6 +64,16 @@ official Element X.
   the "message deleted" placeholders from the timeline so a tidied-up chat reads
   cleanly.
 
+* **Link previews, with inline YouTube** (Settings → Advanced settings, shown in
+  unencrypted rooms only by default). A message that contains a link gets a
+  preview card (site name, title, description and image) fetched through your
+  homeserver, with a setting to show previews never, only in unencrypted rooms, or
+  always. Encrypted rooms never fetch a preview unless you pick "always", and only
+  homeserver-proxied images are loaded so a preview does not leak your IP to the
+  linked site. YouTube links additionally get a play button and play inline in the
+  timeline, the way WhatsApp and Telegram do it, with only one video playing at a
+  time; tapping play does load the video from YouTube.
+
 ## How this fork differs from upstream
 
 All of the call-related changes below are gated behind the
