@@ -43,6 +43,7 @@ import io.element.android.features.messages.impl.timeline.model.event.aTimelineI
 import io.element.android.features.messages.impl.urlpreview.LocalUrlPreviewService
 import io.element.android.features.messages.impl.urlpreview.UrlPreviewData
 import io.element.android.features.messages.impl.urlpreview.findFirstPreviewableUrl
+import io.element.android.features.messages.impl.urlpreview.youTubeVideoId
 import io.element.android.features.messages.impl.utils.containsOnlyEmojis
 import io.element.android.libraries.androidutils.text.LinkifyHelper
 import io.element.android.libraries.designsystem.preview.ElementPreview
@@ -84,7 +85,24 @@ fun TimelineItemTextView(
                 null
             }
         }
-        if (urlPreview != null) {
+        // A YouTube link is recognised on the device, so it always gets a play card even when the
+        // homeserver returned no preview, and playback then happens in the timeline instead of
+        // launching the external YouTube app. The card shows the YouTube thumbnail (from Google's
+        // CDN) so it reads like the WhatsApp/Telegram preview.
+        val youTubeId = remember(previewUrl) { previewUrl?.let { youTubeVideoId(it) } }
+        val effectivePreview = urlPreview ?: if (showUrlPreviews && youTubeId != null && previewUrl != null) {
+            UrlPreviewData(
+                url = previewUrl,
+                title = null,
+                description = null,
+                imageUrl = "https://i.ytimg.com/vi/$youTubeId/hqdefault.jpg",
+                siteName = "YouTube",
+                hostName = "youtube.com",
+            )
+        } else {
+            null
+        }
+        if (effectivePreview != null) {
             val density = LocalDensity.current
             var previewSize by remember { mutableStateOf(Size.Zero) }
             var textLayout by remember { mutableStateOf<Layout?>(null) }
@@ -117,7 +135,7 @@ fun TimelineItemTextView(
                     .semantics { contentDescription = content.plainText }
             ) {
                 TimelineItemUrlPreviewView(
-                    preview = requireNotNull(urlPreview),
+                    preview = effectivePreview,
                     onClick = onLinkClick,
                     onLongClick = onLinkLongClick,
                     cardWidth = with(density) { previewCardWidthPx.toDp() },

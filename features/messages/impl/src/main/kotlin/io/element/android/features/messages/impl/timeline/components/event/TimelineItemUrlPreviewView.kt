@@ -169,18 +169,22 @@ fun TimelineItemUrlPreviewView(
 }
 
 private fun previewImageModel(imageUrl: String): Any? {
-    // Only render homeserver-proxied (mxc://) preview images. A raw http(s) og:image would be
-    // fetched straight from the third-party host, leaking the user's IP and defeating the privacy
-    // promise of the link-preview setting, so anything that is not an mxc:// URI is skipped.
-    return if (imageUrl.startsWith("mxc://")) {
-        MediaRequestData(
+    return when {
+        // Homeserver-proxied images are always safe to load.
+        imageUrl.startsWith("mxc://") -> MediaRequestData(
             source = MediaSource(imageUrl),
             kind = MediaRequestData.Kind.Thumbnail(width = 640, height = 360),
         )
-    } else {
-        null
+        // YouTube thumbnails come from Google's CDN. They are allowed for the YouTube card because
+        // playing the video reaches Google anyway; every other http(s) og:image stays blocked so a
+        // generic preview cannot leak the device IP to an arbitrary third-party host.
+        isYouTubeThumbnailUrl(imageUrl) -> imageUrl
+        else -> null
     }
 }
+
+private fun isYouTubeThumbnailUrl(url: String): Boolean =
+    url.startsWith("https://i.ytimg.com/") || url.startsWith("https://img.youtube.com/")
 
 @PreviewsDayNight
 @Composable

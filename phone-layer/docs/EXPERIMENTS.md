@@ -72,9 +72,11 @@ official Element X.
   homeserver-proxied images are loaded so a preview does not leak your IP to the
   linked site. YouTube links additionally get a play button and play inline in the
   timeline, the way WhatsApp and Telegram do it, with only one video playing at a
-  time. Playback goes through the anti-censorship proxy when it is enabled, so
-  YouTube sees your proxy server rather than your device; with the proxy off the
-  video loads from YouTube directly.
+  time. A YouTube link is recognised on the device, so it gets its play card even
+  when the homeserver has link previews turned off (the thumbnail then comes from
+  YouTube's CDN). Playback goes through the anti-censorship proxy when it is
+  enabled, so YouTube sees your proxy server rather than your device; with the
+  proxy off the video loads from YouTube directly.
 
 ## How this fork differs from upstream
 

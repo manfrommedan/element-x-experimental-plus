@@ -59,4 +59,11 @@
     <string name="screen_mxtr_settings_unit_kib">"%1$s КБ"</string>
     <string name="screen_mxtr_settings_unit_mib">"%1$s МБ"</string>
     <string name="screen_mxtr_settings_unit_gib">"%1$s ГБ"</string>
+
+    <!-- Дополнительные настройки: предпросмотр ссылок. -->
+    <string name="screen_advanced_settings_show_link_previews_title">"Предпросмотр ссылок"</string>
+    <string name="screen_advanced_settings_show_link_previews_subtitle">"Предпросмотр делает ваш homeserver; для ссылки он может раскрыть сайту IP вашего сервера"</string>
+    <string name="screen_advanced_settings_show_link_previews_off">"Не показывать"</string>
+    <string name="screen_advanced_settings_show_link_previews_unencrypted_only">"Только в незашифрованных комнатах"</string>
+    <string name="screen_advanced_settings_show_link_previews_all">"Всегда показывать"</string>
 </resources>
