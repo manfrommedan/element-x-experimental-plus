@@ -8,51 +8,54 @@
 
 package io.element.android.features.messages.impl.urlpreview
 
+import android.annotation.SuppressLint
+import android.webkit.WebResourceError
+import android.webkit.WebResourceRequest
+import android.webkit.WebView
+import android.webkit.WebViewClient
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.viewinterop.AndroidView
-import androidx.lifecycle.compose.LocalLifecycleOwner
-import com.pierfrancescosoffritti.androidyoutubeplayer.core.player.PlayerConstants
-import com.pierfrancescosoffritti.androidyoutubeplayer.core.player.YouTubePlayer
-import com.pierfrancescosoffritti.androidyoutubeplayer.core.player.listeners.AbstractYouTubePlayerListener
-import com.pierfrancescosoffritti.androidyoutubeplayer.core.player.views.YouTubePlayerView
 
 /**
- * Inline YouTube player backed by the official IFrame player inside a WebView, so playback happens
- * in the timeline without leaving the app (similar to WhatsApp and Telegram). The hosting view is
- * tied to the composition lifecycle and released when it leaves the composition, which stops
- * playback as soon as the card scrolls away.
+ * Inline YouTube player that loads the official `youtube.com/embed` page directly in a WebView, so
+ * the embed has a real `youtube.com` origin (which YouTube serves) rather than the local-HTML embed
+ * that YouTube has started rejecting. Playback stays in the timeline, without leaving the app.
  *
- * Note: the IFrame player loads content from youtube.com, so playing a video shares the device IP
- * with Google. This only runs after an explicit tap on the play button, and only when URL previews
- * are enabled for the room.
+ * The WebView is destroyed when it leaves the composition, which stops playback as soon as the card
+ * scrolls away. When the anti-censorship proxy is on it rides the process-wide WebView proxy, so the
+ * video loads through the proxy rather than from the device IP.
  */
+@SuppressLint("SetJavaScriptEnabled")
 @Composable
 internal fun YouTubeVideoPlayer(
     videoId: String,
     modifier: Modifier = Modifier,
     onPlayerError: (String) -> Unit = {},
 ) {
-    val lifecycleOwner = LocalLifecycleOwner.current
     AndroidView(
         modifier = modifier,
         factory = { context ->
-            YouTubePlayerView(context).apply {
-                lifecycleOwner.lifecycle.addObserver(this)
-                addYouTubePlayerListener(object : AbstractYouTubePlayerListener() {
-                    override fun onReady(youTubePlayer: YouTubePlayer) {
-                        youTubePlayer.loadVideo(videoId, 0f)
+            WebView(context).apply {
+                settings.javaScriptEnabled = true
+                settings.domStorageEnabled = true
+                // Allow the embed to start playing without a further tap, since the user already
+                // tapped the play button to open the player.
+                settings.mediaPlaybackRequiresUserGesture = false
+                webViewClient = object : WebViewClient() {
+                    override fun onReceivedError(view: WebView, request: WebResourceRequest, error: WebResourceError) {
+                        if (request.isForMainFrame) {
+                            onPlayerError(error.description?.toString().orEmpty().ifBlank { "load error" })
+                        }
                     }
-
-                    override fun onError(youTubePlayer: YouTubePlayer, error: PlayerConstants.PlayerError) {
-                        onPlayerError(error.name)
-                    }
-                })
+                }
+                loadUrl("https://www.youtube.com/embed/$videoId?autoplay=1&playsinline=1&rel=0")
             }
         },
-        onRelease = { view ->
-            lifecycleOwner.lifecycle.removeObserver(view)
-            view.release()
+        onRelease = { webView ->
+            webView.stopLoading()
+            webView.loadUrl("about:blank")
+            webView.destroy()
         },
     )
 }

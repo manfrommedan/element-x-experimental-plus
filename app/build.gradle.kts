@@ -375,8 +375,6 @@ licensee {
     allowUrl("https://asm.ow2.io/license.html")
     allowUrl("https://www.gnu.org/licenses/agpl-3.0.txt")
     allowUrl("https://github.com/mhssn95/compose-color-picker/blob/main/LICENSE")
-    // android-youtube-player (inline YouTube preview player) is MIT, but declares it via a GitHub URL.
-    allowUrl("https://github.com/PierfrancescoSoffritti/android-youtube-player/blob/master/LICENSE")
     ignoreDependencies("com.github.matrix-org", "matrix-analytics-events")
     // Ignore dependency that are not third-party licenses to us.
     ignoreDependencies(groupId = "io.element.android")
