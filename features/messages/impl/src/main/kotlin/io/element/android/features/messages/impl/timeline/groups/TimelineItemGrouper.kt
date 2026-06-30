@@ -11,7 +11,6 @@ package io.element.android.features.messages.impl.timeline.groups
 import androidx.annotation.VisibleForTesting
 import dev.zacsweers.metro.Inject
 import dev.zacsweers.metro.SingleIn
-import io.element.android.features.messages.impl.timeline.collapseRedactedRuns
 import io.element.android.features.messages.impl.timeline.model.TimelineItem
 import io.element.android.libraries.di.RoomScope
 import io.element.android.libraries.matrix.api.core.UniqueId
@@ -48,8 +47,7 @@ class TimelineItemGrouper {
         if (currentGroup.isNotEmpty()) {
             result.addGroup(groupIds, currentGroup)
         }
-        // Temp test build: drive redacted-run collapsing from the grouper as the final step.
-        return result.collapseRedactedRuns()
+        return result
     }
 }
 

@@ -310,10 +310,20 @@ class TimelinePresenter(
             }
         }
 
-        // Temp test build: redacted-run collapsing now happens inside TimelineItemGrouper, so the
-        // factory output is already collapsed. Keep visibleTimelineItems as the rendered list so the
-        // floating date pill / jump-to-date stay aligned with it.
-        val visibleTimelineItems = timelineItems
+        val hideRedactedEvents by remember {
+            appPreferencesStore.getHideRedactedEventsFlow()
+        }.collectAsState(initial = false)
+        // When the user opts to hide deleted messages, collapse runs of 3+ consecutive redacted
+        // events into a single expandable group (element-web style) instead of removing them.
+        // Shorter runs stay as individual tiles. Day dividers are untouched, so a day is never
+        // emptied and the floating date pill / jump-to-date stay aligned with the rendered list.
+        val visibleTimelineItems = remember(timelineItems, hideRedactedEvents) {
+            if (hideRedactedEvents) {
+                timelineItems.collapseRedactedRuns().toImmutableList()
+            } else {
+                timelineItems
+            }
+        }
 
         // Resolve the tapped day's divider to an index once it is loaded. Computed against the
         // rendered list so the index matches the LazyColumn even while redacted runs are collapsed.
