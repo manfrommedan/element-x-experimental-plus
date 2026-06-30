@@ -110,4 +110,11 @@
     <string name="screen_mxtr_settings_unit_kib">"%1$s KB"</string>
     <string name="screen_mxtr_settings_unit_mib">"%1$s MB"</string>
     <string name="screen_mxtr_settings_unit_gib">"%1$s GB"</string>
+
+    <!-- Advanced settings: link (URL) preview policy. -->
+    <string name="screen_advanced_settings_show_link_previews_title">"Show link previews"</string>
+    <string name="screen_advanced_settings_show_link_previews_subtitle">"Previews may share your IP address with the linked website"</string>
+    <string name="screen_advanced_settings_show_link_previews_off">"Never show"</string>
+    <string name="screen_advanced_settings_show_link_previews_unencrypted_only">"In unencrypted rooms only"</string>
+    <string name="screen_advanced_settings_show_link_previews_all">"Always show"</string>
 </resources>

@@ -51,6 +51,7 @@ internal fun canCancelUpload(transactionId: TransactionId?, localSendState: Loca
 fun TimelineItemEventContentView(
     content: TimelineItemEventContent,
     hideMediaContent: Boolean,
+    showUrlPreviews: Boolean,
     onContentClick: (() -> Unit)?,
     onLongClick: (() -> Unit)?,
     onShowContentClick: () -> Unit,
@@ -88,6 +89,7 @@ fun TimelineItemEventContentView(
         )
         is TimelineItemTextBasedContent -> TimelineItemTextView(
             content = content,
+            showUrlPreviews = showUrlPreviews,
             modifier = modifier,
             onLinkClick = onLinkClick,
             onLinkLongClick = onLinkLongClick,

@@ -24,6 +24,7 @@ import io.element.android.libraries.preferences.api.store.NotificationSound
 import io.element.android.libraries.preferences.api.store.NotificationSound.Companion.toStored
 import io.element.android.libraries.preferences.api.store.NotificationSoundChannelConfig
 import io.element.android.libraries.preferences.api.store.PreferenceDataStoreFactory
+import io.element.android.libraries.preferences.api.store.UrlPreviewValue
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
@@ -36,6 +37,7 @@ private val timelineMediaPreviewValueKey = stringPreferencesKey("timelineMediaPr
 private val liveLocationMinimumDistanceUpdateKey = intPreferencesKey("liveLocationMinimumDistanceUpdate")
 private val hideRedactedEventsKey = booleanPreferencesKey("hideRedactedEvents")
 private val mediaAutoDownloadOnWifiOnlyKey = booleanPreferencesKey("mediaAutoDownloadOnWifiOnly")
+private val urlPreviewValueKey = stringPreferencesKey("urlPreviewValue")
 private val logLevelKey = stringPreferencesKey("logLevel")
 private val traceLogPacksKey = stringPreferencesKey("traceLogPacks")
 private val messageSoundUriKey = stringPreferencesKey("notificationMessageSoundUri")
@@ -155,6 +157,18 @@ class DefaultAppPreferencesStore(
 
     override fun getMediaAutoDownloadOnWifiOnlyFlow(): Flow<Boolean> {
         return store.data.map { prefs -> prefs[mediaAutoDownloadOnWifiOnlyKey] ?: false }
+    }
+
+    override suspend fun setUrlPreviewValue(value: UrlPreviewValue) {
+        store.edit { prefs ->
+            prefs[urlPreviewValueKey] = value.name
+        }
+    }
+
+    override fun getUrlPreviewValueFlow(): Flow<UrlPreviewValue> {
+        return store.data.map { prefs ->
+            prefs[urlPreviewValueKey]?.let { UrlPreviewValue.valueOf(it) } ?: UrlPreviewValue.DEFAULT
+        }
     }
 
     override suspend fun setTracingLogLevel(logLevel: LogLevel) {

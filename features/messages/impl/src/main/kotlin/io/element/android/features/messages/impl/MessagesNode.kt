@@ -42,6 +42,8 @@ import io.element.android.features.messages.impl.timeline.TimelinePresenter
 import io.element.android.features.messages.impl.timeline.di.LocalTimelineItemPresenterFactories
 import io.element.android.features.messages.impl.timeline.di.TimelineItemPresenterFactories
 import io.element.android.features.messages.impl.timeline.model.TimelineItem
+import io.element.android.features.messages.impl.urlpreview.LocalUrlPreviewService
+import io.element.android.features.messages.impl.urlpreview.UrlPreviewService
 import io.element.android.features.roommembermoderation.api.ModerationAction
 import io.element.android.features.roommembermoderation.api.RoomMemberModerationEvents
 import io.element.android.features.roommembermoderation.api.RoomMemberModerationRenderer
@@ -94,6 +96,7 @@ class MessagesNode(
     presenterFactory: MessagesPresenter.Factory,
     actionListPresenterFactory: ActionListPresenter.Factory,
     private val timelineItemPresenterFactories: TimelineItemPresenterFactories,
+    private val urlPreviewService: UrlPreviewService,
     private val mediaPlayer: MediaPlayer,
     private val permalinkParser: PermalinkParser,
     private val knockRequestsBannerRenderer: KnockRequestsBannerRenderer,
@@ -271,6 +274,7 @@ class MessagesNode(
         CompositionLocalProvider(
             LocalTimelineItemPresenterFactories provides timelineItemPresenterFactories,
             io.element.android.features.messages.impl.timeline.components.LocalPhoneVoiceLayoutEnabled provides phoneVoiceLayoutEnabled,
+            LocalUrlPreviewService provides urlPreviewService,
         ) {
             val state = presenter.present()
 

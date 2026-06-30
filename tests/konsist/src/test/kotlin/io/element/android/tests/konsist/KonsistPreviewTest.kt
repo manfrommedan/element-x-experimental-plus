@@ -160,6 +160,7 @@ class KonsistPreviewTest {
         "TimelineItemRedactedMessagesGroupManyAuthorsPreview",
         "TimelineItemRedactedMessagesGroupMixedPreview",
         "TimelineItemRedactedMessagesGroupSingleSenderPreview",
+        "TimelineItemUrlPreviewViewNoImagePreview",
         "TimelineItemVideoViewHideMediaContentPreview",
         "TimelineItemVoiceViewUnifiedPreview",
         "TimelineVideoWithCaptionRowPreview",
