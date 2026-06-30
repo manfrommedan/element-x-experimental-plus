@@ -27,11 +27,9 @@ import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.LocalTextStyle
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -46,6 +44,7 @@ import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import io.element.android.compound.theme.ElementTheme
 import io.element.android.compound.tokens.generated.CompoundIcons
+import io.element.android.features.messages.impl.urlpreview.LocalActiveYouTubePlayer
 import io.element.android.features.messages.impl.urlpreview.UrlPreviewData
 import io.element.android.features.messages.impl.urlpreview.YouTubeVideoPlayer
 import io.element.android.features.messages.impl.urlpreview.youTubeVideoId
@@ -86,7 +85,11 @@ fun TimelineItemUrlPreviewView(
     ) {
         val youTubeVideoId = remember(preview.url) { youTubeVideoId(preview.url) }
         if (youTubeVideoId != null) {
-            var isPlaying by rememberSaveable(preview.url) { mutableStateOf(false) }
+            // Coordinate playback through the timeline so only one video plays at a time. When no
+            // coordinator is provided (previews, pinned list) fall back to a per-card state.
+            val activePlayer = LocalActiveYouTubePlayer.current
+            val localActive = rememberSaveable(preview.url) { mutableStateOf(false) }
+            val isPlaying = if (activePlayer != null) activePlayer.value == preview.url else localActive.value
             val mediaModifier = Modifier
                 .fillMaxWidth()
                 .aspectRatio(16f / 9f)
@@ -96,7 +99,9 @@ fun TimelineItemUrlPreviewView(
                 Box(
                     modifier = mediaModifier
                         .background(Color.Black)
-                        .clickable { isPlaying = true },
+                        .clickable {
+                            if (activePlayer != null) activePlayer.value = preview.url else localActive.value = true
+                        },
                     contentAlignment = Alignment.Center,
                 ) {
                     preview.imageUrl?.let(::previewImageModel)?.let { imageModel ->
