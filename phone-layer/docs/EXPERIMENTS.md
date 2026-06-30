@@ -64,19 +64,15 @@ official Element X.
   the "message deleted" placeholders from the timeline so a tidied-up chat reads
   cleanly.
 
-* **Link previews, with inline YouTube** (Settings → Advanced settings, shown in
-  unencrypted rooms only by default). A message that contains a link gets a
-  preview card (site name, title, description and image) fetched through your
-  homeserver, with a setting to show previews never, only in unencrypted rooms, or
-  always. Encrypted rooms never fetch a preview unless you pick "always", and only
-  homeserver-proxied images are loaded so a preview does not leak your IP to the
-  linked site. YouTube links additionally get a play button and play inline in the
-  timeline, the way WhatsApp and Telegram do it, with only one video playing at a
-  time. A YouTube link is recognised on the device, so it gets its play card even
-  when the homeserver has link previews turned off (the thumbnail then comes from
-  YouTube's CDN). Playback goes through the anti-censorship proxy when it is
-  enabled, so YouTube sees your proxy server rather than your device; with the
-  proxy off the video loads from YouTube directly.
+* **Link previews** (Settings → Advanced settings, shown in unencrypted rooms only
+  by default). A message that contains a link gets a preview card (site name,
+  title, description and image) fetched through your homeserver, with a setting to
+  show previews never, only in unencrypted rooms, or always. Encrypted rooms never
+  fetch a preview unless you pick "always", and only homeserver-proxied images are
+  loaded so a preview does not leak your IP to the linked site. YouTube links get a
+  thumbnail card with a play button; tapping it opens the video in the YouTube app
+  for now. Inline playback in the timeline (WhatsApp/Telegram style) is a
+  work in progress and temporarily disabled while the embedded player is fixed.
 
 ## How this fork differs from upstream
 

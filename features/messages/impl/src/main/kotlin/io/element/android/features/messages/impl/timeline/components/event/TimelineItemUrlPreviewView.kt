@@ -27,9 +27,7 @@ import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.LocalTextStyle
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -38,16 +36,13 @@ import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import io.element.android.compound.theme.ElementTheme
 import io.element.android.compound.tokens.generated.CompoundIcons
-import io.element.android.features.messages.impl.urlpreview.LocalActiveYouTubePlayer
 import io.element.android.features.messages.impl.urlpreview.UrlPreviewData
-import io.element.android.features.messages.impl.urlpreview.YouTubeVideoPlayer
 import io.element.android.features.messages.impl.urlpreview.youTubeVideoId
 import io.element.android.libraries.designsystem.modifiers.roundedBackground
 import io.element.android.libraries.designsystem.preview.ElementPreview
@@ -86,67 +81,34 @@ fun TimelineItemUrlPreviewView(
     ) {
         val youTubeVideoId = remember(preview.url) { youTubeVideoId(preview.url) }
         if (youTubeVideoId != null) {
-            // Coordinate playback through the timeline so only one video plays at a time. When no
-            // coordinator is provided (previews, pinned list) fall back to a per-card state.
-            val activePlayer = LocalActiveYouTubePlayer.current
-            val localActive = rememberSaveable(preview.url) { mutableStateOf(false) }
-            val isPlaying = if (activePlayer != null) activePlayer.value == preview.url else localActive.value
-            // If the embedded player reports an error, surface the exact code and let a tap open the
-            // video in the YouTube app instead of leaving a stuck error screen.
-            val playerError = remember(preview.url) { mutableStateOf<String?>(null) }
-            val mediaModifier = Modifier
-                .fillMaxWidth()
-                .aspectRatio(16f / 9f)
-            when {
-                playerError.value != null -> {
-                    Box(
-                        modifier = mediaModifier.background(Color.Black),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        Text(
-                            text = "YouTube: ${playerError.value}\nнажми, чтобы открыть в приложении",
-                            color = Color.White,
-                            textAlign = TextAlign.Center,
-                            style = ElementTheme.typography.fontBodySmRegular,
-                            modifier = Modifier.padding(12.dp),
-                        )
-                    }
-                }
-                isPlaying -> {
-                    YouTubeVideoPlayer(
-                        videoId = youTubeVideoId,
-                        modifier = mediaModifier,
-                        onPlayerError = { playerError.value = it },
+            // Inline playback is temporarily disabled: the embedded WebView player renders blank on
+            // some devices, so for now the YouTube card is preview-only and a tap opens the video in
+            // the YouTube app. The inline player (YouTubeVideoPlayer) is kept for later debugging.
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .aspectRatio(16f / 9f)
+                    .background(Color.Black)
+                    .clickable { onClick(link) },
+                contentAlignment = Alignment.Center,
+            ) {
+                preview.imageUrl?.let(::previewImageModel)?.let { imageModel ->
+                    AsyncImage(
+                        model = imageModel,
+                        contentDescription = null,
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier.fillMaxSize(),
                     )
                 }
-                else -> {
-                    Box(
-                        modifier = mediaModifier
-                            .background(Color.Black)
-                            .clickable {
-                                if (activePlayer != null) activePlayer.value = preview.url else localActive.value = true
-                            },
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        preview.imageUrl?.let(::previewImageModel)?.let { imageModel ->
-                            AsyncImage(
-                                model = imageModel,
-                                contentDescription = null,
-                                contentScale = ContentScale.Crop,
-                                modifier = Modifier.fillMaxSize(),
-                            )
-                        }
-                        Box(
-                            modifier = Modifier.roundedBackground(),
-                            contentAlignment = Alignment.Center,
-                        ) {
-                            Image(
-                                imageVector = CompoundIcons.PlaySolid(),
-                                contentDescription = stringResource(CommonStrings.a11y_play),
-                                colorFilter = ColorFilter.tint(Color.White),
-                            )
-                        }
-                    }
+                Box(
+                    modifier = Modifier.roundedBackground(),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Image(
+                        imageVector = CompoundIcons.PlaySolid(),
+                        contentDescription = stringResource(CommonStrings.a11y_play),
+                        colorFilter = ColorFilter.tint(Color.White),
+                    )
                 }
             }
         } else {
