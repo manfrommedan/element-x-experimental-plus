@@ -9,7 +9,6 @@
 package io.element.android.libraries.androidutils.text
 
 import android.text.Spannable
-import android.text.style.ReplacementSpan
 import android.text.style.URLSpan
 import android.text.util.Linkify
 import androidx.core.text.getSpans
@@ -43,20 +42,10 @@ object LinkifyHelper {
 
         // Process newly added URL spans
         if (addedNewLinks) {
-            // A ReplacementSpan (e.g. a mention pill) draws its own content over its range. A link that
-            // Linkify added inside one - such as the ":server" tail of the matrix id shown in a mention -
-            // is not a real link, so drop it. Existing URL spans are restored below and left untouched.
-            val replacementSpanRanges = spannable.getSpans<ReplacementSpan>(0, spannable.length)
-                .map { spannable.getSpanStart(it) to spannable.getSpanEnd(it) }
             val newUrlSpans = spannable.getSpans<URLSpan>(0, spannable.length)
             for (urlSpan in newUrlSpans) {
                 val start = spannable.getSpanStart(urlSpan)
                 val end = spannable.getSpanEnd(urlSpan)
-
-                if (urlSpan !in oldURLSpans && replacementSpanRanges.any { (rangeStart, rangeEnd) -> start < rangeEnd && rangeStart < end }) {
-                    spannable.removeSpan(urlSpan)
-                    continue
-                }
 
                 // Try to avoid including trailing punctuation in the link.
                 // Since this might fail in some edge cases, we catch the exception and just use the original end index.

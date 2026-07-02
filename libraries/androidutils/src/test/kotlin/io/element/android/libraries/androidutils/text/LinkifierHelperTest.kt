@@ -8,10 +8,7 @@
 
 package io.element.android.libraries.androidutils.text
 
-import android.graphics.Canvas
-import android.graphics.Paint
 import android.telephony.TelephonyManager
-import android.text.style.ReplacementSpan
 import android.text.style.URLSpan
 import androidx.core.text.buildSpannedString
 import androidx.core.text.getSpans
@@ -166,37 +163,4 @@ class LinkifierHelperTest : RobolectricTest() {
         assertThat(urlSpans.size).isEqualTo(1)
         assertThat(urlSpans.first().url).isEqualTo("https://github.com/element-hq/element-android?")
     }
-
-    @Test
-    fun `linkification does not add links inside a replacement span`() {
-        // A mention pill is a ReplacementSpan whose text carries the full matrix id; the "example.org"
-        // tail must not be linkified into a previewable/clickable link.
-        val text = buildSpannedString {
-            inSpans(TestReplacementSpan()) {
-                append("@alice:example.org")
-            }
-        }
-        val result = LinkifyHelper.linkify(text)
-        val urlSpans = result.toSpannable().getSpans<URLSpan>()
-        assertThat(urlSpans).isEmpty()
-    }
-
-    @Test
-    fun `linkification keeps a real link next to a replacement span`() {
-        val text = buildSpannedString {
-            inSpans(TestReplacementSpan()) {
-                append("@alice:example.org")
-            }
-            append(" see https://real.example.com")
-        }
-        val result = LinkifyHelper.linkify(text)
-        val urlSpans = result.toSpannable().getSpans<URLSpan>()
-        assertThat(urlSpans.size).isEqualTo(1)
-        assertThat(urlSpans.first().url).isEqualTo("https://real.example.com")
-    }
-}
-
-private class TestReplacementSpan : ReplacementSpan() {
-    override fun getSize(paint: Paint, text: CharSequence?, start: Int, end: Int, fm: Paint.FontMetricsInt?): Int = 0
-    override fun draw(canvas: Canvas, text: CharSequence?, start: Int, end: Int, x: Float, top: Int, y: Int, bottom: Int, paint: Paint) = Unit
 }
