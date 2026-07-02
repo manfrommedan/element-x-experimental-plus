@@ -13,8 +13,7 @@ import android.text.style.URLSpan
 import io.element.android.libraries.core.data.tryOrNull
 import io.element.android.libraries.matrix.api.permalink.PermalinkData
 import io.element.android.libraries.matrix.api.permalink.PermalinkParser
-import io.element.android.libraries.textcomposer.mentions.MentionSpan
-import io.element.android.wysiwyg.view.spans.CustomMentionSpan
+import io.element.android.libraries.textcomposer.mentions.getMentionSpans
 import org.jsoup.nodes.Document
 import java.net.URI
 
@@ -69,25 +68,14 @@ internal fun hostNameFromUrl(url: String): String {
 
 private fun CharSequence.extractUrlSpans(): List<String> {
     val spanned = this as? Spanned ?: return emptyList()
-    // A mention renders as a MentionSpan pill whose display text often carries the user's full matrix
-    // id (e.g. "@alice:example.org"); Linkify then turns the ":example.org" tail into a URLSpan. That
-    // span belongs to the pill, not to a real link, so drop any URLSpan overlapping a mention span.
-    val mentionRanges = spanned.mentionSpanRanges()
     return spanned.getSpans(0, spanned.length, URLSpan::class.java)
         .orEmpty()
         .sortedBy { spanned.getSpanStart(it) }
-        .filterNot { urlSpan ->
-            val start = spanned.getSpanStart(urlSpan)
-            val end = spanned.getSpanEnd(urlSpan)
-            mentionRanges.any { (mentionStart, mentionEnd) -> start < mentionEnd && mentionStart < end }
-        }
+        // A mention pill's text can hold the user's full matrix id, and Linkify turns the ":server"
+        // tail into a URLSpan. That span belongs to the mention, not to a real link, so drop any
+        // URLSpan that overlaps a mention.
+        .filter { spanned.getMentionSpans(spanned.getSpanStart(it), spanned.getSpanEnd(it)).isEmpty() }
         .map { it.url }
-}
-
-private fun Spanned.mentionSpanRanges(): List<Pair<Int, Int>> {
-    fun rangesOf(spans: Array<out Any>) = spans.map { getSpanStart(it) to getSpanEnd(it) }
-    return (rangesOf(getSpans(0, length, MentionSpan::class.java)) + rangesOf(getSpans(0, length, CustomMentionSpan::class.java)))
-        .filter { (start, end) -> start in 0 until end }
 }
 
 private val rawUrlRegex = Regex("""https?://\S+""", RegexOption.IGNORE_CASE)
