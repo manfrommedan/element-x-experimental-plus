@@ -11,12 +11,15 @@ package io.element.android.features.messages.impl.urlpreview
 import android.text.Spanned
 import android.text.style.URLSpan
 import io.element.android.libraries.core.data.tryOrNull
+import io.element.android.libraries.matrix.api.permalink.PermalinkData
+import io.element.android.libraries.matrix.api.permalink.PermalinkParser
 import org.jsoup.nodes.Document
 import java.net.URI
 
 internal fun findFirstPreviewableUrl(
     formattedBody: CharSequence,
     htmlDocument: Document?,
+    permalinkParser: PermalinkParser? = null,
 ): String? {
     val textUrls = formattedBody.extractUrlSpans()
         .ifEmpty { extractRawTextUrls(formattedBody.toString()) }
@@ -24,22 +27,28 @@ internal fun findFirstPreviewableUrl(
         ?.select("a[href]")
         ?.map { it.attr("href") }
         .orEmpty()
-    return (textUrls + htmlUrls).firstOrNull(::isPreviewableUrl)
+    return (textUrls + htmlUrls).firstOrNull { isPreviewableUrl(it, permalinkParser) }
 }
 
-internal fun isPreviewableUrl(url: String): Boolean {
+internal fun isPreviewableUrl(url: String, permalinkParser: PermalinkParser? = null): Boolean {
     val uri = tryOrNull { URI(url) } ?: return false
     if (uri.scheme?.lowercase() !in setOf("http", "https")) return false
-    // A Matrix mention or permalink renders as a link (matrix.to, or a custom permalink base), for
-    // example https://matrix.to/#/@user:server. These are identifiers, not content to preview, so a
-    // "@nickname" mention must not fetch a preview of the server's website.
-    if (uri.host?.lowercase()?.removePrefix("www.") == "matrix.to") return false
-    val fragment = uri.fragment.orEmpty()
-    if (fragment.startsWith("/@") || fragment.startsWith("/!") || fragment.startsWith("/#") || fragment.startsWith("/\$")) {
+    // Authoritative: a Matrix mention or permalink (@user, room link, event permalink) renders as a
+    // link, and the Matrix parser recognises it as an identifier rather than a FallbackLink. Those
+    // are not content to preview, so a "@nickname" mention must not fetch a website preview.
+    if (permalinkParser != null && permalinkParser.parse(url) !is PermalinkData.FallbackLink) {
         return false
     }
+    // Fallback when no parser is available (previews, tests): recognise matrix.to and matrix-style
+    // permalink fragments by shape so mentions are still skipped.
+    if (uri.host?.lowercase()?.removePrefix("www.") == "matrix.to") return false
+    val fragment = uri.fragment.orEmpty()
+    if (matrixPermalinkFragmentSigils.any { fragment.startsWith(it) }) return false
     return true
 }
+
+// matrix.to-style permalink fragments: /#/@user, /#/!room, /#/#alias, /#/$event.
+private val matrixPermalinkFragmentSigils = listOf("/@", "/!", "/#", "/\$")
 
 internal fun hostNameFromUrl(url: String): String {
     return tryOrNull { URI(url).host.orEmpty().removePrefix("www.") }

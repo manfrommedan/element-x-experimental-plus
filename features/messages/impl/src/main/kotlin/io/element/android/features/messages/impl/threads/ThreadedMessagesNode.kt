@@ -45,6 +45,7 @@ import io.element.android.features.messages.impl.timeline.di.LocalTimelineItemPr
 import io.element.android.features.messages.impl.timeline.di.TimelineItemPresenterFactories
 import io.element.android.features.messages.impl.timeline.model.TimelineItem
 import io.element.android.features.messages.impl.urlpreview.LocalActiveYouTubePlayer
+import io.element.android.features.messages.impl.urlpreview.LocalPermalinkParser
 import io.element.android.features.messages.impl.urlpreview.LocalUrlPreviewService
 import io.element.android.features.messages.impl.urlpreview.UrlPreviewService
 import io.element.android.features.roommembermoderation.api.ModerationAction
@@ -272,6 +273,7 @@ class ThreadedMessagesNode(
         CompositionLocalProvider(
             LocalTimelineItemPresenterFactories provides timelineItemPresenterFactories,
             LocalUrlPreviewService provides urlPreviewService,
+            LocalPermalinkParser provides permalinkParser,
             LocalActiveYouTubePlayer provides remember { mutableStateOf<String?>(null) },
         ) {
             // Only display the actual UI and lifecycle logic if the presenter is loaded

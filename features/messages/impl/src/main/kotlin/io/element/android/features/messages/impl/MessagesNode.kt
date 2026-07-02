@@ -44,6 +44,7 @@ import io.element.android.features.messages.impl.timeline.di.LocalTimelineItemPr
 import io.element.android.features.messages.impl.timeline.di.TimelineItemPresenterFactories
 import io.element.android.features.messages.impl.timeline.model.TimelineItem
 import io.element.android.features.messages.impl.urlpreview.LocalActiveYouTubePlayer
+import io.element.android.features.messages.impl.urlpreview.LocalPermalinkParser
 import io.element.android.features.messages.impl.urlpreview.LocalUrlPreviewService
 import io.element.android.features.messages.impl.urlpreview.UrlPreviewService
 import io.element.android.features.roommembermoderation.api.ModerationAction
@@ -277,6 +278,7 @@ class MessagesNode(
             LocalTimelineItemPresenterFactories provides timelineItemPresenterFactories,
             io.element.android.features.messages.impl.timeline.components.LocalPhoneVoiceLayoutEnabled provides phoneVoiceLayoutEnabled,
             LocalUrlPreviewService provides urlPreviewService,
+            LocalPermalinkParser provides permalinkParser,
             LocalActiveYouTubePlayer provides remember { mutableStateOf<String?>(null) },
         ) {
             val state = presenter.present()

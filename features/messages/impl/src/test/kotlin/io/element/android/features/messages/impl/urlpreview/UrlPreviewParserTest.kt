@@ -9,6 +9,9 @@
 package io.element.android.features.messages.impl.urlpreview
 
 import com.google.common.truth.Truth.assertThat
+import io.element.android.libraries.matrix.api.core.UserId
+import io.element.android.libraries.matrix.api.permalink.PermalinkData
+import io.element.android.libraries.matrix.test.permalink.FakePermalinkParser
 import org.jsoup.Jsoup
 import org.junit.Test
 
@@ -76,6 +79,14 @@ class UrlPreviewParserTest {
         assertThat(isPreviewableUrl("https://matrix.to/#/#alias:example.org")).isFalse()
         // Custom permalink base (not matrix.to) still carries a matrix identifier in the fragment.
         assertThat(isPreviewableUrl("https://element.example.org/#/@bob:example.org")).isFalse()
+    }
+
+    @Test
+    fun `isPreviewableUrl uses the permalink parser to skip matrix identifiers`() {
+        // The parser authoritatively recognises the link as a user identifier, even on a custom
+        // permalink domain that the shape-based fallback would not catch.
+        val parser = FakePermalinkParser { PermalinkData.UserLink(UserId("@alice:example.org")) }
+        assertThat(isPreviewableUrl("https://custom.example.org/u/alice", parser)).isFalse()
     }
 
     @Test
