@@ -82,6 +82,30 @@ class UrlPreviewParserTest {
     }
 
     @Test
+    fun `isPreviewableUrl skips matrix to mentions with any slash mangling`() {
+        // Some clients/bridges emit a mention href with extra slashes, so URI.host is not "matrix.to"
+        // and the raw marker check must survive slashes added anywhere (scheme, host or fragment).
+        // A mention must never be previewed.
+        assertThat(isPreviewableUrl("https:////matrix.to/#/@alice:example.org")).isFalse()
+        assertThat(isPreviewableUrl("https:///matrix.to/#/@alice:example.org")).isFalse()
+        assertThat(isPreviewableUrl("https://matrix.to/#//@alice:example.org")).isFalse()
+        assertThat(isPreviewableUrl("https:////matrix.to/#/!room:example.org")).isFalse()
+        assertThat(isPreviewableUrl("https:////matrix.to/#/\$eventid")).isFalse()
+    }
+
+    @Test
+    fun `find first previewable url skips a malformed mention link in the html`() {
+        val result = findFirstPreviewableUrl(
+            formattedBody = "hey",
+            htmlDocument = Jsoup.parseBodyFragment(
+                """<a href="https:////matrix.to/#/@alice:example.org">@alice:example.org</a> hello""",
+            ),
+        )
+
+        assertThat(result).isNull()
+    }
+
+    @Test
     fun `isPreviewableUrl uses the permalink parser to skip matrix identifiers`() {
         // The parser authoritatively recognises the link as a user identifier, even on a custom
         // permalink domain that the shape-based fallback would not catch.

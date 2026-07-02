@@ -42,18 +42,22 @@ internal fun isPreviewableUrl(url: String, permalinkParser: PermalinkParser? = n
     if (permalinkParser != null && permalinkParser.parse(url) !is PermalinkData.FallbackLink) {
         return false
     }
-    // Fallback when no parser is available (previews, tests): recognise matrix.to and matrix-style
-    // permalink fragments by shape so mentions are still skipped.
+    // Fallback when no parser is available (previews, tests) and a safety net for malformed permalink
+    // URLs the parser may reject: some clients/bridges emit a mention href with extra slashes
+    // ("https:////matrix.to/#/@user"), whose authority no longer parses as matrix.to. A matrix.to-style
+    // permalink always carries a "#/<sigil>" identifier fragment; collapse any run of slashes first so
+    // the marker matches no matter how the scheme, host or fragment slashes were mangled.
     if (uri.host?.lowercase()?.removePrefix("www.") == "matrix.to") return false
-    val fragment = uri.fragment.orEmpty()
-    if (matrixPermalinkFragmentSigils.any { fragment.startsWith(it) }) return false
+    val normalizedUrl = url.lowercase().replace(repeatedSlashRegex, "/")
+    if (matrixPermalinkMarkers.any { normalizedUrl.contains(it) }) return false
     return true
 }
 
 private val previewableSchemes = setOf("http", "https")
+private val repeatedSlashRegex = Regex("/{2,}")
 
-// matrix.to-style permalink fragments: /#/@user, /#/!room, /#/#alias, /#/$event.
-private val matrixPermalinkFragmentSigils = listOf("/@", "/!", "/#", "/\$")
+// matrix.to permalink identifier fragments: #/@user, #/!room, #/#alias, #/$event.
+private val matrixPermalinkMarkers = listOf("#/@", "#/!", "#/#", "#/\$")
 
 internal fun hostNameFromUrl(url: String): String {
     return tryOrNull { URI(url).host.orEmpty().removePrefix("www.") }
