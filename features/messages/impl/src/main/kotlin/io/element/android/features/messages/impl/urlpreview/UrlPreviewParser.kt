@@ -28,7 +28,17 @@ internal fun findFirstPreviewableUrl(
 }
 
 internal fun isPreviewableUrl(url: String): Boolean {
-    return tryOrNull { URI(url).scheme?.lowercase() } in setOf("http", "https")
+    val uri = tryOrNull { URI(url) } ?: return false
+    if (uri.scheme?.lowercase() !in setOf("http", "https")) return false
+    // A Matrix mention or permalink renders as a link (matrix.to, or a custom permalink base), for
+    // example https://matrix.to/#/@user:server. These are identifiers, not content to preview, so a
+    // "@nickname" mention must not fetch a preview of the server's website.
+    if (uri.host?.lowercase()?.removePrefix("www.") == "matrix.to") return false
+    val fragment = uri.fragment.orEmpty()
+    if (fragment.startsWith("/@") || fragment.startsWith("/!") || fragment.startsWith("/#") || fragment.startsWith("/\$")) {
+        return false
+    }
+    return true
 }
 
 internal fun hostNameFromUrl(url: String): String {

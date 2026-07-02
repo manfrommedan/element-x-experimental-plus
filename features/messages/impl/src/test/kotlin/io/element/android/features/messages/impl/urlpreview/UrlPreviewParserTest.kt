@@ -69,6 +69,28 @@ class UrlPreviewParserTest {
     }
 
     @Test
+    fun `isPreviewableUrl returns false for matrix identifier links`() {
+        // Mentions and permalinks must not be previewed.
+        assertThat(isPreviewableUrl("https://matrix.to/#/@alice:example.org")).isFalse()
+        assertThat(isPreviewableUrl("https://matrix.to/#/!room:example.org")).isFalse()
+        assertThat(isPreviewableUrl("https://matrix.to/#/#alias:example.org")).isFalse()
+        // Custom permalink base (not matrix.to) still carries a matrix identifier in the fragment.
+        assertThat(isPreviewableUrl("https://element.example.org/#/@bob:example.org")).isFalse()
+    }
+
+    @Test
+    fun `find first previewable url skips a mention and returns the real link`() {
+        val result = findFirstPreviewableUrl(
+            formattedBody = "hey",
+            htmlDocument = Jsoup.parseBodyFragment(
+                """<a href="https://matrix.to/#/@alice:example.org">@alice</a> see <a href="https://example.org/x">this</a>""",
+            ),
+        )
+
+        assertThat(result).isEqualTo("https://example.org/x")
+    }
+
+    @Test
     fun `hostNameFromUrl extracts hostname`() {
         assertThat(hostNameFromUrl("https://example.org/path")).isEqualTo("example.org")
     }
