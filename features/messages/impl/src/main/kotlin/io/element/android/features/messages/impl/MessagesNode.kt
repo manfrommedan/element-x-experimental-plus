@@ -18,7 +18,6 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
@@ -43,7 +42,6 @@ import io.element.android.features.messages.impl.timeline.TimelinePresenter
 import io.element.android.features.messages.impl.timeline.di.LocalTimelineItemPresenterFactories
 import io.element.android.features.messages.impl.timeline.di.TimelineItemPresenterFactories
 import io.element.android.features.messages.impl.timeline.model.TimelineItem
-import io.element.android.features.messages.impl.urlpreview.LocalActiveYouTubePlayer
 import io.element.android.features.messages.impl.urlpreview.LocalPermalinkParser
 import io.element.android.features.messages.impl.urlpreview.LocalUrlPreviewService
 import io.element.android.features.messages.impl.urlpreview.UrlPreviewService
@@ -279,7 +277,6 @@ class MessagesNode(
             io.element.android.features.messages.impl.timeline.components.LocalPhoneVoiceLayoutEnabled provides phoneVoiceLayoutEnabled,
             LocalUrlPreviewService provides urlPreviewService,
             LocalPermalinkParser provides permalinkParser,
-            LocalActiveYouTubePlayer provides remember { mutableStateOf<String?>(null) },
         ) {
             val state = presenter.present()
 

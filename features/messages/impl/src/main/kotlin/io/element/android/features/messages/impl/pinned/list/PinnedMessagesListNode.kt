@@ -12,8 +12,6 @@ import android.content.Context
 import android.view.HapticFeedbackConstants
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
@@ -28,7 +26,6 @@ import io.element.android.features.messages.impl.actionlist.ActionListPresenter
 import io.element.android.features.messages.impl.timeline.di.LocalTimelineItemPresenterFactories
 import io.element.android.features.messages.impl.timeline.di.TimelineItemPresenterFactories
 import io.element.android.features.messages.impl.timeline.model.TimelineItem
-import io.element.android.features.messages.impl.urlpreview.LocalActiveYouTubePlayer
 import io.element.android.features.messages.impl.urlpreview.LocalPermalinkParser
 import io.element.android.features.messages.impl.urlpreview.LocalUrlPreviewService
 import io.element.android.features.messages.impl.urlpreview.UrlPreviewService
@@ -117,7 +114,6 @@ class PinnedMessagesListNode(
             LocalTimelineItemPresenterFactories provides timelineItemPresenterFactories,
             LocalUrlPreviewService provides urlPreviewService,
             LocalPermalinkParser provides permalinkParser,
-            LocalActiveYouTubePlayer provides remember { mutableStateOf<String?>(null) },
         ) {
             val context = LocalContext.current
             val toastMessage = stringResource(CommonStrings.common_copied_to_clipboard)

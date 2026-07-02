@@ -8,15 +8,10 @@
 
 package io.element.android.features.messages.impl.timeline.components.event
 
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.aspectRatio
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -27,30 +22,21 @@ import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.LocalTextStyle
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
-import androidx.compose.runtime.remember
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import io.element.android.compound.theme.ElementTheme
-import io.element.android.compound.tokens.generated.CompoundIcons
 import io.element.android.features.messages.impl.urlpreview.UrlPreviewData
-import io.element.android.features.messages.impl.urlpreview.youTubeVideoId
-import io.element.android.libraries.designsystem.modifiers.roundedBackground
 import io.element.android.libraries.designsystem.preview.ElementPreview
 import io.element.android.libraries.designsystem.preview.PreviewsDayNight
 import io.element.android.libraries.designsystem.theme.components.Text
 import io.element.android.libraries.matrix.api.media.MediaSource
 import io.element.android.libraries.matrix.ui.media.MediaRequestData
-import io.element.android.libraries.ui.strings.CommonStrings
 import io.element.android.wysiwyg.link.Link
 
 @Composable
@@ -79,51 +65,15 @@ fun TimelineItemUrlPreviewView(
             )
             .semantics(mergeDescendants = true) {}
     ) {
-        val youTubeVideoId = remember(preview.url) { youTubeVideoId(preview.url) }
-        if (youTubeVideoId != null) {
-            // Inline playback is temporarily disabled: the embedded WebView player renders blank on
-            // some devices, so for now the YouTube card is preview-only and a tap opens the video in
-            // the YouTube app. The inline player (YouTubeVideoPlayer) is kept for later debugging.
-            Box(
+        preview.imageUrl?.let(::previewImageModel)?.let { imageModel ->
+            AsyncImage(
+                model = imageModel,
+                contentDescription = null,
+                contentScale = ContentScale.Crop,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .aspectRatio(16f / 9f)
-                    .background(Color.Black)
-                    .clickable { onClick(link) },
-                contentAlignment = Alignment.Center,
-            ) {
-                preview.imageUrl?.let(::previewImageModel)?.let { imageModel ->
-                    AsyncImage(
-                        model = imageModel,
-                        contentDescription = null,
-                        contentScale = ContentScale.Crop,
-                        modifier = Modifier.fillMaxSize(),
-                    )
-                }
-                Box(
-                    modifier = Modifier.roundedBackground(),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Image(
-                        imageVector = CompoundIcons.PlaySolid(),
-                        contentDescription = stringResource(CommonStrings.a11y_play),
-                        colorFilter = ColorFilter.tint(Color.White),
-                    )
-                }
-            }
-        } else {
-            preview.imageUrl?.let { imageUrl ->
-                previewImageModel(imageUrl)?.let { imageModel ->
-                    AsyncImage(
-                        model = imageModel,
-                        contentDescription = null,
-                        contentScale = ContentScale.Crop,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(112.dp),
-                    )
-                }
-            }
+                    .height(112.dp),
+            )
         }
         Column(
             modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
@@ -155,23 +105,19 @@ fun TimelineItemUrlPreviewView(
     }
 }
 
+// The homeserver's preview_url endpoint re-hosts the og:image as an mxc:// URI, so preview images
+// load through the homeserver instead of reaching the origin site directly. Any other (http/https)
+// image is ignored so a preview cannot leak the device IP to an arbitrary third-party host.
 private fun previewImageModel(imageUrl: String): Any? {
-    return when {
-        // Homeserver-proxied images are always safe to load.
-        imageUrl.startsWith("mxc://") -> MediaRequestData(
+    return if (imageUrl.startsWith("mxc://")) {
+        MediaRequestData(
             source = MediaSource(imageUrl),
             kind = MediaRequestData.Kind.Thumbnail(width = 640, height = 360),
         )
-        // YouTube thumbnails come from Google's CDN. They are allowed for the YouTube card because
-        // playing the video reaches Google anyway; every other http(s) og:image stays blocked so a
-        // generic preview cannot leak the device IP to an arbitrary third-party host.
-        isYouTubeThumbnailUrl(imageUrl) -> imageUrl
-        else -> null
+    } else {
+        null
     }
 }
-
-private fun isYouTubeThumbnailUrl(url: String): Boolean =
-    url.startsWith("https://i.ytimg.com/") || url.startsWith("https://img.youtube.com/")
 
 @PreviewsDayNight
 @Composable

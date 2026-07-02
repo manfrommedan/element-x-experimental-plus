@@ -239,7 +239,6 @@ Compose:
       - LocalSdkIntVersionProvider
       - LocalUrlPreviewService
       - LocalPhoneVoiceLayoutEnabled
-      - LocalActiveYouTubePlayer
       - LocalPermalinkParser
   CompositionLocalNaming:
     active: true

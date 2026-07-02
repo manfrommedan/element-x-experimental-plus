@@ -21,18 +21,21 @@ internal fun findFirstPreviewableUrl(
     htmlDocument: Document?,
     permalinkParser: PermalinkParser? = null,
 ): String? {
+    // Prefer the rendered links, falling back to raw scanning only when there are none. Short-circuit
+    // on the first previewable url so we never traverse the HTML document (jsoup select) when a text
+    // link already matches.
     val textUrls = formattedBody.extractUrlSpans()
         .ifEmpty { extractRawTextUrls(formattedBody.toString()) }
-    val htmlUrls = htmlDocument
+    textUrls.firstOrNull { isPreviewableUrl(it, permalinkParser) }?.let { return it }
+    return htmlDocument
         ?.select("a[href]")
-        ?.map { it.attr("href") }
-        .orEmpty()
-    return (textUrls + htmlUrls).firstOrNull { isPreviewableUrl(it, permalinkParser) }
+        ?.firstOrNull { isPreviewableUrl(it.attr("href"), permalinkParser) }
+        ?.attr("href")
 }
 
 internal fun isPreviewableUrl(url: String, permalinkParser: PermalinkParser? = null): Boolean {
     val uri = tryOrNull { URI(url) } ?: return false
-    if (uri.scheme?.lowercase() !in setOf("http", "https")) return false
+    if (uri.scheme?.lowercase() !in previewableSchemes) return false
     // Authoritative: a Matrix mention or permalink (@user, room link, event permalink) renders as a
     // link, and the Matrix parser recognises it as an identifier rather than a FallbackLink. Those
     // are not content to preview, so a "@nickname" mention must not fetch a website preview.
@@ -46,6 +49,8 @@ internal fun isPreviewableUrl(url: String, permalinkParser: PermalinkParser? = n
     if (matrixPermalinkFragmentSigils.any { fragment.startsWith(it) }) return false
     return true
 }
+
+private val previewableSchemes = setOf("http", "https")
 
 // matrix.to-style permalink fragments: /#/@user, /#/!room, /#/#alias, /#/$event.
 private val matrixPermalinkFragmentSigils = listOf("/@", "/!", "/#", "/\$")
