@@ -76,15 +76,17 @@ fun TimelineItemTextView(
         val text = getTextWithResolvedMentions(content)
         val urlPreviewService = LocalUrlPreviewService.current
         val permalinkParser = LocalPermalinkParser.current
-        val previewUrl = remember(content.formattedBody, content.htmlDocument, permalinkParser) {
-            findFirstPreviewableUrl(content.formattedBody, content.htmlDocument, permalinkParser)
-        }
-        val urlPreview by produceState<UrlPreviewData?>(null, previewUrl, showUrlPreviews, urlPreviewService) {
-            value = if (showUrlPreviews && previewUrl != null) {
-                urlPreviewService.getPreview(previewUrl).getOrNull()
+        // Only look for a previewable url when the feature is on, so with previews disabled the timeline
+        // does no preview-specific work and behaves like upstream.
+        val previewUrl = remember(content.formattedBody, content.htmlDocument, permalinkParser, showUrlPreviews) {
+            if (showUrlPreviews) {
+                findFirstPreviewableUrl(content.formattedBody, content.htmlDocument, permalinkParser)
             } else {
                 null
             }
+        }
+        val urlPreview by produceState<UrlPreviewData?>(null, previewUrl, urlPreviewService) {
+            value = previewUrl?.let { urlPreviewService.getPreview(it).getOrNull() }
         }
         val preview = urlPreview
         if (preview != null) {
