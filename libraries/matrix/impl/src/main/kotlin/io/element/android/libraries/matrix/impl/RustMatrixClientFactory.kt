@@ -60,6 +60,7 @@ class RustMatrixClientFactory(
     private val sessionStore: SessionStore,
     private val userAgentProvider: UserAgentProvider,
     private val proxyProvider: ProxyProvider,
+    private val userCertificatesProvider: UserCertificatesProvider,
     private val clock: SystemClock,
     private val analyticsService: AnalyticsService,
     private val featureFlagService: FeatureFlagService,
@@ -151,6 +152,10 @@ class RustMatrixClientFactory(
             }
             .setSessionDelegate(sessionDelegate)
             .userAgent(userAgentProvider.provide())
+            // mxtr-proxy: pin the fork's root certificates on the main client
+            // connection so the homeserver traffic can be routed through the
+            // anti-censorship proxy without certificate errors.
+            .addRootCertificates(userCertificatesProvider.provides())
             .autoEnableBackups(true)
             .autoEnableCrossSigning(true)
             .roomKeyRecipientStrategy(
