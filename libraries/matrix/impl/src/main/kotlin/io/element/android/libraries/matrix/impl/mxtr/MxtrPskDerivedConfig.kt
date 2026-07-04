@@ -19,6 +19,8 @@ data class MxtrPskDerivedConfig(
     val idleThresholdMs: Int,
 ) {
     companion object {
+        // Explicit parentheses below document the on-the-wire byte/bit layout; keep them.
+        @Suppress("UnnecessaryParentheses")
         fun derive(psk: ByteArray): MxtrPskDerivedConfig {
             val out = MxtrCrypto.hkdfSha256(
                 ikm = psk,

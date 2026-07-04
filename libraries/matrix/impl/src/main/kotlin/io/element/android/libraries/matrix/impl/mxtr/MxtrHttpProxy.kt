@@ -169,9 +169,10 @@ object MxtrHttpProxy {
             val targetHost = targetHostPort.substring(0, colon)
             val targetPort = targetHostPort.substring(colon + 1).toInt()
 
+            // Drain the CONNECT request headers until the blank line (or EOF).
             while (true) {
-                val line = reader.readLine() ?: break
-                if (line.isEmpty()) break
+                val line = reader.readLine()
+                if (line.isNullOrEmpty()) break
             }
 
             // One retry after a session-level failure: server may have dropped

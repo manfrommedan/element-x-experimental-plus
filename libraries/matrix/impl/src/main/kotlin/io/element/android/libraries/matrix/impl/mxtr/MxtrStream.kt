@@ -22,6 +22,8 @@ import java.util.concurrent.locks.ReentrantLock
  * frame-level writes as InputStream/OutputStream so existing copy-loop code
  * works unchanged.
  */
+// Explicit parentheses below document the on-the-wire byte/bit layout; keep them.
+@Suppress("UnnecessaryParentheses")
 internal class MxtrStream(
     val id: Int,
     private val session: MxtrSession,

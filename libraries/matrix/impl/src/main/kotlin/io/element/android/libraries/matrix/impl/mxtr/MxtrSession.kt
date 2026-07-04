@@ -33,6 +33,8 @@ import javax.net.ssl.SSLSocket
  *
  * stream_id 0 reserved for control. Client allocates odd IDs (1, 3, 5, ...).
  */
+// Explicit parentheses below document the on-the-wire byte/bit layout; keep them.
+@Suppress("UnnecessaryParentheses")
 internal class MxtrSession private constructor(
     private val socket: Socket,
     private val input: DataInputStream,
@@ -353,9 +355,9 @@ internal class MxtrSession private constructor(
         private const val NONCE_LEN = 16
         private const val MAC_LEN = 16
         private const val MAX_HS_PAD = 255
-        private const val MAX_PLAINTEXT = 16384 - 2
+        private const val MAX_PLAINTEXT = 16_384 - 2
         const val MAX_STREAM_PAYLOAD = MAX_PLAINTEXT - FRAME_HEADER
-        private const val MAX_PADDED = 16384
+        private const val MAX_PADDED = 16_384
         private const val MAX_CIPHERTEXT = MAX_PADDED + 16
 
         // PADME-style ladder symmetric with the Go server's padSizes. 13 rungs
@@ -365,7 +367,7 @@ internal class MxtrSession private constructor(
         // matters most. Both ends apply this independently — the wire only
         // ever sees the encrypted ciphertext length, so client and server
         // need not synchronise rung choice.
-        private val PAD_SIZES = intArrayOf(256, 384, 512, 768, 1024, 1536, 2048, 3072, 4096, 6144, 8192, 12288, 16384)
+        private val PAD_SIZES = intArrayOf(256, 384, 512, 768, 1024, 1536, 2048, 3072, 4096, 6144, 8192, 12_288, 16_384)
         private val RNG = SecureRandom()
 
         private fun nextPadSize(n: Int): Int {

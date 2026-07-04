@@ -34,6 +34,8 @@ data class MxtrShareData(
     }
 }
 
+// Explicit parentheses below document the on-the-wire byte/bit layout; keep them.
+@Suppress("UnnecessaryParentheses")
 object MxtrShareString {
     // Format: mxtr://<base58-32B-psk>@<ipv4-or-bracketed-ipv6>:<port>?sni=<edge-name>
     // Hostnames in the host position are refused so InetSocketAddress(host, port)

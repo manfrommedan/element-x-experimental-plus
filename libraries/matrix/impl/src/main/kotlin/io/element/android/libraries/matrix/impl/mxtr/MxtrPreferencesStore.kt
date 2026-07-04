@@ -10,11 +10,12 @@ package io.element.android.libraries.matrix.impl.mxtr
 
 import android.content.Context
 import androidx.datastore.core.DataStore
+import androidx.datastore.preferences.core.PreferenceDataStoreFactory
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
-import androidx.datastore.preferences.preferencesDataStore
+import androidx.datastore.preferences.preferencesDataStoreFile
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -31,33 +32,31 @@ import timber.log.Timber
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicReference
 
-private val Context.mxtrDataStore: DataStore<Preferences> by preferencesDataStore(name = "mxtr_prefs")
-
 private val KEY_ENABLED = booleanPreferencesKey("enabled")
 private val KEY_SHARE = stringPreferencesKey("share_string")
 
 class MxtrPreferencesStore(private val context: Context) {
-    fun enabledFlow(): Flow<Boolean> = context.mxtrDataStore.data.map {
+    fun enabledFlow(): Flow<Boolean> = dataStore(context).data.map {
         // Enabled requires both the switch and a valid share-string. Treat
         // absent/invalid share-string as disabled even if KEY_ENABLED is true,
         // so a half-configured state never flips the proxy on.
         configFrom(it).enabled
     }
 
-    fun shareStringFlow(): Flow<String> = context.mxtrDataStore.data.map {
+    fun shareStringFlow(): Flow<String> = dataStore(context).data.map {
         it[KEY_SHARE].orEmpty()
     }
 
     suspend fun setEnabled(enabled: Boolean) {
-        context.mxtrDataStore.edit { it[KEY_ENABLED] = enabled }
+        dataStore(context).edit { it[KEY_ENABLED] = enabled }
     }
 
     suspend fun setShareString(value: String) {
-        context.mxtrDataStore.edit { it[KEY_SHARE] = value }
+        dataStore(context).edit { it[KEY_SHARE] = value }
     }
 
     suspend fun clearShareString() {
-        context.mxtrDataStore.edit { it.remove(KEY_SHARE) }
+        dataStore(context).edit { it.remove(KEY_SHARE) }
     }
 
     /**
@@ -75,11 +74,25 @@ class MxtrPreferencesStore(private val context: Context) {
     }
 
     private suspend fun readOnce(): MxtrRuntimeConfig {
-        return configFrom(context.mxtrDataStore.data.first())
+        return configFrom(dataStore(context).data.first())
     }
 
     companion object {
         private const val TAG = "MxtrPrefsStore"
+
+        // Process-wide DataStore singleton for "mxtr_prefs". It must be a single
+        // instance per process because many short-lived MxtrPreferencesStore
+        // instances share the same file; creating it exactly once here keeps that
+        // guarantee (the previous `by preferencesDataStore` delegate did the same).
+        @Volatile
+        private var dataStoreInstance: DataStore<Preferences>? = null
+
+        private fun dataStore(context: Context): DataStore<Preferences> =
+            dataStoreInstance ?: synchronized(this) {
+                dataStoreInstance ?: PreferenceDataStoreFactory.create {
+                    context.applicationContext.preferencesDataStoreFile("mxtr_prefs")
+                }.also { dataStoreInstance = it }
+            }
 
         // Single shared cache populated at process start by startCacheCollector
         // and kept fresh by the same collector. Reads from snapshotBlocking()
@@ -119,7 +132,7 @@ class MxtrPreferencesStore(private val context: Context) {
             // (bounded single-shot read), but Application.onCreate stays
             // Strict-mode clean.
             collectorScope.launch {
-                store.context.mxtrDataStore.data
+                dataStore(store.context).data
                     .map { configFrom(it) }
                     .retryWhen { cause, _ ->
                         // ME3-03: log + back off + retry instead of letting
@@ -144,7 +157,8 @@ class MxtrPreferencesStore(private val context: Context) {
             // and switch, but DefaultProxyProvider, MxtrHttpProxy and the
             // CCT-aware launcher all gate on .enabled and become no-ops.
             val apiOk = android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.P
-            val on = apiOk && (prefs[KEY_ENABLED] ?: false) && data != null
+            val switchOn = prefs[KEY_ENABLED] ?: false
+            val on = apiOk && switchOn && data != null
             return MxtrRuntimeConfig(enabled = on, data = data)
         }
     }
