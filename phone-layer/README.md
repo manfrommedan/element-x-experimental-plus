@@ -14,15 +14,15 @@ val isPhoneLayerBuild = File("phone-layer/README.md").exists()
 
 Drop the `phone-layer/` directory from the working tree and the build produces
 a stock Element X APK with no trace of the fork. Keep it and the build adds a
-`plus` product flavor that wires in the brand assets and the embedded Element
-Call bundle.
+`plus` product flavor that wires in the brand assets. The embedded Element Call
+bundle itself is delivered by the `element-call-embedded-plus` AAR in
+`features/call/impl/libs`.
 
 ## Layout
 
 | Path | What it is |
 | --- | --- |
 | `brand/` | App icon, adaptive-icon background, brand strings (`Element X+`). |
-| `element-call-bundle/` | Asset-only module that ships the patched Element Call bundle. |
 | `docs/` | Fork-specific docs: `EXPERIMENTS.md`, `classic-call-rfc.md`, ru variants. |
 
 The phone-style call code itself (`CallSummary`, `CallSummaryStore`,

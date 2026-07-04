@@ -317,7 +317,6 @@ dependencies {
         implementation(projects.features.enterprise.implFoss)
         "vanillaImplementation"(projects.appicon.element)
         "plusImplementation"(projects.phoneLayer.brand)
-        "plusImplementation"(projects.phoneLayer.elementCallBundle)
     } else {
         implementation(projects.features.enterprise.implFoss)
         implementation(projects.appicon.element)
