@@ -31,7 +31,7 @@ dependencyResolutionManagement {
             url = uri("https://repo1.maven.org/maven2/")
         }
         flatDir {
-            dirs("libraries/matrix/libs")
+            dirs("libraries/matrix/libs", "features/call/impl/libs")
         }
     }
 }

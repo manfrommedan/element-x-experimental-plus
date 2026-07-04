@@ -87,7 +87,9 @@ dependencies {
     implementation(libs.androidx.webkit)
     implementation(libs.coil.compose)
     implementation(libs.serialization.json)
-    implementation(libs.element.call.embedded)
+    // Fork phone-voice Element Call, built from element-call-experimental-plus
+    // (embedded/android AAR) instead of the stock upstream element-call-embedded.
+    implementation(":element-call-embedded-plus@aar")
     api(projects.features.call.api)
 
     testCommonDependencies(libs, true)
