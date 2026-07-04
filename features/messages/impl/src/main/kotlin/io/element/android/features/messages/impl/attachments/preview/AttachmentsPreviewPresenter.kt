@@ -216,6 +216,16 @@ class AttachmentsPreviewPresenter(
             }
         }
 
+        // Invalidate any media pre-processed for a previous attachment set, so a send
+        // never flushes a ReadyToUpload that no longer matches the current selection.
+        fun resetPreparedSendState() {
+            preprocessMediaJob?.cancel()
+            preprocessMediaJob = null
+            sendActionState.value.mediaUploadInfoList()?.forEach(::cleanUp)
+            mediaSender.cleanUp()
+            sendActionState.value = SendActionState.Idle
+        }
+
         fun cancelAndDismiss() {
             displayFileTooLargeError = false
             displayImageEditError = false
@@ -262,6 +272,10 @@ class AttachmentsPreviewPresenter(
                         currentIndex >= attachmentList.size -> currentIndex = attachmentList.lastIndex
                         event.index < currentIndex -> currentIndex -= 1
                     }
+                    // The set changed: drop any media that was pre-processed for the
+                    // previous set, otherwise a following send can flush a stale
+                    // ReadyToUpload for an attachment that is no longer here.
+                    resetPreparedSendState()
                 }
                 is AttachmentsPreviewEvent.AddMore -> {
                     if (event.picked.isEmpty()) return
@@ -277,6 +291,9 @@ class AttachmentsPreviewPresenter(
                         appliedEditsList.add(AttachmentImageEdits())
                         editedTempFiles.add(null)
                     }
+                    // Adding items turns a single-attachment (pre-processed) flow into a
+                    // bulk one; discard the earlier ReadyToUpload so it can't be sent.
+                    resetPreparedSendState()
                 }
                 is AttachmentsPreviewEvent.SendAttachment -> {
                     ongoingSendAttachmentJob.value = coroutineScope.launch {

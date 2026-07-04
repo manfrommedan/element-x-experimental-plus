@@ -167,6 +167,28 @@ class AttachmentsPreviewPresenterTest : RobolectricTest() {
     }
 
     @Test
+    fun `present - adding an attachment discards the pre-processed single-attachment send state`() = runTest {
+        val processLatch = CompletableDeferred<Unit>()
+        val mediaPreProcessor = FakeMediaPreProcessor(processLatch)
+        val presenter = createAttachmentsPreviewPresenter(
+            mediaPreProcessor = mediaPreProcessor,
+        )
+        presenter.test {
+            val initialState = awaitItem()
+            assertThat(initialState.sendActionState).isEqualTo(SendActionState.Idle)
+            // The lone attachment is pre-processed up-front, reaching a Sending state.
+            processLatch.complete(Unit)
+            advanceUntilIdle()
+            assertThat(expectMostRecentItem().sendActionState).isInstanceOf(SendActionState.Sending::class.java)
+            // Attaching another item must discard that prepared state; otherwise a
+            // following send would flush the ReadyToUpload of the now-stale first item.
+            initialState.eventSink(AttachmentsPreviewEvent.AddMore(listOf(Uri.EMPTY to "image/png")))
+            advanceUntilIdle()
+            assertThat(expectMostRecentItem().sendActionState).isEqualTo(SendActionState.Idle)
+        }
+    }
+
+    @Test
     fun `present - send media before pre-processing success scenario`() = runTest {
         val sendFileResult =
             lambdaRecorder<File, FileInfo, String?, String?, EventId?, Result<FakeMediaUploadHandler>> { _, _, _, _, _ ->
