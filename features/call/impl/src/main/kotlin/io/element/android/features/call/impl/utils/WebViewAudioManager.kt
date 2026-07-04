@@ -213,7 +213,7 @@ class WebViewAudioManager(
 
     /** AUDIOFOCUS_GAIN_TRANSIENT so background music auto-resumes after hangup. */
     private fun claimVoipAudioFocus() {
-        runCatching {
+        runCatchingExceptions {
             val request = AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN_TRANSIENT)
                 .setAudioAttributes(
                     AudioAttributes.Builder()
@@ -232,7 +232,7 @@ class WebViewAudioManager(
 
     /** Bumps a quietly-set call stream up to AUDIBLE_CALL_VOLUME_TARGET_RATIO of max. */
     private fun ensureCallVolumeIsAudible() {
-        runCatching {
+        runCatchingExceptions {
             val stream = AudioManager.STREAM_VOICE_CALL
             val maxVolume = audioManager.getStreamMaxVolume(stream)
             val currentVolume = audioManager.getStreamVolume(stream)
@@ -249,7 +249,7 @@ class WebViewAudioManager(
 
     private fun abandonVoipAudioFocus() {
         audioFocusRequest?.let { request ->
-            runCatching { audioManager.abandonAudioFocusRequest(request) }
+            runCatchingExceptions { audioManager.abandonAudioFocusRequest(request) }
                 .onFailure { Timber.w(it, "Failed to abandon VoIP audio focus") }
             audioFocusRequest = null
         }

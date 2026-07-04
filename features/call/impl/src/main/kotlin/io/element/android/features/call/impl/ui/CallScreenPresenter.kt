@@ -22,6 +22,7 @@ import dev.zacsweers.metro.Assisted
 import dev.zacsweers.metro.AssistedFactory
 import dev.zacsweers.metro.AssistedInject
 import im.vector.app.features.analytics.plan.MobileScreen
+import io.element.android.libraries.core.extensions.runCatchingExceptions
 import io.element.android.compound.theme.ElementTheme
 import io.element.android.features.call.api.CallData
 import io.element.android.features.call.api.CallSummary
@@ -318,7 +319,7 @@ class CallScreenPresenter(
 
     /** Returns the event_id from a fromWidget send_event response matching a tracked requestId, or null. */
     private fun extractNotifyEventId(rawMessage: String, pending: MutableSet<String>): String? {
-        val parsed = runCatching { Json.parseToJsonElement(rawMessage).jsonObject }.getOrNull() ?: return null
+        val parsed = runCatchingExceptions { Json.parseToJsonElement(rawMessage).jsonObject }.getOrNull() ?: return null
         val api = parsed["api"]?.jsonPrimitive?.contentOrNull
         val action = parsed["action"]?.jsonPrimitive?.contentOrNull
         val response = parsed["response"] as? JsonObject
@@ -344,7 +345,7 @@ class CallScreenPresenter(
         }
         Timber.d("Persisting call summary $summary for event $eventId")
         appCoroutineScope.launch(dispatchers.io) {
-            runCatching { callSummaryStore.save(EventId(eventId), summary) }
+            runCatchingExceptions { callSummaryStore.save(EventId(eventId), summary) }
                 .onFailure { Timber.w(it, "Failed to persist call summary for $eventId") }
         }
     }

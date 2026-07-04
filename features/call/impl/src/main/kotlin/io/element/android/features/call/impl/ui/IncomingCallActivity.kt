@@ -24,6 +24,7 @@ import androidx.core.content.IntentCompat
 import androidx.core.content.getSystemService
 import androidx.lifecycle.lifecycleScope
 import dev.zacsweers.metro.Inject
+import io.element.android.libraries.core.extensions.runCatchingExceptions
 import io.element.android.compound.colors.SemanticColorsLightDark
 import io.element.android.features.call.api.CallData
 import io.element.android.features.call.api.ElementCallEntryPoint
@@ -224,7 +225,7 @@ class IncomingCallActivity : AppCompatActivity() {
     }
 
     private fun stopRingtone() {
-        ringtonePlayer?.runCatching {
+        ringtonePlayer?.runCatchingExceptions {
             stop()
             release()
         }
