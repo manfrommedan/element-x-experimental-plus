@@ -187,6 +187,7 @@ class AttachmentsPreviewCaptionTest {
             mediaOptimizationSelectorPresenterFactory = FakeMediaOptimizationSelectorPresenterFactory(
                 fakePresenter = {
                     MediaOptimizationSelectorState(
+                        index = 0,
                         maxUploadSize = AsyncData.Uninitialized,
                         videoSizeEstimations = AsyncData.Uninitialized,
                         isImageOptimizationEnabled = null,

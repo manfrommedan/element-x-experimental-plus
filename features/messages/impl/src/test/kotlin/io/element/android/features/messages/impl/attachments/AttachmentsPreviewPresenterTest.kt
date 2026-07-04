@@ -121,8 +121,8 @@ class AttachmentsPreviewPresenterTest : RobolectricTest() {
             assertThat(awaitItem().sendActionState).isEqualTo(SendActionState.Sending.Processing(displayProgress = false))
             initialState.eventSink(AttachmentsPreviewEvent.SendAttachment)
             assertThat(awaitItem().sendActionState).isEqualTo(SendActionState.Sending.Processing(displayProgress = true))
-            assertThat(awaitItem().sendActionState).isEqualTo(SendActionState.Sending.ReadyToUpload(mediaUploadInfo))
-            assertThat(awaitItem().sendActionState).isEqualTo(SendActionState.Sending.Uploading(mediaUploadInfo))
+            assertThat(awaitItem().sendActionState).isEqualTo(SendActionState.Sending.ReadyToUpload(listOf(mediaUploadInfo)))
+            assertThat(awaitItem().sendActionState).isEqualTo(SendActionState.Sending.Uploading(listOf(mediaUploadInfo)))
             assertThat(awaitItem().sendActionState).isEqualTo(SendActionState.Done)
             sendFileResult.assertions().isCalledOnce()
             onDoneListener.assertions().isCalledOnce()
@@ -157,8 +157,8 @@ class AttachmentsPreviewPresenterTest : RobolectricTest() {
             advanceUntilIdle()
             assertThat(awaitItem().sendActionState).isEqualTo(SendActionState.Sending.Processing(displayProgress = false))
             initialState.eventSink(AttachmentsPreviewEvent.SendAttachment)
-            assertThat(awaitItem().sendActionState).isEqualTo(SendActionState.Sending.ReadyToUpload(mediaUploadInfo))
-            assertThat(awaitItem().sendActionState).isEqualTo(SendActionState.Sending.Uploading(mediaUploadInfo))
+            assertThat(awaitItem().sendActionState).isEqualTo(SendActionState.Sending.ReadyToUpload(listOf(mediaUploadInfo)))
+            assertThat(awaitItem().sendActionState).isEqualTo(SendActionState.Sending.Uploading(listOf(mediaUploadInfo)))
             assertThat(awaitItem().sendActionState).isEqualTo(SendActionState.Done)
             sendFileResult.assertions().isCalledOnce()
             onDoneListener.assertions().isCalledOnce()
@@ -193,8 +193,8 @@ class AttachmentsPreviewPresenterTest : RobolectricTest() {
             // Pre-processing finishes
             processLatch.complete(Unit)
             assertThat(awaitItem().sendActionState).isEqualTo(SendActionState.Sending.Processing(displayProgress = true))
-            assertThat(awaitItem().sendActionState).isEqualTo(SendActionState.Sending.ReadyToUpload(mediaUploadInfo))
-            assertThat(awaitItem().sendActionState).isEqualTo(SendActionState.Sending.Uploading(mediaUploadInfo))
+            assertThat(awaitItem().sendActionState).isEqualTo(SendActionState.Sending.ReadyToUpload(listOf(mediaUploadInfo)))
+            assertThat(awaitItem().sendActionState).isEqualTo(SendActionState.Sending.Uploading(listOf(mediaUploadInfo)))
             assertThat(awaitItem().sendActionState).isEqualTo(SendActionState.Done)
             sendFileResult.assertions().isCalledOnce()
             onDoneListener.assertions().isCalledOnce()
@@ -411,18 +411,18 @@ class AttachmentsPreviewPresenterTest : RobolectricTest() {
             assertThat(initialState.sendActionState).isEqualTo(SendActionState.Idle)
             initialState.eventSink(AttachmentsPreviewEvent.SendAttachment)
             assertThat(awaitItem().sendActionState).isEqualTo(SendActionState.Sending.Processing(displayProgress = false))
-            assertThat(awaitItem().sendActionState).isEqualTo(SendActionState.Sending.ReadyToUpload(mediaUploadInfo))
-            assertThat(awaitItem().sendActionState).isEqualTo(SendActionState.Sending.Uploading(mediaUploadInfo))
+            assertThat(awaitItem().sendActionState).isEqualTo(SendActionState.Sending.ReadyToUpload(listOf(mediaUploadInfo)))
+            assertThat(awaitItem().sendActionState).isEqualTo(SendActionState.Sending.Uploading(listOf(mediaUploadInfo)))
 
             // Check that the onDoneListener is called so the screen would be dismissed
             onDoneListenerResult.assertions().isCalledOnce()
 
             val failureState = awaitItem()
-            assertThat(failureState.sendActionState).isEqualTo(SendActionState.Failure(failure, mediaUploadInfo))
+            assertThat(failureState.sendActionState).isEqualTo(SendActionState.Failure(failure, listOf(mediaUploadInfo)))
             sendFileResult.assertions().isCalledOnce()
             failureState.eventSink(AttachmentsPreviewEvent.CancelAndClearSendState)
             val clearedState = awaitLastSequentialItem()
-            assertThat(clearedState.sendActionState).isEqualTo(SendActionState.Sending.ReadyToUpload(mediaUploadInfo))
+            assertThat(clearedState.sendActionState).isEqualTo(SendActionState.Sending.ReadyToUpload(listOf(mediaUploadInfo)))
         }
     }
 
@@ -444,10 +444,10 @@ class AttachmentsPreviewPresenterTest : RobolectricTest() {
             assertThat(initialState.sendActionState).isEqualTo(SendActionState.Idle)
             initialState.eventSink(AttachmentsPreviewEvent.SendAttachment)
             assertThat(awaitItem().sendActionState).isEqualTo(SendActionState.Sending.Processing(displayProgress = false))
-            assertThat(awaitItem().sendActionState).isEqualTo(SendActionState.Sending.ReadyToUpload(mediaUploadInfo))
-            assertThat(awaitItem().sendActionState).isEqualTo(SendActionState.Sending.Uploading(mediaUploadInfo))
+            assertThat(awaitItem().sendActionState).isEqualTo(SendActionState.Sending.ReadyToUpload(listOf(mediaUploadInfo)))
+            assertThat(awaitItem().sendActionState).isEqualTo(SendActionState.Sending.Uploading(listOf(mediaUploadInfo)))
             initialState.eventSink(AttachmentsPreviewEvent.CancelAndClearSendState)
-            assertThat(awaitItem().sendActionState).isEqualTo(SendActionState.Sending.ReadyToUpload(mediaUploadInfo))
+            assertThat(awaitItem().sendActionState).isEqualTo(SendActionState.Sending.ReadyToUpload(listOf(mediaUploadInfo)))
             // The sending is cancelled and the state is kept at ReadyToUpload
             ensureAllEventsConsumed()
 
@@ -475,6 +475,7 @@ class AttachmentsPreviewPresenterTest : RobolectricTest() {
             onDoneListener = onDoneListenerResult,
             mediaOptimizationSelectorPresenterFactory = FakeMediaOptimizationSelectorPresenterFactory {
                 MediaOptimizationSelectorState(
+                    index = 0,
                     // Set a max upload size smaller than the file size
                     maxUploadSize = AsyncData.Success(maxUploadSize),
                     videoSizeEstimations = AsyncData.Uninitialized,
@@ -514,6 +515,7 @@ class AttachmentsPreviewPresenterTest : RobolectricTest() {
             onDoneListener = onDoneListenerResult,
             mediaOptimizationSelectorPresenterFactory = FakeMediaOptimizationSelectorPresenterFactory {
                 MediaOptimizationSelectorState(
+                    index = 0,
                     // Set a max upload size smaller than the file size
                     maxUploadSize = AsyncData.Success(Long.MAX_VALUE),
                     videoSizeEstimations = AsyncData.Success(
@@ -829,6 +831,7 @@ class AttachmentsPreviewPresenterTest : RobolectricTest() {
             displayMediaQualitySelectorViews = false,
             mediaOptimizationSelectorPresenterFactory = FakeMediaOptimizationSelectorPresenterFactory {
                 MediaOptimizationSelectorState(
+                    index = 0,
                     maxUploadSize = AsyncData.Success(250_000_000L),
                     videoSizeEstimations = AsyncData.Success(
                         persistentListOf(
@@ -878,6 +881,7 @@ class AttachmentsPreviewPresenterTest : RobolectricTest() {
         mediaOptimizationSelectorPresenterFactory: FakeMediaOptimizationSelectorPresenterFactory = FakeMediaOptimizationSelectorPresenterFactory(
             fakePresenter = {
                 MediaOptimizationSelectorState(
+                    index = 0,
                     maxUploadSize = AsyncData.Uninitialized,
                     videoSizeEstimations = AsyncData.Uninitialized,
                     isImageOptimizationEnabled = null,

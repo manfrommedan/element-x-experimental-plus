@@ -9,6 +9,7 @@
 
 package io.element.android.features.messages.impl.messagecomposer
 
+import io.element.android.libraries.featureflag.test.FakeFeatureFlagService
 import android.net.Uri
 import app.cash.turbine.ReceiveTurbine
 import com.google.common.truth.Truth.assertThat
@@ -274,6 +275,7 @@ class MessageComposerPresenterSlashCommandTest {
         mediaOptimizationConfigProvider: FakeMediaOptimizationConfigProvider = FakeMediaOptimizationConfigProvider(),
         threadRoot: ThreadId? = null,
         slashCommandService: SlashCommandService = FakeSlashCommandService(),
+        featureFlagService: FakeFeatureFlagService = FakeFeatureFlagService(),
     ) = MessageComposerPresenter(
         navigator = navigator,
         sessionCoroutineScope = this,

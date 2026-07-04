@@ -102,6 +102,23 @@ class DefaultPickerProvider(
     }
 
     /**
+     * Upstream API variant: multiple gallery items yielding raw [Uri]s (no mime pairs).
+     * Kept alongside our [registerMultipleGalleryPicker] so both API surfaces resolve.
+     */
+    @Composable
+    override fun registerGalleryMultiPicker(
+        onResult: (uris: List<Uri>) -> Unit,
+    ): PickerLauncher<PickVisualMediaRequest, List<Uri>> {
+        return if (LocalInspectionMode.current) {
+            NoOpPickerLauncher { onResult(emptyList()) }
+        } else {
+            rememberPickerLauncher(type = PickerType.MultipleImageAndVideo(maxItems = 60)) { uris ->
+                onResult(uris)
+            }
+        }
+    }
+
+    /**
      * Remembers and returns a [PickerLauncher] for a file of a certain [mimeType] (any type of file, by default).
      * [onResult] will be called with either the selected file's [Uri] or `null` if nothing was selected.
      */
@@ -122,6 +139,24 @@ class DefaultPickerProvider(
     }
 
     /**
+     * Remembers and returns a [PickerLauncher] for selecting multiple files of a certain [mimeType].
+     * [onResult] will be called with the list of selected file URIs.
+     */
+    @Composable
+    override fun registerFileMultiPicker(
+        mimeType: String,
+        onResult: (uris: List<Uri>) -> Unit,
+    ): PickerLauncher<Array<String>, List<Uri>> {
+        return if (LocalInspectionMode.current) {
+            NoOpPickerLauncher { onResult(emptyList()) }
+        } else {
+            rememberPickerLauncher(type = PickerType.FileMulti(mimeType)) { uris ->
+                onResult(uris)
+            }
+        }
+    }
+
+    /**
      * Remembers and returns a [PickerLauncher] for taking a photo with a camera app.
      * @param [onResult] will be called with either the photo's [Uri] or `null` if nothing was selected.
      */
@@ -134,7 +169,6 @@ class DefaultPickerProvider(
             val tmpFile = remember { getTemporaryFile("photo.jpg") }
             val tmpFileUri = remember(tmpFile) { getTemporaryUri(tmpFile) }
             rememberPickerLauncher(type = PickerType.Camera.Photo(tmpFileUri)) { success ->
-                // Execute callback
                 onResult(if (success) tmpFileUri else null)
             }
         }
@@ -146,7 +180,6 @@ class DefaultPickerProvider(
      */
     @Composable
     override fun registerCameraVideoPicker(onResult: (Uri?) -> Unit): PickerLauncher<Uri, Boolean> {
-        // Tests and UI preview can't handle Context or FileProviders, so we might as well disable the whole picker
         return if (LocalInspectionMode.current) {
             NoOpPickerLauncher { onResult(null) }
         } else {

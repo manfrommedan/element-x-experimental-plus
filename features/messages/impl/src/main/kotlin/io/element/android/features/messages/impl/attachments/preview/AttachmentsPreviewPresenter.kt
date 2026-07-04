@@ -141,6 +141,7 @@ class AttachmentsPreviewPresenter(
         val mediaAttachment = current as Attachment.Media
         val mediaOptimizationSelectorPresenter = remember(currentIndex) {
             mediaOptimizationSelectorPresenterFactory.create(
+                index = currentIndex,
                 localMedia = mediaAttachment.localMedia,
                 sendAsFile = mediaAttachment.sendAsFile,
             )
@@ -228,7 +229,7 @@ class AttachmentsPreviewPresenter(
                 (attach as? Attachment.Media)?.let { temporaryUriDeleter.delete(it.localMedia.uri) }
             }
             editedTempFiles.forEach { it?.safeDelete() }
-            sendActionState.value.mediaUploadInfo()?.let(::cleanUp)
+            sendActionState.value.mediaUploadInfoList()?.forEach(::cleanUp)
             sendActionState.value = SendActionState.Done
             onDoneListener()
         }
@@ -300,7 +301,7 @@ class AttachmentsPreviewPresenter(
                             if (sendActionState.value is SendActionState.Sending.Processing) {
                                 sendActionState.value = SendActionState.Sending.Processing(displayProgress = true)
                             }
-                            val mediaUploadInfo = observableSendState.firstInstanceOf<SendActionState.Sending.ReadyToUpload>().mediaInfo
+                            val mediaUploadInfo = observableSendState.firstInstanceOf<SendActionState.Sending.ReadyToUpload>().mediaInfos.first()
                             val editedTempFileToDelete = editedTempFiles.getOrNull(0)
                             if (editedTempFiles.isNotEmpty()) editedTempFiles[0] = null
                             if (coroutineContext.isActive) {
@@ -356,9 +357,9 @@ class AttachmentsPreviewPresenter(
                         ongoingSendAttachmentJob.value = null
                     }
 
-                    val mediaUploadInfo = sendActionState.value.mediaUploadInfo()
-                    sendActionState.value = if (mediaUploadInfo != null) {
-                        SendActionState.Sending.ReadyToUpload(mediaUploadInfo)
+                    val mediaUploadInfos = sendActionState.value.mediaUploadInfoList()
+                    sendActionState.value = if (mediaUploadInfos != null) {
+                        SendActionState.Sending.ReadyToUpload(mediaUploadInfos)
                     } else {
                         SendActionState.Idle
                     }
@@ -521,14 +522,14 @@ class AttachmentsPreviewPresenter(
         ).fold(
             onSuccess = { mediaUploadInfo ->
                 Timber.d("Media ${mediaUploadInfo.file.path.orEmpty().hash()} finished processing, it's now ready to upload")
-                sendActionState.value = SendActionState.Sending.ReadyToUpload(mediaUploadInfo)
+                sendActionState.value = SendActionState.Sending.ReadyToUpload(listOf(mediaUploadInfo))
             },
             onFailure = {
                 Timber.e(it, "Failed to pre-process media")
                 if (it is CancellationException) {
                     throw it
                 } else {
-                    sendActionState.value = SendActionState.Failure(it, null)
+                    sendActionState.value = SendActionState.Failure(it, emptyList())
                 }
             }
         )
@@ -543,7 +544,7 @@ class AttachmentsPreviewPresenter(
     }
 
     private fun resetPreparedMedia(sendActionState: MutableState<SendActionState>) {
-        sendActionState.value.mediaUploadInfo()?.let(::cleanUp)
+        sendActionState.value.mediaUploadInfoList()?.forEach(::cleanUp)
         mediaSender.cleanUp()
         sendActionState.value = SendActionState.Idle
     }
@@ -587,7 +588,7 @@ class AttachmentsPreviewPresenter(
         dismissAfterSend: Boolean,
         inReplyToEventId: EventId?,
     ) = runCatchingExceptions {
-        sendActionState.value = SendActionState.Sending.Uploading(mediaUploadInfo)
+        sendActionState.value = SendActionState.Sending.Uploading(listOf(mediaUploadInfo))
         mediaSender.sendPreProcessedMedia(
             mediaUploadInfo = mediaUploadInfo,
             caption = caption,
@@ -609,7 +610,7 @@ class AttachmentsPreviewPresenter(
             if (error is CancellationException) {
                 throw error
             } else {
-                sendActionState.value = SendActionState.Failure(error, mediaUploadInfo)
+                sendActionState.value = SendActionState.Failure(error, listOf(mediaUploadInfo))
             }
         }
     )

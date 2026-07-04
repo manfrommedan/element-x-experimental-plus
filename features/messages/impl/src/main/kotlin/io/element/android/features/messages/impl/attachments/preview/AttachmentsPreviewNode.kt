@@ -31,6 +31,7 @@ import io.element.android.libraries.matrix.api.core.SessionId
 import io.element.android.libraries.matrix.api.timeline.Timeline
 import io.element.android.libraries.mediapickers.api.PickerProvider
 import io.element.android.libraries.mediaviewer.api.local.LocalMediaRenderer
+import kotlinx.collections.immutable.ImmutableList
 
 @ContributesNode(RoomScope::class)
 @AssistedInject
@@ -44,7 +45,7 @@ class AttachmentsPreviewNode(
     private val mediaPickerProvider: PickerProvider,
 ) : Node(buildContext, plugins = plugins) {
     data class Inputs(
-        val attachments: List<Attachment>,
+        val attachments: ImmutableList<Attachment>,
         val timelineMode: Timeline.Mode,
         val inReplyToEventId: EventId?,
     ) : NodeInputs

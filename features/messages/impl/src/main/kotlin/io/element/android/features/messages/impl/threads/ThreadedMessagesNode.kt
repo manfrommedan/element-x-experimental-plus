@@ -130,6 +130,7 @@ class ThreadedMessagesNode(
 
     interface Callback : Plugin {
         fun handleEventClick(timelineMode: Timeline.Mode, event: TimelineItem.Event, canUseOverlay: Boolean): Boolean
+        fun handleGalleryItemClick(timelineMode: Timeline.Mode, event: TimelineItem.Event, galleryItemIndex: Int, canUseOverlay: Boolean): Boolean
         fun navigateToPreviewAttachments(attachments: ImmutableList<Attachment>, inReplyToEventId: EventId?)
         fun navigateToRoomMemberDetails(userId: UserId)
         fun handlePermalinkClick(data: PermalinkData)
@@ -294,6 +295,20 @@ class ThreadedMessagesNode(
                                 val detachedTimelineMode = controller.detachedTimelineMode()
                                 if (detachedTimelineMode != null) {
                                     callback.handleEventClick(detachedTimelineMode, event, canUseOverlay)
+                                } else {
+                                    false
+                                }
+                            }
+                        } == true
+                    },
+                    onGalleryEventItemClick = { isLive, event, index ->
+                        timelineController?.let { controller ->
+                            if (isLive) {
+                                callback.handleGalleryItemClick(controller.mainTimelineMode(), event, index, canUseOverlay)
+                            } else {
+                                val detachedTimelineMode = controller.detachedTimelineMode()
+                                if (detachedTimelineMode != null) {
+                                    callback.handleGalleryItemClick(detachedTimelineMode, event, index, canUseOverlay)
                                 } else {
                                     false
                                 }

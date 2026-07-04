@@ -35,7 +35,6 @@ import im.vector.app.features.analytics.plan.Interaction
 import io.element.android.features.location.api.LocationService
 import io.element.android.features.messages.impl.MessagesNavigator
 import io.element.android.features.messages.impl.attachments.Attachment
-import io.element.android.features.messages.impl.attachments.Attachment.Media
 import io.element.android.features.messages.impl.attachments.preview.error.sendAttachmentError
 import io.element.android.features.messages.impl.draft.ComposerDraftService
 import io.element.android.features.messages.impl.messagecomposer.suggestions.RoomAliasSuggestionsDataSource
@@ -276,7 +275,7 @@ class MessageComposerPresenter(
                 is MessageComposerEvent.SendUri -> {
                     val inReplyToEventId = (messageComposerContext.composerMode as? MessageComposerMode.Reply)?.eventId
                     sessionCoroutineScope.sendAttachment(
-                        attachment = Media(
+                        attachment = Attachment.Media(
                             localMedia = localMediaFactory.createFromUri(
                                 uri = event.uri,
                                 mimeType = null,
@@ -663,6 +662,30 @@ class MessageComposerPresenter(
         if (!messageComposerContext.composerMode.isEditing) {
             messageComposerContext.composerMode = MessageComposerMode.Normal
         }
+    }
+
+    private fun handlePickedMediaList(
+        uris: List<Uri>,
+        sendAsFile: Boolean = false,
+    ) {
+        if (uris.isEmpty()) return
+        if (uris.size == 1) {
+            handlePickedMedia(uris.first(), sendAsFile = sendAsFile)
+            return
+        }
+        val attachments = uris.map { uri ->
+            val localMedia = localMediaFactory.createFromUri(
+                uri = uri,
+                mimeType = null,
+                name = null,
+                formattedFileSize = null,
+            )
+            Attachment.Media(localMedia, sendAsFile = sendAsFile)
+        }.toImmutableList()
+        val inReplyToEventId = (messageComposerContext.composerMode as? MessageComposerMode.Reply)?.eventId
+        navigator.navigateToPreviewAttachments(attachments, inReplyToEventId)
+
+        messageComposerContext.composerMode = MessageComposerMode.Normal
     }
 
     private suspend fun sendMedia(

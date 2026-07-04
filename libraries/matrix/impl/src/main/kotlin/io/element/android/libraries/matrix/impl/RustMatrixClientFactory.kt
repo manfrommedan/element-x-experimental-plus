@@ -60,7 +60,6 @@ class RustMatrixClientFactory(
     private val sessionStore: SessionStore,
     private val userAgentProvider: UserAgentProvider,
     private val proxyProvider: ProxyProvider,
-    private val userCertificatesProvider: UserCertificatesProvider,
     private val clock: SystemClock,
     private val analyticsService: AnalyticsService,
     private val featureFlagService: FeatureFlagService,
@@ -152,7 +151,6 @@ class RustMatrixClientFactory(
             }
             .setSessionDelegate(sessionDelegate)
             .userAgent(userAgentProvider.provide())
-            .addRootCertificates(userCertificatesProvider.provides())
             .autoEnableBackups(true)
             .autoEnableCrossSigning(true)
             .roomKeyRecipientStrategy(

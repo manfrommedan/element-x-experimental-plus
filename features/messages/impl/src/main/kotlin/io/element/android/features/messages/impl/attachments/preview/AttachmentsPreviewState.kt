@@ -14,6 +14,7 @@ import io.element.android.features.messages.impl.attachments.preview.imageeditor
 import io.element.android.features.messages.impl.attachments.video.MediaOptimizationSelectorState
 import io.element.android.libraries.mediaupload.api.MediaUploadInfo
 import io.element.android.libraries.textcomposer.model.TextEditorState
+import kotlinx.collections.immutable.ImmutableList
 
 data class AttachmentsPreviewState(
     val attachments: kotlinx.collections.immutable.ImmutableList<Attachment>,
@@ -39,17 +40,17 @@ sealed interface SendActionState {
     @Immutable
     sealed interface Sending : SendActionState {
         data class Processing(val displayProgress: Boolean) : Sending
-        data class ReadyToUpload(val mediaInfo: MediaUploadInfo) : Sending
-        data class Uploading(val mediaUploadInfo: MediaUploadInfo) : Sending
+        data class ReadyToUpload(val mediaInfos: List<MediaUploadInfo>) : Sending
+        data class Uploading(val mediaInfos: List<MediaUploadInfo>) : Sending
     }
 
-    data class Failure(val error: Throwable, val mediaUploadInfo: MediaUploadInfo?) : SendActionState
+    data class Failure(val error: Throwable, val mediaInfos: List<MediaUploadInfo>) : SendActionState
     data object Done : SendActionState
 
-    fun mediaUploadInfo(): MediaUploadInfo? = when (this) {
-        is Sending.ReadyToUpload -> mediaInfo
-        is Sending.Uploading -> mediaUploadInfo
-        is Failure -> mediaUploadInfo
+    fun mediaUploadInfoList(): List<MediaUploadInfo>? = when (this) {
+        is Sending.ReadyToUpload -> mediaInfos
+        is Sending.Uploading -> mediaInfos
+        is Failure -> mediaInfos
         else -> null
     }
 }

@@ -57,6 +57,7 @@ class PinnedMessagesListNode(
 ) : Node(buildContext, plugins = plugins), PinnedMessagesListNavigator {
     interface Callback : Plugin {
         fun handleEventClick(event: TimelineItem.Event, canUseOverlay: Boolean)
+        fun handleGalleryItemClick(event: TimelineItem.Event, galleryItemIndex: Int, canUseOverlay: Boolean)
         fun navigateToRoomMemberDetails(userId: UserId)
         fun viewInTimeline(eventId: EventId)
         fun handlePermalinkClick(data: PermalinkData.RoomLink)
@@ -124,6 +125,9 @@ class PinnedMessagesListNode(
                 onBackClick = ::navigateUp,
                 onEventClick = {
                     callback.handleEventClick(it, canUseOverlay)
+                },
+                onGalleryItemClick = { event, index ->
+                    callback.handleGalleryItemClick(event, index, canUseOverlay)
                 },
                 onUserDataClick = { callback.navigateToRoomMemberDetails(it.userId) },
                 onLinkClick = { link -> onLinkClick(context, link.url) },
