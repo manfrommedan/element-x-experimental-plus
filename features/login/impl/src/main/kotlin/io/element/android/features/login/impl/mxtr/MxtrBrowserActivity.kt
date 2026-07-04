@@ -41,6 +41,7 @@ import androidx.compose.foundation.layout.statusBars
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -102,12 +103,13 @@ private fun BrowserScreen(initialUrl: String, onClose: () -> Unit) {
         if (resId != 0) context.getString(resId) else "io.element.android"
     }
 
+    val currentOnClose by rememberUpdatedState(onClose)
     LaunchedEffect(Unit) {
         val activity = context as? ComponentActivity ?: return@LaunchedEffect
         activity.onBackPressedDispatcher.addCallback(activity, object : OnBackPressedCallback(true) {
             override fun handleOnBackPressed() {
                 val wv = webViewRef
-                if (wv != null && wv.canGoBack()) wv.goBack() else onClose()
+                if (wv != null && wv.canGoBack()) wv.goBack() else currentOnClose()
             }
         })
     }

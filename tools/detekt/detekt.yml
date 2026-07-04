@@ -240,6 +240,7 @@ Compose:
       - LocalUrlPreviewService
       - LocalPhoneVoiceLayoutEnabled
       - LocalPermalinkParser
+      - LocalAutoLoadMedia
   CompositionLocalNaming:
     active: true
   ContentEmitterReturningValues:

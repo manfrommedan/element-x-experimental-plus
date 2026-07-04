@@ -173,7 +173,12 @@ internal fun MxtrSettingsScreen(onBackClick: () -> Unit) {
                 RestartHintCard()
             }
 
-            DiagnosticsCard(snap = snap, sni = MxtrShareString.parse(shareString)?.sni, expanded = diagExpanded, onToggleExpand = { diagExpanded = !diagExpanded })
+            DiagnosticsCard(
+                snap = snap,
+                sni = MxtrShareString.parse(shareString)?.sni,
+                expanded = diagExpanded,
+                onToggleExpand = { diagExpanded = !diagExpanded },
+            )
 
             Spacer(modifier = Modifier.height(24.dp))
         }
@@ -294,7 +299,8 @@ private fun ConfigCard(
                         append(parsed.port)
                         if (!parsed.sni.isNullOrEmpty()) append(", SNI=").append(parsed.sni)
                     } to false
-                    else -> "Неверный формат. Ожидается mxtr://<base58-32B-psk>@<ipv4-или-ipv6>:<port>?sni=<имя>. host обязан быть IP-литералом, hostname отвергается." to true
+                    else -> "Неверный формат. Ожидается mxtr://<base58-32B-psk>@<ipv4-или-ipv6>:<port>?sni=<имя>. " +
+                        "host обязан быть IP-литералом, hostname отвергается." to true
                 }
                 Text(
                     text,

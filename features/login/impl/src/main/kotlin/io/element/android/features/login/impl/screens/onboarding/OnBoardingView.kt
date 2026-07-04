@@ -73,8 +73,8 @@ fun OnBoardingView(
     onLearnMoreClick: () -> Unit,
     onCreateAccountContinue: (url: String) -> Unit,
     onReportProblem: () -> Unit,
-    onMxtrSettingsClick: () -> Unit = {},
     modifier: Modifier = Modifier,
+    onMxtrSettingsClick: () -> Unit = {},
 ) {
     val loginView = @Composable {
         LoginModeView(

@@ -20,6 +20,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
+import io.element.android.libraries.core.extensions.runCatchingExceptions
 
 // True when media (image / video thumbnails, static map previews) should be
 // fetched automatically; false when the user has enabled "wifi-only auto
@@ -43,9 +44,9 @@ fun rememberIsConnectedToWifi(): Boolean {
         val request = NetworkRequest.Builder()
             .addCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
             .build()
-        runCatching { cm?.registerNetworkCallback(request, callback) }
+        runCatchingExceptions { cm?.registerNetworkCallback(request, callback) }
         onDispose {
-            runCatching { cm?.unregisterNetworkCallback(callback) }
+            runCatchingExceptions { cm?.unregisterNetworkCallback(callback) }
         }
     }
     return isWifi
