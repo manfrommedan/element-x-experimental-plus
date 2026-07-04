@@ -175,9 +175,8 @@ class RoomListPresenter(
         }
 
         val canReportRoom by produceState(false) { value = client.canReportRoom() }
-        val showUnreadCount by produceState(false) {
-            value = featureFlagService.isFeatureEnabled(FeatureFlags.UnreadIndicatorCount)
-        }
+        val showUnreadCount by featureFlagService.isFeatureEnabledFlow(FeatureFlags.UnreadIndicatorCount)
+            .collectAsState(initial = false)
 
         val contentState = roomListContentState(
             securityBannerDismissed,
