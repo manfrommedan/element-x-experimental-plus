@@ -66,7 +66,10 @@ open class MainActivity : NodeActivity() {
     @Composable
     private fun MainContent(appBindings: AppBindings) {
         val migrationState = appBindings.migrationEntryPoint().present()
-        Timber.tag(loggerTag.value).d("migrationAction=${migrationState.migrationAction::class.simpleName} isSuccess=${migrationState.migrationAction.isSuccess()}")
+        Timber.tag(loggerTag.value).d(
+            "migrationAction=${migrationState.migrationAction::class.simpleName} " +
+                "isSuccess=${migrationState.migrationAction.isSuccess()}"
+        )
         val colors by remember {
             appBindings.enterpriseService().semanticColorsFlow(sessionId = null)
         }.collectAsState(SemanticColorsLightDark.default)
