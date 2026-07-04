@@ -193,9 +193,10 @@ private fun RoomListModalBottomSheetContent(
             ),
             style = ListItemStyle.Destructive,
         )
-        // NOTE(fork): "Clear room cache" action temporarily removed during the develop merge —
-        // upstream refactored RoomList state/presenter and scattered our wiring. Feature is
-        // preserved on backup/pre-develop-merge-20260704; re-integrate as a focused follow-up.
+        // NOTE(fork): "Clear room cache" action retired. It relied on per-room
+        // Room.clearEventCacheStorage(), which the Rust SDK removed as of 26.06.x
+        // (only client-wide MatrixClient.clearCache() remains). Old impl is on
+        // backup/pre-develop-merge-20260704 if a per-room API ever returns.
     }
 }
 
