@@ -8,12 +8,8 @@
 
 package io.element.android.features.home.impl.search
 
-import io.element.android.libraries.matrix.api.user.MatrixUser
-
 sealed interface RoomListSearchEvent {
     data object ToggleSearchVisibility : RoomListSearchEvent
     data object ClearQuery : RoomListSearchEvent
     data class UpdateVisibleRange(val range: IntRange) : RoomListSearchEvent
-    data class StartDM(val matrixUser: MatrixUser) : RoomListSearchEvent
-    data object CancelStartDM : RoomListSearchEvent
 }

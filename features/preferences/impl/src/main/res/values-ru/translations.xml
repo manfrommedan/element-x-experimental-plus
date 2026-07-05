@@ -145,8 +145,6 @@
   <string name="screen_labs_enable_message_multi_select_description">"Долгое нажатие на текстовое сообщение начинает выбор, потяните вверх или вниз, чтобы выделить целый диапазон (у краёв список прокручивается сам). Долгое нажатие на медиа открывает меню, где «Выбрать» тоже запускает выбор. Массовое копирование, пересылка и удаление до 30 за раз."</string>
   <string name="screen_labs_enable_favorites_pinned_to_top">"Избранные чаты наверху"</string>
   <string name="screen_labs_enable_favorites_pinned_to_top_description">"Избранные чаты показываются отдельным разделом над остальным списком, как в SchildiChat или закреплённых чатах Telegram."</string>
-  <string name="screen_labs_enable_find_people_in_search">"Поиск людей"</string>
-  <string name="screen_labs_enable_find_people_in_search_description">"Ищи пользователей прямо в основном поиске рядом с чатами и жми, чтобы открыть личную переписку, как в FluffyChat."</string>
   <string name="screen_advanced_settings_hide_redacted_events_toggle_title">"Сворачивать удалённые сообщения"</string>
   <string name="screen_advanced_settings_hide_redacted_events_toggle_subtitle">"Три и более удалённых подряд сворачиваются в один блок. Нажми, чтобы раскрыть."</string>
   <string name="screen_advanced_settings_media_wifi_only_title">"Подгружать медиа только по Wi-Fi"</string>
