@@ -101,6 +101,7 @@ class LabsPresenter(
             FeatureFlags.ShareMxidShortcut.key,
             FeatureFlags.MessageMultiSelect.key,
             FeatureFlags.FavoritesPinnedToTop.key,
+            FeatureFlags.FindPeopleInSearch.key,
         )
         val calls = mutableListOf<FeatureUiModel>()
         val ours = mutableListOf<FeatureUiModel>()
@@ -138,6 +139,8 @@ class LabsPresenter(
                         stringProvider.getString(R.string.screen_labs_enable_message_multi_select)
                     FeatureFlags.FavoritesPinnedToTop ->
                         stringProvider.getString(R.string.screen_labs_enable_favorites_pinned_to_top)
+                    FeatureFlags.FindPeopleInSearch ->
+                        stringProvider.getString(R.string.screen_labs_enable_find_people_in_search)
                     FeatureFlags.PhoneIncomingCall ->
                         stringProvider.getString(R.string.screen_labs_enable_phone_incoming_call)
                     FeatureFlags.RoomListCallShortcut ->
@@ -158,6 +161,8 @@ class LabsPresenter(
                         stringProvider.getString(R.string.screen_labs_enable_message_multi_select_description)
                     FeatureFlags.FavoritesPinnedToTop ->
                         stringProvider.getString(R.string.screen_labs_enable_favorites_pinned_to_top_description)
+                    FeatureFlags.FindPeopleInSearch ->
+                        stringProvider.getString(R.string.screen_labs_enable_find_people_in_search_description)
                     FeatureFlags.PhoneIncomingCall ->
                         stringProvider.getString(R.string.screen_labs_enable_phone_incoming_call_description)
                     FeatureFlags.RoomListCallShortcut ->
@@ -173,6 +178,7 @@ class LabsPresenter(
                     FeatureFlags.ShareMxidShortcut -> CompoundIcons.Copy()
                     FeatureFlags.MessageMultiSelect -> CompoundIcons.CheckCircle()
                     FeatureFlags.FavoritesPinnedToTop -> CompoundIcons.Favourite()
+                    FeatureFlags.FindPeopleInSearch -> CompoundIcons.User()
                     FeatureFlags.PhoneIncomingCall -> CompoundIcons.VoiceCallSolid()
                     FeatureFlags.RoomListCallShortcut -> CompoundIcons.VideoCallSolid()
                     FeatureFlags.AnswerCallOnLockScreen -> CompoundIcons.LockOff()

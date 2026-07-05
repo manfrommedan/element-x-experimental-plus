@@ -30,6 +30,9 @@
     <!-- Labs toggle: answer an incoming call from the lock screen without unlocking. -->
     <string name="screen_labs_enable_answer_call_on_lock_screen">"Answer calls without unlocking"</string>
     <string name="screen_labs_enable_answer_call_on_lock_screen_description">"Answer an incoming call straight from the lock screen, without unlocking the device first, like WhatsApp. You still need to unlock to leave the call for the rest of the app."</string>
+    <!-- Labs toggle: find people from the main chat search. -->
+    <string name="screen_labs_enable_find_people_in_search">"Find people in search"</string>
+    <string name="screen_labs_enable_find_people_in_search_description">"Search the user directory from the main chat search, next to your rooms, and tap someone to open a direct chat, like FluffyChat."</string>
     <!-- Advanced settings toggle: collapse runs of redacted (deleted) events in timelines. -->
     <string name="screen_advanced_settings_hide_redacted_events_toggle_title">"Collapse deleted messages"</string>
     <string name="screen_advanced_settings_hide_redacted_events_toggle_subtitle">"Three or more deleted messages in a row are collapsed into one item. Tap to expand."</string>
