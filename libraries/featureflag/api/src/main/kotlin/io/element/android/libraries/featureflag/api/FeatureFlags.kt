@@ -201,6 +201,15 @@ enum class FeatureFlags(
         isFinished = false,
         isInLabs = true,
     ),
+    FindPeopleInSearch(
+        key = "feature.find_people_in_search",
+        title = "Find people in search",
+        description = "Search the user directory from the main chat search, next to your rooms, and tap a result to open or start a" +
+            " direct chat. Disable to search only the rooms you have already joined.",
+        defaultValue = { true },
+        isFinished = false,
+        isInLabs = true,
+    ),
     UnreadIndicatorCount(
         key = "feature.unread_indicator_count",
         title = "Unread indicator count",

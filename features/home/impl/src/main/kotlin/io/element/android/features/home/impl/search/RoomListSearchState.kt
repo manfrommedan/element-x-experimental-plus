@@ -10,11 +10,17 @@ package io.element.android.features.home.impl.search
 
 import androidx.compose.foundation.text.input.TextFieldState
 import io.element.android.features.home.impl.model.RoomListRoomSummary
+import io.element.android.libraries.architecture.AsyncAction
+import io.element.android.libraries.matrix.api.core.RoomId
+import io.element.android.libraries.usersearch.api.UserSearchResult
 import kotlinx.collections.immutable.ImmutableList
 
 data class RoomListSearchState(
     val isSearchActive: Boolean,
     val query: TextFieldState,
     val results: ImmutableList<RoomListRoomSummary>,
-    val eventSink: (RoomListSearchEvent) -> Unit
+    val userResults: ImmutableList<UserSearchResult>,
+    val isSearchingUsers: Boolean,
+    val startDmAction: AsyncAction<RoomId>,
+    val eventSink: (RoomListSearchEvent) -> Unit,
 )
