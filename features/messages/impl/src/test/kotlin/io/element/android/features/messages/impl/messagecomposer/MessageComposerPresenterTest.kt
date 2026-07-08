@@ -778,6 +778,51 @@ class MessageComposerPresenterTest : RobolectricTest() {
     }
 
     @Test
+    fun `present - picking single media from gallery while editing keeps the edit pending`() = runTest {
+        val onPreviewAttachmentLambda = lambdaRecorder { _: ImmutableList<Attachment>, _: EventId? -> }
+        val navigator = FakeMessagesNavigator(
+            onPreviewAttachmentLambda = onPreviewAttachmentLambda
+        )
+        val presenter = createPresenter(navigator = navigator)
+        pickerProvider.givenMimeType(MimeTypes.Images)
+        presenter.test {
+            var state = awaitFirstItem()
+            val editMode = anEditMode()
+            state.eventSink(MessageComposerEvent.SetMode(editMode))
+            state = awaitItem()
+            assertThat(state.mode).isEqualTo(editMode)
+            // Single-item attach path (handlePickedMedia): the edit must survive, exactly like the
+            // bulk path. A mode flip to Normal would emit a state and make expectNoEvents() fail.
+            state.eventSink(MessageComposerEvent.PickAttachmentSource.FromGallery)
+            onPreviewAttachmentLambda.assertions().isCalledOnce()
+            expectNoEvents()
+            assertThat(state.mode).isEqualTo(editMode)
+        }
+    }
+
+    @Test
+    fun `present - picking single media from gallery while replying clears the reply mode`() = runTest {
+        val onPreviewAttachmentLambda = lambdaRecorder { _: ImmutableList<Attachment>, _: EventId? -> }
+        val navigator = FakeMessagesNavigator(
+            onPreviewAttachmentLambda = onPreviewAttachmentLambda
+        )
+        val presenter = createPresenter(navigator = navigator)
+        pickerProvider.givenMimeType(MimeTypes.Images)
+        presenter.test {
+            var state = awaitFirstItem()
+            state.eventSink(MessageComposerEvent.SetMode(aReplyMode()))
+            state = awaitItem()
+            assertThat(state.mode).isInstanceOf(MessageComposerMode.Reply::class.java)
+            // The single attachment becomes the reply, so the reply mode is consumed and reset like
+            // the bulk path (the single-item path stopped resetting after the 26.07.0 upstream merge).
+            state.eventSink(MessageComposerEvent.PickAttachmentSource.FromGallery)
+            onPreviewAttachmentLambda.assertions().isCalledOnce()
+            state = awaitItem()
+            assertThat(state.mode).isEqualTo(MessageComposerMode.Normal)
+        }
+    }
+
+    @Test
     fun `present - Pick video from gallery`() = runTest {
         val room = FakeJoinedRoom(
             typingNoticeResult = { Result.success(Unit) }
