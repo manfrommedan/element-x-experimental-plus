@@ -8,6 +8,7 @@
 
 package io.element.android.features.call.utils
 
+import android.app.KeyguardManager
 import android.os.PowerManager
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.getSystemService
@@ -106,6 +107,26 @@ class DefaultActiveCallManagerTest : RobolectricTest() {
         // Foreground launches the incoming call screen directly, so no heads-up
         // notification should be posted (avoids a duplicate surface).
         verify(exactly = 0) { notificationManagerCompat.notify(notificationId, any()) }
+    }
+
+    @Test
+    fun `registerIncomingCall - when app is in foreground but the screen is locked posts the notification`() = runTest {
+        setupShadowPowerManager()
+        // The ringing foreground service can keep the app "in foreground" while the device is locked.
+        // A direct activity start would be dropped over the keyguard, so the incoming-call screen must
+        // come from the full-screen-intent notification - the only surface that shows when locked.
+        shadowOf(InstrumentationRegistry.getInstrumentation().targetContext.getSystemService<KeyguardManager>())
+            .setKeyguardLocked(true)
+        val notificationManagerCompat = mockk<NotificationManagerCompat>(relaxed = true)
+        val manager = createActiveCallManager(
+            notificationManagerCompat = notificationManagerCompat,
+            appForegroundStateService = FakeAppForegroundStateService(initialForegroundValue = true),
+        )
+
+        manager.registerIncomingCall(aCallNotificationData())
+        runCurrent()
+
+        verify { notificationManagerCompat.notify(notificationId, any()) }
     }
 
     @OptIn(ExperimentalCoroutinesApi::class)

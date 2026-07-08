@@ -9,6 +9,7 @@
 package io.element.android.features.call.impl.utils
 
 import android.annotation.SuppressLint
+import android.app.KeyguardManager
 import android.content.Context
 import android.content.Intent
 import android.os.PowerManager
@@ -160,12 +161,15 @@ class DefaultActiveCallManager(
             timedOutCallJob = coroutineScope.launch {
                 setUpCoil(notificationData.sessionId)
                 val phoneStyleIncoming = featureFlagService.isFeatureEnabled(FeatureFlags.PhoneIncomingCall)
-                if (phoneStyleIncoming && appForegroundStateService.isInForeground.value) {
-                    // Foreground: Android won't auto-fire the notification's full-screen
-                    // intent, so launch the incoming-call screen ourselves (it rings).
-                    // Skip the heads-up notification so there is a single surface.
+                if (phoneStyleIncoming && appForegroundStateService.isInForeground.value && isScreenOnAndUnlocked()) {
+                    // Foreground with the screen on and unlocked: Android won't auto-fire the
+                    // notification's full-screen intent here, so launch the incoming-call screen
+                    // ourselves (it rings). Skip the heads-up notification for a single surface.
                     launchIncomingCallScreen(notificationData)
                 } else {
+                    // Locked / screen off / background: a direct activity start would be dropped by
+                    // background-activity-launch limits over the keyguard, so post the full-screen
+                    // intent notification, which the system reliably shows over the lock screen.
                     showIncomingCallNotification(notificationData)
                 }
 
@@ -279,7 +283,8 @@ class DefaultActiveCallManager(
     // foreground, where Android won't auto-fire the notification's full-screen
     // intent (it would only show a heads-up banner). EXTRA_PLAY_RINGTONE tells the
     // activity to ring itself, since we skip the (ringing) notification in this case.
-    // Safe from background-activity-launch limits because callers gate on foreground.
+    // Safe from background-activity-launch limits because callers gate on a foreground,
+    // on-and-unlocked screen (see isScreenOnAndUnlocked).
     private fun launchIncomingCallScreen(notificationData: CallNotificationData) {
         Timber.tag(tag).d("App in foreground, launching incoming call screen directly")
         val intent = Intent(context, IncomingCallActivity::class.java).apply {
@@ -288,6 +293,19 @@ class DefaultActiveCallManager(
             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         }
         context.startActivity(intent)
+    }
+
+    // A direct activity start only reaches the user when the screen is on and unlocked. While the
+    // device is locked or the screen is off, background-activity-launch limits silently drop it, so
+    // the incoming-call screen must come from the notification's full-screen intent instead.
+    // isInForeground alone is not enough: this ringing call's own foreground service keeps the
+    // process "foreground" even while the device is locked.
+    private fun isScreenOnAndUnlocked(): Boolean {
+        val powerManager = context.getSystemService<PowerManager>()
+        val keyguardManager = context.getSystemService<KeyguardManager>()
+        val screenOn = powerManager?.isInteractive != false
+        val locked = keyguardManager?.isKeyguardLocked == true
+        return screenOn && !locked
     }
 
     @SuppressLint("MissingPermission")
