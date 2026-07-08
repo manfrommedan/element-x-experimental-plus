@@ -13,7 +13,6 @@ import io.element.android.features.messages.impl.timeline.model.TimelineItem
 import io.element.android.libraries.matrix.api.core.EventId
 import io.element.android.libraries.matrix.api.core.RoomId
 import io.element.android.libraries.matrix.api.core.ThreadId
-import io.element.android.libraries.matrix.api.core.TransactionId
 import io.element.android.libraries.matrix.api.timeline.Timeline
 import kotlin.time.Duration
 
@@ -24,18 +23,9 @@ sealed interface TimelineEvent {
     data object OnFocusEventRender : TimelineEvent
     data object JumpToLive : TimelineEvent
 
-    /**
-     * Scroll the timeline to the start of the given day, loading older history if needed.
-     * [formattedDate] is the label shown by the floating date pill.
-     */
-    data class ScrollToDate(val formattedDate: String) : TimelineEvent
-
-    /**
-     * Acknowledge that a [ScrollToDate] request has been consumed by the view.
-     */
-    data object ConsumeScrollToDate : TimelineEvent
-
     data object HideShieldDialog : TimelineEvent
+
+    data object MarkAllAsRead : TimelineEvent
 
     /**
      * Events coming from a timeline item.
@@ -71,5 +61,4 @@ sealed interface TimelineEvent {
     ) : TimelineItemPollEvent
 
     data object StopLiveLocationShare : TimelineItemEvent
-    data class CancelMediaUpload(val transactionId: TransactionId) : TimelineItemEvent
 }

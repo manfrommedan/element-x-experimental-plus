@@ -18,19 +18,5 @@ import kotlinx.parcelize.Parcelize
 data class CallData(
     val sessionId: SessionId,
     val roomId: RoomId,
-    val isAudioCall: Boolean,
-    /**
-     * `m.call.notify` event id - propagated from the incoming notification
-     * so the recipient persists the call summary against the caller's event.
-     * Null when the local user is the caller.
-     */
-    val notifyEventId: String? = null,
-    /**
-     * Join a video call ([isAudioCall] = false) with the local camera initially
-     * off, while still showing the remote video and letting the user turn their
-     * camera on - i.e. answering a video call "without camera", Telegram-style.
-     * Distinct from [isAudioCall], which switches to the phone-style voice UI.
-     * Ignored for audio calls.
-     */
-    val startVideoMuted: Boolean = false,
+    val isAudioCall: Boolean
 ) : NodeInputs, Parcelable

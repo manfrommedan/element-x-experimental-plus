@@ -29,9 +29,11 @@ class DefaultVersionFormatter(
             buildMeta.versionName,
             buildMeta.versionCode.toString()
         )
-        // versionName/versionCode come from the static Versions.kt, so they only change on a
-        // manual bump, not per CI build. Show the build's git branch + revision (the 8-char
-        // commit == the experimental-<sha> release tag) so each build is identifiable in About.
-        return "$base\n${buildMeta.gitBranchName} (${buildMeta.gitRevision})"
+        return if (buildMeta.gitBranchName == "main") {
+            base
+        } else {
+            // In case of a build not from main, we display the branch name and the revision
+            "$base\n${buildMeta.gitBranchName} (${buildMeta.gitRevision})"
+        }
     }
 }

@@ -21,7 +21,7 @@ import dev.zacsweers.metro.AssistedInject
 import io.element.android.annotations.ContributesNode
 import io.element.android.appconfig.AnalyticsConfig
 import io.element.android.compound.theme.ElementTheme
-import io.element.android.libraries.androidutils.browser.openUrlInMxtrAwareCustomTab
+import io.element.android.libraries.androidutils.browser.openUrlInChromeCustomTab
 
 @ContributesNode(AppScope::class)
 @AssistedInject
@@ -31,7 +31,7 @@ class AnalyticsOptInNode(
     private val presenter: AnalyticsOptInPresenter,
 ) : Node(buildContext, plugins = plugins) {
     private fun onClickTerms(activity: Activity, darkTheme: Boolean) {
-        activity.openUrlInMxtrAwareCustomTab(null, darkTheme, AnalyticsConfig.POLICY_LINK)
+        activity.openUrlInChromeCustomTab(null, darkTheme, AnalyticsConfig.POLICY_LINK)
     }
 
     @Composable

@@ -27,11 +27,9 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
@@ -57,7 +55,6 @@ import io.element.android.features.messages.impl.timeline.model.event.aTimelineI
 import io.element.android.features.messages.impl.timeline.protection.ProtectedView
 import io.element.android.features.messages.impl.timeline.protection.coerceRatioWhenHidingContent
 import io.element.android.libraries.designsystem.components.blurhash.blurHashBackground
-import io.element.android.libraries.designsystem.components.media.LocalAutoLoadMedia
 import io.element.android.libraries.designsystem.modifiers.onKeyboardContextMenuAction
 import io.element.android.libraries.designsystem.modifiers.roundedBackground
 import io.element.android.libraries.designsystem.preview.ElementPreview
@@ -82,8 +79,6 @@ fun TimelineItemVideoView(
     onLinkLongClick: (Link) -> Unit,
     onContentLayoutChange: (ContentAvoidingLayoutData) -> Unit,
     modifier: Modifier = Modifier,
-    uploadProgress: io.element.android.libraries.matrix.api.timeline.item.event.LocalEventSendState.Sending.MediaWithProgress? = null,
-    onCancelUpload: (() -> Unit)? = null,
 ) {
     val isTalkbackActive = isTalkbackActive()
     val a11yLabel = stringResource(CommonStrings.common_video)
@@ -105,77 +100,46 @@ fun TimelineItemVideoView(
                 hideContent = hideMediaContent,
                 onShowClick = onShowContentClick,
             ) {
-                val autoLoad = LocalAutoLoadMedia.current
-                var userTapped by rememberSaveable { mutableStateOf(false) }
-                val networkAllowed = autoLoad || userTapped || onCancelUpload != null
-                val model = remember(content.thumbnailSource, content.thumbnailWidth, content.thumbnailHeight, networkAllowed) {
-                    MediaRequestData(
+                var isLoaded by remember { mutableStateOf(false) }
+                AsyncImage(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .then(if (isLoaded) Modifier.background(Color.White) else Modifier)
+                        .then(
+                            if (!isTalkbackActive && onContentClick != null) {
+                                Modifier
+                                    .combinedClickable(
+                                        onClick = onContentClick,
+                                        onLongClick = onLongClick,
+                                    )
+                                    .onKeyboardContextMenuAction(onLongClick)
+                            } else {
+                                Modifier
+                            }
+                        ),
+                    model = MediaRequestData(
                         source = content.thumbnailSource,
                         kind = MediaRequestData.Kind.Thumbnail(
                             width = content.thumbnailWidth?.toLong() ?: MAX_THUMBNAIL_WIDTH,
                             height = content.thumbnailHeight?.toLong() ?: MAX_THUMBNAIL_HEIGHT,
-                        ),
-                        allowNetwork = networkAllowed,
-                    )
-                }
-                var painterState by remember(model) {
-                    mutableStateOf<AsyncImagePainter.State>(AsyncImagePainter.State.Empty)
-                }
-                val isLoaded = painterState is AsyncImagePainter.State.Success
-                val showTapToDownload = !networkAllowed && painterState is AsyncImagePainter.State.Error
-                if (!showTapToDownload) {
-                    AsyncImage(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .then(if (onCancelUpload != null) Modifier.blur(12.dp) else Modifier)
-                            .then(if (isLoaded) Modifier.background(Color.White) else Modifier)
-                            .then(
-                                if (!isTalkbackActive && onContentClick != null) {
-                                    Modifier
-                                        .combinedClickable(
-                                            onClick = onContentClick,
-                                            onLongClick = onLongClick,
-                                        )
-                                        .onKeyboardContextMenuAction(onLongClick)
-                                } else {
-                                    Modifier
-                                }
-                            ),
-                        model = model,
-                        contentScale = ContentScale.Crop,
-                        alignment = Alignment.Center,
-                        contentDescription = description,
-                        onState = { painterState = it },
-                    )
-                } else {
-                    TapToDownloadOverlay(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .combinedClickable(
-                                onClick = { userTapped = true },
-                                onLongClick = onLongClick,
-                            ),
-                    )
-                }
-
-                if (onCancelUpload != null) {
-                    MediaUploadOverlay(
-                        progress = uploadProgress?.progress ?: 0L,
-                        total = uploadProgress?.total ?: 0L,
-                        onCancel = onCancelUpload,
-                    )
-                } else if (!showTapToDownload) {
-                    Box(
-                        modifier = Modifier.roundedBackground(),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        Image(
-                            imageVector = CompoundIcons.PlaySolid(),
-                            contentDescription = stringResource(id = CommonStrings.a11y_play),
-                            colorFilter = ColorFilter.tint(Color.White),
-                            modifier = Modifier.semantics { hideFromAccessibility() }
                         )
-                    }
+                    ),
+                    contentScale = ContentScale.Crop,
+                    alignment = Alignment.Center,
+                    contentDescription = description,
+                    onState = { isLoaded = it is AsyncImagePainter.State.Success },
+                )
+
+                Box(
+                    modifier = Modifier.roundedBackground(),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Image(
+                        imageVector = CompoundIcons.PlaySolid(),
+                        contentDescription = stringResource(id = CommonStrings.a11y_play),
+                        colorFilter = ColorFilter.tint(Color.White),
+                        modifier = Modifier.semantics { hideFromAccessibility() }
+                    )
                 }
             }
         }

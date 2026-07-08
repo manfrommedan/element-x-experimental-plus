@@ -178,7 +178,6 @@ fun TimelineItemEventRow(
         TimelineItemEventContentView(
             content = event.content,
             hideMediaContent = timelineProtectionState.hideMediaContent(event.eventId),
-            showUrlPreviews = timelineProtectionState.showUrlPreviews,
             onContentClick = onContentClick,
             onGalleryItemClick = onGalleryItemClick,
             onLongClick = onLongClick,

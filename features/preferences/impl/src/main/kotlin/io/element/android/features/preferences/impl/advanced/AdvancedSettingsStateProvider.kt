@@ -11,7 +11,6 @@ package io.element.android.features.preferences.impl.advanced
 import androidx.compose.ui.tooling.preview.PreviewParameterProvider
 import io.element.android.libraries.architecture.AsyncAction
 import io.element.android.libraries.matrix.api.media.MediaPreviewValue
-import io.element.android.libraries.preferences.api.store.UrlPreviewValue
 import io.element.android.libraries.preferences.api.store.VideoCompressionPreset
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.toImmutableList
@@ -25,8 +24,6 @@ open class AdvancedSettingsStateProvider : PreviewParameterProvider<AdvancedSett
             aAdvancedSettingsState(mediaOptimizationState = MediaOptimizationState.AllMedia(isEnabled = true)),
             aAdvancedSettingsState(hideInviteAvatars = true),
             aAdvancedSettingsState(timelineMediaPreviewValue = MediaPreviewValue.Off),
-            aAdvancedSettingsState(urlPreviewValue = UrlPreviewValue.Off),
-            aAdvancedSettingsState(urlPreviewValue = UrlPreviewValue.On),
             aAdvancedSettingsState(setHideInviteAvatarsAction = AsyncAction.Loading),
             aAdvancedSettingsState(setTimelineMediaPreviewAction = AsyncAction.Loading),
             aAdvancedSettingsState(mediaOptimizationState = MediaOptimizationState.Split(
@@ -44,12 +41,9 @@ fun aAdvancedSettingsState(
     availableThemeOptions: ImmutableList<ThemeOption> = ThemeOption.entries.toImmutableList(),
     hideInviteAvatars: Boolean = false,
     timelineMediaPreviewValue: MediaPreviewValue = MediaPreviewValue.On,
-    urlPreviewValue: UrlPreviewValue = UrlPreviewValue.DEFAULT,
     liveLocationMinimumDistanceUpdate: Int? = 50,
     setTimelineMediaPreviewAction: AsyncAction<Unit> = AsyncAction.Uninitialized,
     setHideInviteAvatarsAction: AsyncAction<Unit> = AsyncAction.Uninitialized,
-    hideRedactedEvents: Boolean = false,
-    mediaAutoDownloadOnWifiOnly: Boolean = false,
     eventSink: (AdvancedSettingsEvents) -> Unit = {},
 ) = AdvancedSettingsState(
     isDeveloperModeEnabled = isDeveloperModeEnabled,
@@ -63,9 +57,6 @@ fun aAdvancedSettingsState(
         setTimelineMediaPreviewAction = setTimelineMediaPreviewAction,
         setHideInviteAvatarsAction = setHideInviteAvatarsAction
     ),
-    urlPreviewValue = urlPreviewValue,
     liveLocationMinimumDistanceUpdate = liveLocationMinimumDistanceUpdate,
-    hideRedactedEvents = hideRedactedEvents,
-    mediaAutoDownloadOnWifiOnly = mediaAutoDownloadOnWifiOnly,
     eventSink = eventSink
 )

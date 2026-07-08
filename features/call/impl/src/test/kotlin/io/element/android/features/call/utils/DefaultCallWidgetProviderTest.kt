@@ -9,10 +9,7 @@
 package io.element.android.features.call.utils
 
 import com.google.common.truth.Truth.assertThat
-import io.element.android.features.call.impl.utils.CallWidgetProvider
 import io.element.android.features.call.impl.utils.DefaultCallWidgetProvider
-import io.element.android.libraries.featureflag.api.FeatureFlagService
-import io.element.android.libraries.featureflag.test.FakeFeatureFlagService
 import io.element.android.libraries.matrix.api.MatrixClientProvider
 import io.element.android.libraries.matrix.api.widget.CallWidgetSettingsProvider
 import io.element.android.libraries.matrix.test.A_ROOM_ID
@@ -130,39 +127,15 @@ class DefaultCallWidgetProviderTest {
         assertThat(settingsProvider.providedBaseUrls).containsExactly("https://custom.element.io")
     }
 
-    @Test
-    fun `getWidget - answering a video call without camera adds the audio call intent to the url`() = runTest {
-        val room = FakeJoinedRoom(
-            generateWidgetWebViewUrlResult = { _, _, _, _ -> Result.success("url") },
-            getWidgetDriverResult = { Result.success(FakeMatrixWidgetDriver()) },
-        )
-        val client = FakeMatrixClient().apply {
-            givenGetRoomResult(A_ROOM_ID, room)
-        }
-        val provider = createProvider(matrixClientProvider = FakeMatrixClientProvider { Result.success(client) })
-        val url = provider.getWidget(
-            A_SESSION_ID,
-            A_ROOM_ID,
-            isAudioCall = false,
-            clientId = "clientId",
-            languageTag = "languageTag",
-            theme = "theme",
-            startVideoMuted = true,
-        ).getOrThrow().url
-        assertThat(url).contains("callIntent=audio")
-    }
-
     private fun createProvider(
         matrixClientProvider: MatrixClientProvider = FakeMatrixClientProvider(),
         appPreferencesStore: AppPreferencesStore = InMemoryAppPreferencesStore(),
         callWidgetSettingsProvider: CallWidgetSettingsProvider = FakeCallWidgetSettingsProvider(),
         activeRoomsHolder: ActiveRoomsHolder = DefaultActiveRoomsHolder(),
-        featureFlagService: FeatureFlagService = FakeFeatureFlagService(),
-    ): CallWidgetProvider = DefaultCallWidgetProvider(
+    ) = DefaultCallWidgetProvider(
         matrixClientsProvider = matrixClientProvider,
         appPreferencesStore = appPreferencesStore,
         callWidgetSettingsProvider = callWidgetSettingsProvider,
         activeRoomsHolder = activeRoomsHolder,
-        featureFlagService = featureFlagService,
     )
 }

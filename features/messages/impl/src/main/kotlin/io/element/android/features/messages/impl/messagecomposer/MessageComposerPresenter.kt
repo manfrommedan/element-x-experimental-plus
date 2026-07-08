@@ -20,7 +20,6 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
@@ -180,16 +179,19 @@ class MessageComposerPresenter(
             canShareLocation.value = locationService.isServiceAvailable()
         }
 
-        val bulkPickerEnabled by produceState(initialValue = true) {
-            value = featureFlagService.isFeatureEnabled(FeatureFlags.BulkAttachmentsPicker)
-        }
-        val galleryMediaSinglePicker = mediaPickerProvider.registerGalleryPicker { uri, mimeType ->
+        val isSendGalleryMessagesEnabled by featureFlagService.isFeatureEnabledFlow(FeatureFlags.SendGalleryMessages)
+            .collectAsState(initial = false)
+
+        val galleryMediaPicker = mediaPickerProvider.registerGalleryPicker { uri, mimeType ->
             handlePickedMedia(uri, mimeType)
         }
-        val galleryMediaMultiPicker = mediaPickerProvider.registerMultipleGalleryPicker { pickedMedia ->
-            handlePickedMediaList(pickedMedia)
+        val galleryMultiMediaPicker = mediaPickerProvider.registerGalleryMultiPicker { uris ->
+            handlePickedMediaList(uris)
         }
-        val filesPicker = mediaPickerProvider.registerFilePicker(AnyMimeTypes) { uri, mimeType ->
+        val filesPicker = mediaPickerProvider.registerFileMultiPicker(AnyMimeTypes) { uris ->
+            handlePickedMediaList(uris, sendAsFile = true)
+        }
+        val fileSinglePicker = mediaPickerProvider.registerFilePicker(AnyMimeTypes) { uri, mimeType ->
             handlePickedMedia(uri, mimeType ?: MimeTypes.OctetStream, sendAsFile = true)
         }
         val cameraPhotoPicker = mediaPickerProvider.registerCameraPhotoPicker { uri ->
@@ -297,15 +299,19 @@ class MessageComposerPresenter(
                 MessageComposerEvent.DismissAttachmentMenu -> showAttachmentSourcePicker = false
                 MessageComposerEvent.PickAttachmentSource.FromGallery -> localCoroutineScope.launch {
                     showAttachmentSourcePicker = false
-                    if (bulkPickerEnabled) {
-                        galleryMediaMultiPicker.launch()
+                    if (isSendGalleryMessagesEnabled) {
+                        galleryMultiMediaPicker.launch()
                     } else {
-                        galleryMediaSinglePicker.launch()
+                        galleryMediaPicker.launch()
                     }
                 }
                 MessageComposerEvent.PickAttachmentSource.FromFiles -> localCoroutineScope.launch {
                     showAttachmentSourcePicker = false
-                    filesPicker.launch()
+                    if (isSendGalleryMessagesEnabled) {
+                        filesPicker.launch()
+                    } else {
+                        fileSinglePicker.launch()
+                    }
                 }
                 MessageComposerEvent.PickAttachmentSource.PhotoFromCamera -> localCoroutineScope.launch {
                     showAttachmentSourcePicker = false
@@ -630,30 +636,6 @@ class MessageComposerPresenter(
         val mediaAttachment = Attachment.Media(localMedia, sendAsFile = sendAsFile)
         val inReplyToEventId = (messageComposerContext.composerMode as? MessageComposerMode.Reply)?.eventId
         navigator.navigateToPreviewAttachments(persistentListOf(mediaAttachment), inReplyToEventId)
-
-        resetComposerModeAfterAttaching()
-    }
-
-    private fun handlePickedMediaList(picked: List<Pair<Uri, String?>>) {
-        if (picked.isEmpty()) return
-        // Android system picker only treats maxItems as a hint on some OEM galleries -
-        // hard-cap on our side so the UI/server flow never exceeds the labs limit.
-        val capped = picked.take(io.element.android.libraries.mediapickers.api.DEFAULT_MAX_PICK_ITEMS)
-        if (capped.size < picked.size) {
-            snackbarDispatcher.post(SnackbarMessage(io.element.android.features.messages.impl.R.string.screen_composer_attachments_cap_reached))
-        }
-        val attachments = capped.map { (uri, mimeType) ->
-            Attachment.Media(
-                localMediaFactory.createFromUri(
-                    uri = uri,
-                    mimeType = mimeType,
-                    name = null,
-                    formattedFileSize = null,
-                )
-            )
-        }.toImmutableList()
-        val inReplyToEventId = (messageComposerContext.composerMode as? MessageComposerMode.Reply)?.eventId
-        navigator.navigateToPreviewAttachments(attachments, inReplyToEventId)
 
         resetComposerModeAfterAttaching()
     }

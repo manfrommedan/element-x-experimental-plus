@@ -11,7 +11,6 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.padding
@@ -28,6 +27,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.hideFromAccessibility
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import io.element.android.compound.theme.ElementTheme
@@ -49,7 +50,6 @@ internal fun BoxScope.FloatingDateBadgeOverlay(
     timelineItems: ImmutableList<TimelineItem>,
     isLive: Boolean,
     topOffset: Dp = 0.dp,
-    onDateClick: ((String) -> Unit)? = null,
 ) {
     // This needs to be a state to trigger a `derivedState` recalculation
     val updatedTimelineItems by rememberUpdatedState(timelineItems)
@@ -104,7 +104,10 @@ internal fun BoxScope.FloatingDateBadgeOverlay(
         visible = showBadge,
         modifier = Modifier
             .align(Alignment.TopCenter)
-            .padding(top = 8.dp + topOffset),
+            .padding(top = 8.dp + topOffset)
+            .clearAndSetSemantics {
+                hideFromAccessibility()
+            },
         enter = fadeIn(animationSpec = tween(150)),
         exit = fadeOut(animationSpec = tween(300)),
     ) {
@@ -112,33 +115,18 @@ internal fun BoxScope.FloatingDateBadgeOverlay(
             FloatingDateBadge(
                 modifier = Modifier.padding(8.dp),
                 dateText = dateText,
-                onClick = onDateClick?.let { onClick -> { onClick(dateText) } },
             )
         }
     }
 }
 
-// matrix-rust-sdk emits one day-divider virtual item per loaded day, so the predicate matches
-// at most once. Returns -1 when no divider for [formattedDate] is loaded (e.g. badge text came
-// from an event at the top of the loaded window and the divider is past the pagination edge).
-internal fun findDayDividerIndex(items: List<TimelineItem>, formattedDate: String): Int =
-    items.indexOfFirst { item ->
-        item is TimelineItem.Virtual &&
-            (item.model as? TimelineItemDaySeparatorModel)?.formattedDate == formattedDate
-    }
-
 @Composable
 internal fun FloatingDateBadge(
     dateText: String,
     modifier: Modifier = Modifier,
-    onClick: (() -> Unit)? = null,
 ) {
     Surface(
-        modifier = if (onClick != null) {
-            modifier.clickable(onClick = onClick)
-        } else {
-            modifier
-        },
+        modifier = modifier,
         shape = RoundedCornerShape(16.dp),
         color = ElementTheme.colors.floatingDateBadgeBackground,
         shadowElevation = 4.dp,

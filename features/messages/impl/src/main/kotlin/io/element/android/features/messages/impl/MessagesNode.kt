@@ -15,7 +15,6 @@ import androidx.activity.compose.LocalActivity
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -42,13 +41,10 @@ import io.element.android.features.messages.impl.timeline.TimelinePresenter
 import io.element.android.features.messages.impl.timeline.di.LocalTimelineItemPresenterFactories
 import io.element.android.features.messages.impl.timeline.di.TimelineItemPresenterFactories
 import io.element.android.features.messages.impl.timeline.model.TimelineItem
-import io.element.android.features.messages.impl.urlpreview.LocalPermalinkParser
-import io.element.android.features.messages.impl.urlpreview.LocalUrlPreviewService
-import io.element.android.features.messages.impl.urlpreview.UrlPreviewService
 import io.element.android.features.roommembermoderation.api.ModerationAction
 import io.element.android.features.roommembermoderation.api.RoomMemberModerationEvents
 import io.element.android.features.roommembermoderation.api.RoomMemberModerationRenderer
-import io.element.android.libraries.androidutils.browser.openUrlInMxtrAwareCustomTab
+import io.element.android.libraries.androidutils.browser.openUrlInChromeCustomTab
 import io.element.android.libraries.androidutils.system.openUrlInExternalApp
 import io.element.android.libraries.androidutils.system.toast
 import io.element.android.libraries.architecture.NodeInputs
@@ -97,12 +93,10 @@ class MessagesNode(
     presenterFactory: MessagesPresenter.Factory,
     actionListPresenterFactory: ActionListPresenter.Factory,
     private val timelineItemPresenterFactories: TimelineItemPresenterFactories,
-    private val urlPreviewService: UrlPreviewService,
     private val mediaPlayer: MediaPlayer,
     private val permalinkParser: PermalinkParser,
     private val knockRequestsBannerRenderer: KnockRequestsBannerRenderer,
     private val roomMemberModerationRenderer: RoomMemberModerationRenderer,
-    private val featureFlagService: io.element.android.libraries.featureflag.api.FeatureFlagService,
 ) : Node(buildContext, plugins = plugins), MessagesNavigator {
     data class Inputs(
         val focusedEventId: EventId?,
@@ -131,7 +125,6 @@ class MessagesNode(
         fun handlePermalinkClick(data: PermalinkData)
         fun navigateToEventDebugInfo(eventId: EventId?, debugInfo: TimelineItemDebugInfo)
         fun forwardEvent(eventId: EventId)
-        fun forwardEvents(eventIds: List<EventId>)
         fun navigateToReportMessage(eventId: EventId, senderId: UserId)
         fun navigateToSendLocation()
         fun navigateToCreatePoll()
@@ -182,13 +175,13 @@ class MessagesNode(
             }
             is PermalinkData.FallbackLink -> {
                 if (customTab) {
-                    activity.openUrlInMxtrAwareCustomTab(null, darkTheme, url)
+                    activity.openUrlInChromeCustomTab(null, darkTheme, url)
                 } else {
                     activity.openUrlInExternalApp(url)
                 }
             }
             is PermalinkData.RoomEmailInviteLink -> {
-                activity.openUrlInMxtrAwareCustomTab(null, darkTheme, url)
+                activity.openUrlInChromeCustomTab(null, darkTheme, url)
             }
         }
     }
@@ -216,10 +209,6 @@ class MessagesNode(
 
     override fun forwardEvent(eventId: EventId) {
         callback.forwardEvent(eventId)
-    }
-
-    override fun forwardEvents(eventIds: List<EventId>) {
-        callback.forwardEvents(eventIds)
     }
 
     override fun navigateToReportMessage(eventId: EventId, senderId: UserId) {
@@ -270,14 +259,8 @@ class MessagesNode(
         val activity = requireNotNull(LocalActivity.current)
         val isDark = ElementTheme.isLightTheme.not()
         val canUseOverlay = !isTalkbackActive() && !hasExternalKeyboard()
-        val phoneVoiceLayoutEnabled by featureFlagService
-            .isFeatureEnabledFlow(io.element.android.libraries.featureflag.api.FeatureFlags.PhoneVoiceLayout)
-            .collectAsState(initial = false)
         CompositionLocalProvider(
             LocalTimelineItemPresenterFactories provides timelineItemPresenterFactories,
-            io.element.android.features.messages.impl.timeline.components.LocalPhoneVoiceLayoutEnabled provides phoneVoiceLayoutEnabled,
-            LocalUrlPreviewService provides urlPreviewService,
-            LocalPermalinkParser provides permalinkParser,
         ) {
             val state = presenter.present()
 

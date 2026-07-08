@@ -8,20 +8,12 @@
 
 package io.element.android.features.messages.impl.attachments.preview
 
-import android.net.Uri
 import io.element.android.features.messages.impl.attachments.preview.imageeditor.NormalizedCropRect
 
 sealed interface AttachmentsPreviewEvent {
     data object SendAttachment : AttachmentsPreviewEvent
     data object CancelAndDismiss : AttachmentsPreviewEvent
     data object CancelAndClearSendState : AttachmentsPreviewEvent
-
-    // Bulk picker (fork)
-    data class NavigateToPage(val index: Int) : AttachmentsPreviewEvent
-    data class RemoveAttachment(val index: Int) : AttachmentsPreviewEvent
-    data class AddMore(val picked: List<Pair<Uri, String?>>) : AttachmentsPreviewEvent
-
-    // Image editor (upstream)
     data object OpenImageEditor : AttachmentsPreviewEvent
     data object CloseImageEditor : AttachmentsPreviewEvent
     data object RotateImageToTheLeft : AttachmentsPreviewEvent
@@ -31,4 +23,5 @@ sealed interface AttachmentsPreviewEvent {
     data object ResetImageEdits : AttachmentsPreviewEvent
     data class UpdateImageCropRect(val cropRect: NormalizedCropRect) : AttachmentsPreviewEvent
     data object ClearImageEditError : AttachmentsPreviewEvent
+    data class SetCurrentCarouselIndex(val index: Int) : AttachmentsPreviewEvent
 }

@@ -8,7 +8,6 @@
 
 package extension
 
-import isPhoneLayerBuild
 import kotlinx.kover.gradle.plugin.dsl.AggregationType
 import kotlinx.kover.gradle.plugin.dsl.CoverageUnit
 import kotlinx.kover.gradle.plugin.dsl.GroupingEntityType
@@ -248,8 +247,7 @@ fun Project.setupKover() {
 
 fun KoverVariantCreateConfig.defaultVariants(project: Project) {
     if (project.path == ":app") {
-        val variant = if (isPhoneLayerBuild) "gplayVanillaDebug" else "gplayDebug"
-        addWithDependencies(variant)
+        addWithDependencies("gplayDebug")
     } else {
         addWithDependencies("debug", "jvm", optional = true)
     }

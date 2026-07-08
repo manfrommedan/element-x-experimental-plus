@@ -95,7 +95,6 @@ class RingingCallNotificationCreator(
                 sessionId = sessionId,
                 roomId = roomId,
                 isAudioCall = audioOnly,
-                notifyEventId = eventId.value,
             ),
         )
         val notificationData = CallNotificationData(

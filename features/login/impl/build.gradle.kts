@@ -62,7 +62,6 @@ dependencies {
     implementation(projects.libraries.architecture)
     implementation(projects.libraries.matrix.api)
     implementation(projects.libraries.matrix.api)
-    implementation(projects.libraries.matrix.impl)
     implementation(projects.libraries.designsystem)
     implementation(projects.libraries.testtags)
     implementation(projects.libraries.uiStrings)

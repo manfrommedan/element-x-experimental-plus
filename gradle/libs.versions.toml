@@ -51,7 +51,7 @@ telephoto = "0.19.0"
 haze = "1.7.2"
 
 # Dependency analysis
-dependencyAnalysis = "3.15.0"
+dependencyAnalysis = "3.16.0"
 
 # DI
 metro = "1.2.1"
@@ -126,7 +126,7 @@ androidx_preference = "androidx.preference:preference:1.2.1"
 androidx_webkit = "androidx.webkit:webkit:1.16.0"
 
 androidx_compose_bom = { module = "androidx.compose:compose-bom", version.ref = "compose_bom" }
-androidx_compose_material3 = { module = "androidx.compose.material3:material3", version = '1.5.0-alpha15' }
+androidx_compose_material3 = { module = "androidx.compose.material3:material3", version = '1.5.0-alpha22' }
 androidx_compose_material3_windowsizeclass = { module = "androidx.compose.material3:material3-window-size-class" }
 androidx_compose_material3_adaptive = "androidx.compose.material3:material3-adaptive-android:1.0.0-alpha06"
 androidx_compose_ui = { module = "androidx.compose.ui:ui" }
@@ -192,6 +192,7 @@ coil = { module = "io.coil-kt.coil3:coil", version.ref = "coil" }
 coil_network_okhttp = { module = "io.coil-kt.coil3:coil-network-okhttp", version.ref = "coil" }
 coil_compose = { module = "io.coil-kt.coil3:coil-compose", version.ref = "coil" }
 coil_gif = { module = "io.coil-kt.coil3:coil-gif", version.ref = "coil" }
+coil_svg = { module = "io.coil-kt.coil3:coil-svg", version.ref = "coil" }
 coil_test = { module = "io.coil-kt.coil3:coil-test", version.ref = "coil" }
 datetime = { module = "org.jetbrains.kotlinx:kotlinx-datetime", version.ref = "datetime" }
 serialization_json = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "serialization_json" }
@@ -229,7 +230,7 @@ color_picker = "io.mhssn:colorpicker:1.0.0"
 
 # Analytics
 posthog = "com.posthog:posthog-android:3.51.1"
-sentry = "io.sentry:sentry-android:8.44.1"
+sentry = "io.sentry:sentry-android:8.46.0"
 # main branch can be tested replacing the version with main-SNAPSHOT
 matrix_analytics_events = "com.github.matrix-org:matrix-analytics-events:0.37.0"
 
@@ -278,4 +279,4 @@ firebaseAppDistribution = { id = "com.google.firebase.appdistribution", version.
 sonarqube = "org.sonarqube:7.3.1.8318"
 licensee = "app.cash.licensee:1.14.1"
 compose-compiler = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
-gms_google_services = { id = "com.google.gms.google-services", version = "4.4.4" }
+gms_google_services = { id = "com.google.gms.google-services", version = "4.5.0" }

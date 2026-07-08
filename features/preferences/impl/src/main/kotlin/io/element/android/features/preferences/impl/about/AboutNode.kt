@@ -19,7 +19,7 @@ import dev.zacsweers.metro.Assisted
 import dev.zacsweers.metro.AssistedInject
 import io.element.android.annotations.ContributesNode
 import io.element.android.compound.theme.ElementTheme
-import io.element.android.libraries.androidutils.browser.openUrlInMxtrAwareCustomTab
+import io.element.android.libraries.androidutils.browser.openUrlInChromeCustomTab
 import io.element.android.libraries.architecture.callback
 import io.element.android.libraries.di.SessionScope
 
@@ -41,7 +41,7 @@ class AboutNode(
         darkTheme: Boolean,
         elementLegal: ElementLegal,
     ) {
-        activity.openUrlInMxtrAwareCustomTab(null, darkTheme, elementLegal.url)
+        activity.openUrlInChromeCustomTab(null, darkTheme, elementLegal.url)
     }
 
     @Composable

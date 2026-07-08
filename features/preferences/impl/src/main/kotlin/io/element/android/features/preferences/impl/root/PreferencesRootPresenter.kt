@@ -115,9 +115,6 @@ class PreferencesRootPresenter(
         }
 
         val showLabsItem = remember { featureFlagService.getAvailableFeatures(isInLabs = true).isNotEmpty() }
-        val showShareMxidShortcut by remember {
-            featureFlagService.isFeatureEnabledFlow(FeatureFlags.ShareMxidShortcut)
-        }.collectAsState(initial = false)
 
         val directLogoutState = directLogoutPresenter.present()
 
@@ -154,7 +151,6 @@ class PreferencesRootPresenter(
             canDeactivateAccount = canDeactivateAccount,
             nbOfBlockedUsers = nbOfBlockedUsers,
             showLabsItem = showLabsItem,
-            showShareMxidShortcut = showShareMxidShortcut,
             directLogoutState = directLogoutState,
             snackbarMessage = snackbarMessage,
             eventSink = ::handleEvent,

@@ -32,16 +32,11 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.unit.dp
 import io.element.android.compound.theme.ElementTheme
 import io.element.android.compound.tokens.generated.CompoundIcons
-import io.element.android.libraries.designsystem.components.avatar.Avatar
-import io.element.android.libraries.designsystem.components.avatar.AvatarData
-import io.element.android.libraries.designsystem.components.avatar.AvatarType
 import io.element.android.libraries.designsystem.preview.ElementPreview
 import io.element.android.libraries.designsystem.preview.PreviewsDayNight
 import io.element.android.libraries.designsystem.theme.components.Icon
 import io.element.android.libraries.designsystem.theme.components.Surface
 import io.element.android.libraries.designsystem.theme.components.Text
-import kotlinx.collections.immutable.ImmutableList
-import kotlinx.collections.immutable.persistentListOf
 
 private val CORNER_RADIUS = 8.dp
 
@@ -51,8 +46,7 @@ fun GroupHeaderView(
     isExpanded: Boolean,
     @Suppress("UNUSED_PARAMETER") isHighlighted: Boolean,
     onClick: () -> Unit,
-    modifier: Modifier = Modifier,
-    leadingAvatars: ImmutableList<AvatarData> = persistentListOf(),
+    modifier: Modifier = Modifier
 ) {
     // Ignore isHighlighted for now, we need a design decision on it.
     val backgroundColor = Color.Transparent
@@ -83,27 +77,7 @@ fun GroupHeaderView(
                     .padding(8.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                if (leadingAvatars.isNotEmpty()) {
-                    Row(
-                        modifier = Modifier.padding(end = 8.dp),
-                        horizontalArrangement = Arrangement.spacedBy((-4).dp),
-                    ) {
-                        leadingAvatars.forEach { avatarData ->
-                            Avatar(
-                                avatarData = avatarData,
-                                avatarType = AvatarType.User,
-                                forcedAvatarSize = 16.dp,
-                            )
-                        }
-                    }
-                }
                 Text(
-                    // Only the redacted header carries a leading avatar stack and a potentially long
-                    // multi-author label. weight(fill = false) caps it at its share of the row, so a
-                    // long label wraps and the chevron always keeps its place, while a short label
-                    // stays its natural size and the whole header is still centred by the Box (same
-                    // as the state-change "N room changes" group, which is left untouched here).
-                    modifier = if (leadingAvatars.isNotEmpty()) Modifier.weight(1f, fill = false) else Modifier,
                     text = text,
                     color = ElementTheme.colors.textSecondary,
                     style = ElementTheme.typography.fontBodyMdRegular,
@@ -117,9 +91,6 @@ fun GroupHeaderView(
                     label = "chevron"
                 )
                 Icon(
-                    // The whole header is centred by the parent Box (same as the state-change
-                    // "N room changes" group), so the chevron sits right after the text and a
-                    // single-author label no longer hangs orphaned against the left edge.
                     modifier = Modifier.rotate(rotation),
                     imageVector = CompoundIcons.ChevronRight(),
                     contentDescription = null,

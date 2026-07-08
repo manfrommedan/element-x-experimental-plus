@@ -30,7 +30,6 @@ data class PreferencesRootState(
     val canDeactivateAccount: Boolean,
     val nbOfBlockedUsers: Int,
     val showLabsItem: Boolean,
-    val showShareMxidShortcut: Boolean,
     val directLogoutState: DirectLogoutState,
     val snackbarMessage: SnackbarMessage?,
     val eventSink: (PreferencesRootEvent) -> Unit,

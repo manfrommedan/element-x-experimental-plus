@@ -81,38 +81,17 @@ class DefaultPickerProvider(
     }
 
     /**
-     * Remembers and returns a [PickerLauncher] for multiple gallery items (images and/or videos).
-     * [onResult] receives a list of (Uri, mimeType) pairs. Empty list = cancelled.
-     */
-    @Composable
-    override fun registerMultipleGalleryPicker(
-        maxItems: Int,
-        onResult: (List<Pair<Uri, String?>>) -> Unit,
-    ): PickerLauncher<PickVisualMediaRequest, List<Uri>> {
-        return if (LocalInspectionMode.current) {
-            NoOpPickerLauncher { onResult(emptyList()) }
-        } else {
-            rememberPickerLauncher(type = PickerType.MultipleImageAndVideo(maxItems)) { uris ->
-                val pairs = uris.map { uri ->
-                    uri to context.contentResolver.getType(uri)
-                }
-                onResult(pairs)
-            }
-        }
-    }
-
-    /**
-     * Upstream API variant: multiple gallery items yielding raw [Uri]s (no mime pairs).
-     * Kept alongside our [registerMultipleGalleryPicker] so both API surfaces resolve.
+     * Remembers and returns a [PickerLauncher] for selecting multiple gallery items (images/videos).
+     * [onResult] will be called with the list of selected file [Uri]s.
      */
     @Composable
     override fun registerGalleryMultiPicker(
-        onResult: (uris: List<Uri>) -> Unit,
+        onResult: (uris: List<Uri>) -> Unit
     ): PickerLauncher<PickVisualMediaRequest, List<Uri>> {
         return if (LocalInspectionMode.current) {
             NoOpPickerLauncher { onResult(emptyList()) }
         } else {
-            rememberPickerLauncher(type = PickerType.MultipleImageAndVideo(maxItems = 60)) { uris ->
+            rememberPickerLauncher(type = PickerType.ImageAndVideoMulti) { uris ->
                 onResult(uris)
             }
         }

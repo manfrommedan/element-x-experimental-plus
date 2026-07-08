@@ -23,7 +23,7 @@ import dev.zacsweers.metro.AssistedInject
 import io.element.android.annotations.ContributesNode
 import io.element.android.compound.theme.ElementTheme
 import io.element.android.features.securityandprivacy.impl.SecurityAndPrivacyNavigator
-import io.element.android.libraries.androidutils.browser.openUrlInMxtrAwareCustomTab
+import io.element.android.libraries.androidutils.browser.openUrlInChromeCustomTab
 import io.element.android.libraries.architecture.appyx.launchMolecule
 import io.element.android.libraries.di.RoomScope
 
@@ -40,7 +40,7 @@ class SecurityAndPrivacyNode(
     private val stateFlow = launchMolecule { presenter.present() }
 
     private fun onOpenExternalUrl(activity: Activity, darkTheme: Boolean, url: String) {
-        activity.openUrlInMxtrAwareCustomTab(null, darkTheme, url)
+        activity.openUrlInChromeCustomTab(null, darkTheme, url)
     }
 
     @Composable

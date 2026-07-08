@@ -27,8 +27,6 @@ import dev.zacsweers.metro.Inject
 import im.vector.app.features.analytics.plan.Interaction
 import io.element.android.features.announcement.api.Announcement
 import io.element.android.features.announcement.api.AnnouncementService
-import io.element.android.features.call.api.CallData
-import io.element.android.features.call.api.ElementCallEntryPoint
 import io.element.android.features.home.impl.datasource.RoomListDataSource
 import io.element.android.features.home.impl.filters.RoomListFiltersState
 import io.element.android.features.home.impl.filters.into
@@ -51,7 +49,6 @@ import io.element.android.libraries.featureflag.api.FeatureFlags
 import io.element.android.libraries.fullscreenintent.api.FullScreenIntentPermissionsState
 import io.element.android.libraries.matrix.api.MatrixClient
 import io.element.android.libraries.matrix.api.core.RoomId
-import io.element.android.libraries.matrix.api.notification.CallIntent
 import io.element.android.libraries.matrix.api.encryption.RecoveryState
 import io.element.android.libraries.matrix.api.roomlist.RoomList
 import io.element.android.libraries.matrix.api.roomlist.RoomListFilter
@@ -89,7 +86,6 @@ class RoomListPresenter(
     private val coldStartWatcher: AnalyticsColdStartWatcher,
     private val spaceFiltersPresenter: Presenter<SpaceFiltersState>,
     private val featureFlagService: FeatureFlagService,
-    private val elementCallEntryPoint: ElementCallEntryPoint,
 ) : Presenter<RoomListState> {
     private val encryptionService = client.encryptionService
 
@@ -133,16 +129,6 @@ class RoomListPresenter(
                 is RoomListEvent.ShowContextMenu -> {
                     coroutineScope.showContextMenu(event, contextMenu)
                 }
-                is RoomListEvent.JoinRoomCall -> {
-                    val summary = event.roomSummary
-                    elementCallEntryPoint.startCall(
-                        CallData(
-                            sessionId = client.sessionId,
-                            roomId = summary.roomId,
-                            isAudioCall = summary.activeCallIntent == CallIntent.AUDIO,
-                        )
-                    )
-                }
                 is RoomListEvent.HideContextMenu -> {
                     contextMenu.value = RoomListState.ContextMenu.Hidden
                 }
@@ -175,8 +161,9 @@ class RoomListPresenter(
         }
 
         val canReportRoom by produceState(false) { value = client.canReportRoom() }
-        val showUnreadCount by featureFlagService.isFeatureEnabledFlow(FeatureFlags.UnreadIndicatorCount)
-            .collectAsState(initial = false)
+        val showUnreadCount by produceState(false) {
+            value = featureFlagService.isFeatureEnabled(FeatureFlags.UnreadIndicatorCount)
+        }
 
         val contentState = roomListContentState(
             securityBannerDismissed,
@@ -256,10 +243,6 @@ class RoomListPresenter(
         }
         val seenRoomInvites by remember { seenInvitesStore.seenRoomIds() }.collectAsState(emptySet())
         val securityBannerState by rememberSecurityBannerState(securityBannerDismissed)
-        val pinFavoritesToTop by featureFlagService.isFeatureEnabledFlow(FeatureFlags.FavoritesPinnedToTop)
-            .collectAsState(initial = false)
-        val canJoinCallFromList by featureFlagService.isFeatureEnabledFlow(FeatureFlags.RoomListCallShortcut)
-            .collectAsState(initial = false)
         return when {
             showEmpty -> RoomListContentState.Empty(
                 securityBannerState = securityBannerState,
@@ -276,8 +259,6 @@ class RoomListPresenter(
                     batteryOptimizationState = batteryOptimizationPresenter.present(),
                     summaries = roomSummaries.dataOrNull().orEmpty().toImmutableList(),
                     seenRoomInvites = seenRoomInvites.toImmutableSet(),
-                    pinFavoritesToTop = pinFavoritesToTop,
-                    canJoinCallFromList = canJoinCallFromList,
                 )
             }
         }

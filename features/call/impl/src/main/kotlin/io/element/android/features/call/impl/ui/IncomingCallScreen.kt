@@ -8,9 +8,7 @@
 
 package io.element.android.features.call.impl.ui
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -27,7 +25,6 @@ import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
@@ -59,8 +56,6 @@ internal fun IncomingCallScreen(
     notificationData: CallNotificationData,
     onAnswer: (CallNotificationData) -> Unit,
     onCancel: () -> Unit,
-    onAnswerWithoutCamera: (CallNotificationData) -> Unit,
-    phoneStyleIncomingCall: Boolean = false,
 ) {
     OnboardingBackground()
     Column(
@@ -91,27 +86,12 @@ internal fun IncomingCallScreen(
                 textAlign = TextAlign.Center,
             )
             Spacer(modifier = Modifier.height(8.dp))
-            val subtitleRes = if (phoneStyleIncomingCall) {
-                if (notificationData.audioOnly) {
-                    R.string.screen_incoming_call_subtitle_audio_android
-                } else {
-                    R.string.screen_incoming_call_subtitle_video_android
-                }
-            } else {
-                R.string.screen_incoming_call_subtitle_android
-            }
             Text(
-                text = stringResource(subtitleRes),
+                text = stringResource(R.string.screen_incoming_call_subtitle_android),
                 style = ElementTheme.typography.fontBodyLgRegular,
                 color = ElementTheme.colors.textSecondary,
                 textAlign = TextAlign.Center,
             )
-        }
-        if (phoneStyleIncomingCall && !notificationData.audioOnly) {
-            AnswerWithoutCameraButton(
-                onClick = { onAnswerWithoutCamera(notificationData) },
-            )
-            Spacer(modifier = Modifier.height(24.dp))
         }
         Row(
             modifier = Modifier.padding(bottom = 64.dp),
@@ -134,34 +114,6 @@ internal fun IncomingCallScreen(
                 borderColor = ElementTheme.colors.borderCriticalSubtle
             )
         }
-    }
-}
-
-@Composable
-private fun AnswerWithoutCameraButton(
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    Row(
-        modifier = modifier
-            .clip(CircleShape)
-            .background(ElementTheme.colors.bgActionSecondaryRest)
-            .clickable(onClick = onClick)
-            .padding(horizontal = 20.dp, vertical = 12.dp),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Icon(
-            modifier = Modifier.size(20.dp),
-            imageVector = CompoundIcons.VideoCallDeclinedSolid(),
-            contentDescription = null,
-            tint = ElementTheme.colors.iconPrimary,
-        )
-        Text(
-            text = stringResource(R.string.screen_incoming_call_answer_without_camera_android),
-            style = ElementTheme.typography.fontBodyMdMedium,
-            color = ElementTheme.colors.textPrimary,
-        )
     }
 }
 
@@ -215,7 +167,5 @@ internal fun IncomingCallScreenPreview(
         notificationData = state,
         onAnswer = {},
         onCancel = {},
-        onAnswerWithoutCamera = {},
-        phoneStyleIncomingCall = true,
     )
 }

@@ -16,7 +16,6 @@ import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
@@ -25,7 +24,6 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
@@ -225,16 +223,6 @@ private fun RoomsViewList(
     OnVisibleRangeChangeEffect(lazyListState) { visibleRange ->
         eventSink(RoomListEvent.UpdateVisibleRange(visibleRange))
     }
-    val partitioned = remember(state.summaries, state.pinFavoritesToTop) {
-        if (state.pinFavoritesToTop) {
-            state.summaries.partition { it.isFavorite }
-        } else {
-            emptyList<RoomListRoomSummary>() to state.summaries
-        }
-    }
-    val favorites = partitioned.first
-    val others = partitioned.second
-    val showFavoritesSection = favorites.isNotEmpty() && others.isNotEmpty()
     LazyColumn(
         state = lazyListState,
         modifier = modifier,
@@ -282,13 +270,8 @@ private fun RoomsViewList(
 
         // Note: do not use a key for the LazyColumn, or the scroll will not behave as expected if a room
         // is moved to the top of the list.
-        if (showFavoritesSection) {
-            item(key = "favorites_header", contentType = "section_header") {
-                RoomListSectionHeader(text = stringResource(R.string.screen_roomlist_section_favorites))
-            }
-        }
         itemsIndexed(
-            items = favorites,
+            items = state.summaries,
             contentType = { _, room -> room.contentType() },
         ) { index, room ->
             RoomSummaryRow(
@@ -298,52 +281,13 @@ private fun RoomsViewList(
                     state.seenRoomInvites.contains(room.roomId),
                 showUnreadCount = state.showUnreadCount,
                 onClick = onRoomClick,
-                canJoinCall = state.canJoinCallFromList,
                 eventSink = eventSink,
             )
-            if (index != favorites.lastIndex) {
-                HorizontalDivider()
-            }
-        }
-        if (showFavoritesSection) {
-            item(key = "favorites_section_spacer", contentType = "section_spacer") {
-                Spacer(modifier = Modifier.height(8.dp))
-            }
-        }
-        itemsIndexed(
-            items = others,
-            contentType = { _, room -> room.contentType() },
-        ) { index, room ->
-            RoomSummaryRow(
-                room = room,
-                hideInviteAvatars = hideInvitesAvatars,
-                isInviteSeen = room.displayType == RoomSummaryDisplayType.INVITE &&
-                    state.seenRoomInvites.contains(room.roomId),
-                showUnreadCount = state.showUnreadCount,
-                onClick = onRoomClick,
-                canJoinCall = state.canJoinCallFromList,
-                eventSink = eventSink,
-            )
-            if (index != others.lastIndex) {
+            if (index != state.summaries.lastIndex) {
                 HorizontalDivider()
             }
         }
     }
-}
-
-@Composable
-private fun RoomListSectionHeader(
-    text: String,
-    modifier: Modifier = Modifier,
-) {
-    Text(
-        text = text,
-        style = ElementTheme.typography.fontBodySmMedium,
-        color = ElementTheme.colors.textSecondary,
-        modifier = modifier
-            .fillMaxWidth()
-            .padding(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 4.dp),
-    )
 }
 
 @Composable

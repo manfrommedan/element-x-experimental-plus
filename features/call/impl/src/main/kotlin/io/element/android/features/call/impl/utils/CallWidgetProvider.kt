@@ -20,9 +20,6 @@ interface CallWidgetProvider {
         clientId: String,
         languageTag: String?,
         theme: String?,
-        // Join a video call with the camera initially off (Telegram-style answer
-        // without camera). See CallData.startVideoMuted. Ignored for audio calls.
-        startVideoMuted: Boolean = false,
     ): Result<GetWidgetResult>
 
     data class GetWidgetResult(

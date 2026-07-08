@@ -23,7 +23,7 @@ interface ForwardEntryPoint : FeatureEntryPoint {
     }
 
     data class Params(
-        val eventIds: List<EventId>,
+        val eventId: EventId,
         val timelineProvider: TimelineProvider,
     ) : NodeInputs
 

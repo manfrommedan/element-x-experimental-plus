@@ -1228,12 +1228,7 @@ class ActionListPresenterTest {
         val presenter = createActionListPresenter(
             isDeveloperModeEnabled = false,
             timelineMode = Timeline.Mode.Thread(A_THREAD_ID),
-            featureFlagService = FakeFeatureFlagService(
-                initialState = mapOf(
-                    FeatureFlags.Threads.key to true,
-                    FeatureFlags.MessageMultiSelect.key to false,
-                )
-            ),
+            featureFlagService = FakeFeatureFlagService(initialState = mapOf(FeatureFlags.Threads.key to true)),
         )
         presenter.test {
             val initialState = awaitItem()
@@ -1282,12 +1277,7 @@ class ActionListPresenterTest {
     fun `present - compute for remote timeline item with threads enabled`() = runTest {
         val presenter = createActionListPresenter(
             isDeveloperModeEnabled = false,
-            featureFlagService = FakeFeatureFlagService(
-                initialState = mapOf(
-                    FeatureFlags.Threads.key to true,
-                    FeatureFlags.MessageMultiSelect.key to false,
-                )
-            ),
+            featureFlagService = FakeFeatureFlagService(initialState = mapOf(FeatureFlags.Threads.key to true)),
         )
         presenter.test {
             val initialState = awaitItem()
@@ -1339,12 +1329,7 @@ class ActionListPresenterTest {
     fun `present - compute for remote timeline item already in thread with threads enabled`() = runTest {
         val presenter = createActionListPresenter(
             isDeveloperModeEnabled = false,
-            featureFlagService = FakeFeatureFlagService(
-                initialState = mapOf(
-                    FeatureFlags.Threads.key to true,
-                    FeatureFlags.MessageMultiSelect.key to false,
-                )
-            ),
+            featureFlagService = FakeFeatureFlagService(initialState = mapOf(FeatureFlags.Threads.key to true)),
         )
         presenter.test {
             val initialState = awaitItem()
@@ -1397,12 +1382,7 @@ class ActionListPresenterTest {
     fun `present - compute for local timeline item with threads enabled`() = runTest {
         val presenter = createActionListPresenter(
             isDeveloperModeEnabled = false,
-            featureFlagService = FakeFeatureFlagService(
-                initialState = mapOf(
-                    FeatureFlags.Threads.key to true,
-                    FeatureFlags.MessageMultiSelect.key to false,
-                )
-            ),
+            featureFlagService = FakeFeatureFlagService(initialState = mapOf(FeatureFlags.Threads.key to true)),
         )
         presenter.test {
             val initialState = awaitItem()
@@ -1496,10 +1476,7 @@ private fun createActionListPresenter(
     isDeveloperModeEnabled: Boolean,
     room: BaseRoom = FakeBaseRoom(),
     timelineMode: Timeline.Mode = Timeline.Mode.Live,
-    featureFlagService: FakeFeatureFlagService = FakeFeatureFlagService(
-        // Keep the legacy assertion sets stable; tests covering Select explicitly opt in.
-        initialState = mapOf(FeatureFlags.MessageMultiSelect.key to false),
-    ),
+    featureFlagService: FakeFeatureFlagService = FakeFeatureFlagService(),
     recentEmojis: GetRecentEmojis = GetRecentEmojis { Result.success(persistentListOf()) },
 ): ActionListPresenter {
     val preferencesStore = InMemoryAppPreferencesStore(isDeveloperModeEnabled = isDeveloperModeEnabled)

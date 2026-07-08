@@ -28,7 +28,7 @@ import io.element.android.compound.theme.ElementTheme
 import io.element.android.features.enterprise.api.SessionEnterpriseService
 import io.element.android.features.securebackup.impl.reset.password.ResetIdentityPasswordNode
 import io.element.android.features.securebackup.impl.reset.root.ResetIdentityRootNode
-import io.element.android.libraries.androidutils.browser.openUrlInMxtrAwareCustomTab
+import io.element.android.libraries.androidutils.browser.openUrlInChromeCustomTab
 import io.element.android.libraries.architecture.AsyncData
 import io.element.android.libraries.architecture.BackstackView
 import io.element.android.libraries.architecture.BaseFlowNode
@@ -128,7 +128,7 @@ class ResetIdentityFlowNode(
                     is IdentityOAuthResetHandle -> {
                         Timber.d("Launching reset confirmation in MAS")
                         val url = sessionEnterpriseService.tweakMasUrl(handle.url)
-                        activity.openUrlInMxtrAwareCustomTab(null, darkTheme, url)
+                        activity.openUrlInChromeCustomTab(null, darkTheme, url)
                         Timber.d("Starting resetOAuth")
                         resetJob = launch { handle.resetOAuth() }
                         resetJob?.invokeOnCompletion { Timber.d("resetOAuth ended") }

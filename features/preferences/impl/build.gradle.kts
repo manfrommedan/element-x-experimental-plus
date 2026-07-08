@@ -53,7 +53,6 @@ dependencies {
     implementation(projects.libraries.architecture)
     implementation(projects.libraries.cachestore.api)
     implementation(projects.libraries.matrix.api)
-    implementation(projects.libraries.matrix.impl)
     implementation(projects.libraries.designsystem)
     implementation(projects.libraries.featureflag.api)
     implementation(projects.libraries.featureflag.ui)

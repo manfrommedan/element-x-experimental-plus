@@ -9,7 +9,6 @@
 package io.element.android.features.messages.impl.timeline.components.event
 
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import io.element.android.features.messages.impl.timeline.TimelineEvent
 import io.element.android.features.messages.impl.timeline.components.layout.ContentAvoidingLayoutData
@@ -35,25 +34,13 @@ import io.element.android.features.messages.impl.timeline.model.event.TimelineIt
 import io.element.android.features.messages.impl.timeline.model.event.TimelineItemVoiceContent
 import io.element.android.features.messages.impl.timeline.model.event.ensureActiveLiveLocation
 import io.element.android.libraries.architecture.Presenter
-import io.element.android.libraries.matrix.api.core.TransactionId
-import io.element.android.libraries.matrix.api.timeline.item.event.LocalEventSendState
 import io.element.android.libraries.voiceplayer.api.VoiceMessageState
 import io.element.android.wysiwyg.link.Link
-
-/**
- * True iff the cancel-X overlay should be shown on a media bubble: there must be a
- * transactionId to address `Timeline.cancelSend(...)`, AND the item must still be
- * in any `Sending` substate (queued `Sending.Event` or active `Sending.MediaWithProgress`).
- * Extracted from the Composable so it can be unit-tested.
- */
-internal fun canCancelUpload(transactionId: TransactionId?, localSendState: LocalEventSendState?): Boolean =
-    transactionId != null && localSendState is LocalEventSendState.Sending
 
 @Composable
 fun TimelineItemEventContentView(
     content: TimelineItemEventContent,
     hideMediaContent: Boolean,
-    showUrlPreviews: Boolean,
     onContentClick: (() -> Unit)?,
     onGalleryItemClick: ((Int) -> Unit),
     onLongClick: (() -> Unit)?,
@@ -63,21 +50,7 @@ fun TimelineItemEventContentView(
     eventSink: (TimelineEvent.TimelineItemEvent) -> Unit,
     modifier: Modifier = Modifier,
     onContentLayoutChange: (ContentAvoidingLayoutData) -> Unit = {},
-    localSendState: LocalEventSendState? = null,
-    transactionId: TransactionId? = null,
 ) {
-    // Show the cancel-X for ANY pending media (queued or actively uploading).
-    // Queued items report Sending.Event (no progress) - we still render the
-    // overlay so the whole batch can be aborted, not just the active one.
-    val canCancelUpload = canCancelUpload(transactionId, localSendState)
-    val mediaUploadProgress = localSendState as? LocalEventSendState.Sending.MediaWithProgress
-    val onCancelUpload: (() -> Unit)? = remember(transactionId, canCancelUpload, eventSink) {
-        if (canCancelUpload && transactionId != null) {
-            { eventSink(TimelineEvent.CancelMediaUpload(transactionId)) }
-        } else {
-            null
-        }
-    }
     val presenterFactories = LocalTimelineItemPresenterFactories.current
     when (content) {
         is TimelineItemEncryptedContent -> TimelineItemEncryptedView(
@@ -92,7 +65,6 @@ fun TimelineItemEventContentView(
         )
         is TimelineItemTextBasedContent -> TimelineItemTextView(
             content = content,
-            showUrlPreviews = showUrlPreviews,
             modifier = modifier,
             onLinkClick = onLinkClick,
             onLinkLongClick = onLinkLongClick,
@@ -119,8 +91,6 @@ fun TimelineItemEventContentView(
             onLinkClick = onLinkClick,
             onLinkLongClick = onLinkLongClick,
             onContentLayoutChange = onContentLayoutChange,
-            uploadProgress = mediaUploadProgress,
-            onCancelUpload = onCancelUpload,
             modifier = modifier,
         )
         is TimelineItemGalleryContent -> TimelineItemGalleryView(
@@ -157,22 +127,16 @@ fun TimelineItemEventContentView(
             onLinkClick = onLinkClick,
             onLinkLongClick = onLinkLongClick,
             onContentLayoutChange = onContentLayoutChange,
-            uploadProgress = mediaUploadProgress,
-            onCancelUpload = onCancelUpload,
             modifier = modifier
         )
         is TimelineItemFileContent -> TimelineItemFileView(
             content = content,
             onContentLayoutChange = onContentLayoutChange,
-            uploadProgress = mediaUploadProgress,
-            onCancelUpload = onCancelUpload,
             modifier = modifier
         )
         is TimelineItemAudioContent -> TimelineItemAudioView(
             content = content,
             onContentLayoutChange = onContentLayoutChange,
-            uploadProgress = mediaUploadProgress,
-            onCancelUpload = onCancelUpload,
             modifier = modifier
         )
         is TimelineItemLegacyCallInviteContent -> TimelineItemLegacyCallInviteView(modifier = modifier)
@@ -191,8 +155,6 @@ fun TimelineItemEventContentView(
                 state = presenter.present(),
                 content = content,
                 onContentLayoutChange = onContentLayoutChange,
-                uploadProgress = mediaUploadProgress,
-                onCancelUpload = onCancelUpload,
                 modifier = modifier
             )
         }

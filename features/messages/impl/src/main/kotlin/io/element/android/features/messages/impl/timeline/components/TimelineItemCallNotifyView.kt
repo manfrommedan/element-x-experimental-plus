@@ -40,8 +40,6 @@ import io.element.android.features.messages.impl.timeline.components.receipt.aRe
 import io.element.android.features.messages.impl.timeline.model.TimelineItem
 import io.element.android.features.messages.impl.timeline.model.event.RtcNotificationState
 import io.element.android.features.messages.impl.timeline.model.event.TimelineItemRtcNotificationContent
-import io.element.android.libraries.designsystem.components.avatar.Avatar
-import io.element.android.libraries.designsystem.components.avatar.AvatarType
 import io.element.android.libraries.designsystem.modifiers.onKeyboardContextMenuAction
 import io.element.android.libraries.designsystem.preview.ElementPreview
 import io.element.android.libraries.designsystem.preview.PreviewsDayNight
@@ -76,61 +74,22 @@ internal fun TimelineItemCallNotifyView(
             horizontalArrangement = Arrangement.spacedBy(12.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            val phoneVoiceLayoutEnabled = LocalPhoneVoiceLayoutEnabled.current
-            val isAudio = content.callIntent == CallIntent.AUDIO
-            val baseLabel = getTextRes(timelineRoomInfo, content)
-            val labelRes = if (phoneVoiceLayoutEnabled && isAudio && baseLabel == CommonStrings.common_call_started) {
-                CommonStrings.common_voice_call
-            } else {
-                baseLabel
-            }
-            if (phoneVoiceLayoutEnabled) {
-                Avatar(
-                    avatarData = event.senderAvatar,
-                    avatarType = AvatarType.User,
-                )
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = event.safeSenderName,
-                        style = ElementTheme.typography.fontBodyLgMedium,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(4.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Icon(
-                            modifier = Modifier.size(20.sp.toDp()),
-                            imageVector = getIcon(timelineRoomInfo, content),
-                            contentDescription = null,
-                            tint = ElementTheme.colors.iconSecondary,
-                        )
-                        Text(
-                            text = stringResource(labelRes),
-                            style = ElementTheme.typography.fontBodyMdRegular,
-                            color = ElementTheme.colors.textSecondary,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                        )
-                    }
-                }
-            } else {
-                Icon(
-                    modifier = Modifier.size(20.sp.toDp()),
-                    imageVector = getIcon(timelineRoomInfo, content),
-                    contentDescription = null,
-                    tint = ElementTheme.colors.iconSecondary,
-                )
-                Text(
-                    modifier = Modifier.weight(1f),
-                    text = stringResource(labelRes),
-                    style = ElementTheme.typography.fontBodyMdRegular,
-                    color = ElementTheme.colors.textSecondary,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-            }
+            Icon(
+                modifier = Modifier.size(20.sp.toDp()),
+                imageVector = getIcon(timelineRoomInfo, content),
+                contentDescription = null,
+                tint = ElementTheme.colors.iconSecondary,
+            )
+
+            Text(
+                modifier = Modifier.weight(1f),
+                text = stringResource(getTextRes(timelineRoomInfo, content)),
+                style = ElementTheme.typography.fontBodyMdRegular,
+                color = ElementTheme.colors.textSecondary,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+
             Text(
                 text = event.sentTime,
                 style = ElementTheme.typography.fontBodyMdRegular,

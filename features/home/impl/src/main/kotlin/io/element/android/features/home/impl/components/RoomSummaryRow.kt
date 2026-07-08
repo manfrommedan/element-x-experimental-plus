@@ -8,7 +8,6 @@
 
 package io.element.android.features.home.impl.components
 
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
@@ -25,13 +24,11 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.ripple
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
@@ -80,7 +77,6 @@ internal fun RoomSummaryRow(
     isInviteSeen: Boolean,
     onClick: (RoomListRoomSummary) -> Unit,
     modifier: Modifier = Modifier,
-    canJoinCall: Boolean = false,
     showUnreadCount: Boolean = false,
     eventSink: (RoomListEvent) -> Unit,
 ) {
@@ -132,12 +128,7 @@ internal fun RoomSummaryRow(
                         timestamp = room.timestamp,
                         isHighlighted = room.isHighlighted
                     )
-                    MessagePreviewAndIndicatorRow(
-                        room = room,
-                        canJoinCall = canJoinCall,
-                        showUnreadCount = showUnreadCount,
-                        eventSink = eventSink,
-                    )
+                    MessagePreviewAndIndicatorRow(room = room, showUnreadCount = showUnreadCount)
                 }
             }
             RoomSummaryDisplayType.KNOCKED -> {
@@ -283,9 +274,7 @@ private fun InviteSubtitle(
 @Composable
 private fun MessagePreviewAndIndicatorRow(
     room: RoomListRoomSummary,
-    canJoinCall: Boolean,
     showUnreadCount: Boolean,
-    eventSink: (RoomListEvent) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Row(
@@ -363,12 +352,7 @@ private fun MessagePreviewAndIndicatorRow(
             if (room.hasRoomCall) {
                 OnGoingCallIcon(
                     color = tint,
-                    isAudio = room.activeCallIntent == CallIntent.AUDIO,
-                    onClick = if (canJoinCall) {
-                        { eventSink(RoomListEvent.JoinRoomCall(room)) }
-                    } else {
-                        null
-                    },
+                    isAudio = room.activeCallIntent == CallIntent.AUDIO
                 )
             }
             if (room.userDefinedNotificationMode == RoomNotificationMode.MUTE) {
@@ -430,22 +414,12 @@ private fun InviteNameAndIndicatorRow(
 @Composable
 private fun OnGoingCallIcon(
     color: Color,
-    isAudio: Boolean,
-    onClick: (() -> Unit)? = null,
+    isAudio: Boolean
 ) {
-    val joinLabel = stringResource(CommonStrings.a11y_notifications_ongoing_call)
-    val modifier = if (onClick != null) {
-        Modifier
-            .clip(CircleShape)
-            .clickable(onClickLabel = joinLabel, onClick = onClick)
-            .size(16.dp)
-    } else {
-        Modifier.size(16.dp)
-    }
     Icon(
-        modifier = modifier,
+        modifier = Modifier.size(16.dp),
         imageVector = if (isAudio) CompoundIcons.VoiceCallSolid() else CompoundIcons.VideoCallSolid(),
-        contentDescription = joinLabel,
+        contentDescription = stringResource(CommonStrings.a11y_notifications_ongoing_call),
         tint = color,
     )
 }

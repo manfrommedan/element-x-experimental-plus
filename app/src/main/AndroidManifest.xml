@@ -142,22 +142,7 @@
                 <data android:host="user" />
                 <data android:host="room" />
             </intent-filter>
-        </activity>
-
-        <!--
-        Hosts incoming SEND / SEND_MULTIPLE with empty taskAffinity so the activity is placed
-        in the caller's task (Telegram, gallery, etc). Back then returns the user to the
-        calling app instead of trapping them inside Element's main task. excludeFromRecents
-        keeps the share-instance out of the recents list.
-        -->
-        <activity
-            android:name=".IncomingShareActivity"
-            android:configChanges="orientation|screenSize|screenLayout|keyboardHidden|uiMode"
-            android:exported="true"
-            android:excludeFromRecents="true"
-            android:taskAffinity=""
-            android:theme="@style/Theme.ElementX.Splash"
-            android:windowSoftInputMode="adjustResize">
+            <!-- Incoming share simple -->
             <intent-filter>
                 <action android:name="android.intent.action.SEND" />
                 <data android:mimeType="*/*" />
@@ -165,6 +150,7 @@
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.OPENABLE" />
             </intent-filter>
+            <!-- Incoming share multiple -->
             <intent-filter>
                 <action android:name="android.intent.action.SEND_MULTIPLE" />
                 <data android:mimeType="*/*" />
@@ -183,19 +169,6 @@
                 android:name="android.support.FILE_PROVIDER_PATHS"
                 android:resource="@xml/file_providers" />
         </provider>
-
-        <!--
-        Fork: lets androidx.appcompat persist the developer "App language" override across
-        restarts on Android < 13 (on Android 13+ the platform stores per-app locales itself).
-        -->
-        <service
-            android:name="androidx.appcompat.app.AppLocalesMetadataHolderService"
-            android:enabled="false"
-            android:exported="false">
-            <meta-data
-                android:name="autoStoreLocales"
-                android:value="true" />
-        </service>
     </application>
 
 </manifest>

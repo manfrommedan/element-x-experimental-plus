@@ -19,12 +19,6 @@ interface PickerProvider {
     ): PickerLauncher<PickVisualMediaRequest, Uri?>
 
     @Composable
-    fun registerMultipleGalleryPicker(
-        maxItems: Int = DEFAULT_MAX_PICK_ITEMS,
-        onResult: (List<Pair<Uri, String?>>) -> Unit
-    ): PickerLauncher<PickVisualMediaRequest, List<Uri>>
-
-    @Composable
     fun registerGalleryImagePicker(
         onResult: (Uri?) -> Unit
     ): PickerLauncher<PickVisualMediaRequest, Uri?>
@@ -52,5 +46,3 @@ interface PickerProvider {
     @Composable
     fun registerCameraVideoPicker(onResult: (Uri?) -> Unit): PickerLauncher<Uri, Boolean>
 }
-
-const val DEFAULT_MAX_PICK_ITEMS: Int = 30

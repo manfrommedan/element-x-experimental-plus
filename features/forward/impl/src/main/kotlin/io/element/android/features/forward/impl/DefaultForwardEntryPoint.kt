@@ -27,7 +27,7 @@ class DefaultForwardEntryPoint : ForwardEntryPoint {
             buildContext = buildContext,
             plugins = listOf(
                 ForwardMessagesNode.Inputs(
-                    eventIds = params.eventIds,
+                    eventId = params.eventId,
                     timelineProvider = params.timelineProvider,
                 ),
                 callback,

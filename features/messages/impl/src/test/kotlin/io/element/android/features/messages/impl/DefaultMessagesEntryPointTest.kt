@@ -47,10 +47,7 @@ import io.mockk.mockk
 import kotlinx.coroutines.test.runTest
 import org.junit.Rule
 import org.junit.Test
-import org.junit.runner.RunWith
-import org.robolectric.RobolectricTestRunner
 
-@RunWith(RobolectricTestRunner::class)
 class DefaultMessagesEntryPointTest {
     @get:Rule
     val instantTaskExecutorRule = InstantTaskExecutorRule()
@@ -90,7 +87,6 @@ class DefaultMessagesEntryPointTest {
                 knockRequestsListEntryPoint = FakeKnockRequestsListEntryPoint(),
                 dateFormatter = FakeDateFormatter(),
                 coroutineDispatchers = testCoroutineDispatchers(),
-                context = org.robolectric.RuntimeEnvironment.getApplication(),
                 hasVulkanSupport = DeviceHasVulkanSupport(mockk(relaxed = true))
             )
         }

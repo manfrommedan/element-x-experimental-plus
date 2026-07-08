@@ -8,7 +8,6 @@
 
 package io.element.android.features.messages.impl.timeline.components.event
 
-import androidx.compose.foundation.layout.Box
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.PreviewParameter
@@ -17,33 +16,22 @@ import io.element.android.features.messages.impl.timeline.components.layout.Cont
 import io.element.android.features.messages.impl.timeline.model.event.TimelineItemAudioContent
 import io.element.android.features.messages.impl.timeline.model.event.TimelineItemAudioContentProvider
 import io.element.android.libraries.designsystem.preview.PreviewsDayNight
-import io.element.android.libraries.matrix.api.timeline.item.event.LocalEventSendState
 
 @Composable
 fun TimelineItemAudioView(
     content: TimelineItemAudioContent,
     onContentLayoutChange: (ContentAvoidingLayoutData) -> Unit,
     modifier: Modifier = Modifier,
-    uploadProgress: LocalEventSendState.Sending.MediaWithProgress? = null,
-    onCancelUpload: (() -> Unit)? = null,
 ) {
-    Box(modifier = modifier) {
-        TimelineItemAttachmentView(
-            icon = CompoundIcons.Audio(),
-            iconContentDescription = null,
-            filename = content.filename,
-            fileExtensionAndSize = content.fileExtensionAndSize,
-            caption = content.caption,
-            onContentLayoutChange = onContentLayoutChange,
-        )
-        if (onCancelUpload != null) {
-            MediaUploadOverlay(
-                progress = uploadProgress?.progress ?: 0L,
-                total = uploadProgress?.total ?: 0L,
-                onCancel = onCancelUpload,
-            )
-        }
-    }
+    TimelineItemAttachmentView(
+        icon = CompoundIcons.Audio(),
+        iconContentDescription = null,
+        filename = content.filename,
+        fileExtensionAndSize = content.fileExtensionAndSize,
+        caption = content.caption,
+        onContentLayoutChange = onContentLayoutChange,
+        modifier = modifier,
+    )
 }
 
 @PreviewsDayNight

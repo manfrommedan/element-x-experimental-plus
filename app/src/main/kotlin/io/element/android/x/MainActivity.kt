@@ -47,7 +47,7 @@ import timber.log.Timber
 
 private val loggerTag = LoggerTag("MainActivity")
 
-open class MainActivity : NodeActivity() {
+class MainActivity : NodeActivity() {
     private lateinit var mainNode: MainNode
     private lateinit var appBindings: AppBindings
 
@@ -66,10 +66,6 @@ open class MainActivity : NodeActivity() {
     @Composable
     private fun MainContent(appBindings: AppBindings) {
         val migrationState = appBindings.migrationEntryPoint().present()
-        Timber.tag(loggerTag.value).d(
-            "migrationAction=${migrationState.migrationAction::class.simpleName} " +
-                "isSuccess=${migrationState.migrationAction.isSuccess()}"
-        )
         val colors by remember {
             appBindings.enterpriseService().semanticColorsFlow(sessionId = null)
         }.collectAsState(SemanticColorsLightDark.default)
@@ -80,17 +76,10 @@ open class MainActivity : NodeActivity() {
             compoundDark = colors.dark,
             buildMeta = appBindings.buildMeta()
         ) {
-            // Wifi-only auto-download is force-disabled while the matrix media
-            // cache survival across app restarts is being sorted out. The
-            // toggle UI is also hidden in AdvancedSettingsView. Any preference
-            // value previously toggled on in earlier builds is ignored here -
-            // existing users won't see their old setting still gate downloads.
-            val autoLoadMedia = true
             CompositionLocalProvider(
                 LocalSnackbarDispatcher provides appBindings.snackbarDispatcher(),
                 LocalUriHandler provides SafeUriHandler(this),
                 LocalAnalyticsService provides appBindings.analyticsService(),
-                io.element.android.libraries.designsystem.components.media.LocalAutoLoadMedia provides autoLoadMedia,
             ) {
                 Box(
                     modifier = Modifier
@@ -98,10 +87,8 @@ open class MainActivity : NodeActivity() {
                         .background(ElementTheme.colors.bgCanvasDefault),
                 ) {
                     if (migrationState.migrationAction.isSuccess()) {
-                        Timber.tag(loggerTag.value).d("rendering MainNodeHost (migration success)")
                         MainNodeHost()
                     } else {
-                        Timber.tag(loggerTag.value).d("rendering Migration screen (action=${migrationState.migrationAction::class.simpleName})")
                         appBindings.migrationEntryPoint().Render(
                             state = migrationState,
                             modifier = Modifier,
@@ -179,18 +166,8 @@ open class MainActivity : NodeActivity() {
         Timber.tag(loggerTag.value).d("onResume")
     }
 
-    override fun onStop() {
-        super.onStop()
-        Timber.tag(loggerTag.value).d("onStop (isFinishing=$isFinishing isChangingConfigurations=$isChangingConfigurations)")
-    }
-
     override fun onDestroy() {
         super.onDestroy()
-        Timber.tag(loggerTag.value).d("onDestroy (isFinishing=$isFinishing isChangingConfigurations=$isChangingConfigurations)")
-    }
-
-    override fun onTrimMemory(level: Int) {
-        super.onTrimMemory(level)
-        Timber.tag(loggerTag.value).d("onTrimMemory level=$level")
+        Timber.tag(loggerTag.value).d("onDestroy")
     }
 }

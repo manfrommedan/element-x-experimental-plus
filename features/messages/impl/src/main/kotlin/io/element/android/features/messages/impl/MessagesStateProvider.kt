@@ -159,8 +159,6 @@ fun aMessagesState(
     successorRoom = successorRoom,
     threads = threads,
     showLiveLocationShareBanner = isCurrentlySharingLiveLocationInRoom,
-    selectionState = io.element.android.features.messages.impl.selection.TimelineSelectionState.Empty,
-    isMultiSelectEnabled = false,
     eventSink = eventSink,
 )
 

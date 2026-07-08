@@ -74,7 +74,5 @@ sealed interface RoomListContentState {
         val showUnreadCount: Boolean,
         val summaries: ImmutableList<RoomListRoomSummary>,
         val seenRoomInvites: ImmutableSet<RoomId>,
-        val pinFavoritesToTop: Boolean = false,
-        val canJoinCallFromList: Boolean = false,
     ) : RoomListContentState
 }

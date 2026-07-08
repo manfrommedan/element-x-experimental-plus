@@ -26,12 +26,6 @@ interface AppPreferencesStore {
     suspend fun setLiveLocationMinimumDistanceInMetersUpdate(value: Int)
     fun getLiveLocationMinimumDistanceInMetersUpdateFlow(): Flow<Int>
 
-    suspend fun setHideRedactedEvents(value: Boolean)
-    fun getHideRedactedEventsFlow(): Flow<Boolean>
-
-    suspend fun setMediaAutoDownloadOnWifiOnly(value: Boolean)
-    fun getMediaAutoDownloadOnWifiOnlyFlow(): Flow<Boolean>
-
     @Deprecated("Use MediaPreviewService instead. Kept only for migration.")
     suspend fun setHideInviteAvatars(hide: Boolean?)
     @Deprecated("Use MediaPreviewService instead. Kept only for migration.")
@@ -40,9 +34,6 @@ interface AppPreferencesStore {
     suspend fun setTimelineMediaPreviewValue(mediaPreviewValue: MediaPreviewValue?)
     @Deprecated("Use MediaPreviewService instead. Kept only for migration.")
     fun getTimelineMediaPreviewValueFlow(): Flow<MediaPreviewValue?>
-
-    suspend fun setUrlPreviewValue(value: UrlPreviewValue)
-    fun getUrlPreviewValueFlow(): Flow<UrlPreviewValue>
 
     suspend fun setTracingLogLevel(logLevel: LogLevel)
     fun getTracingLogLevelFlow(): Flow<LogLevel>

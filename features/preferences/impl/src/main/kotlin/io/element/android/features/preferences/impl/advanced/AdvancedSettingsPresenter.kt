@@ -23,7 +23,6 @@ import io.element.android.libraries.featureflag.api.FeatureFlagService
 import io.element.android.libraries.featureflag.api.FeatureFlags
 import io.element.android.libraries.preferences.api.store.AppPreferencesStore
 import io.element.android.libraries.preferences.api.store.SessionPreferencesStore
-import io.element.android.libraries.preferences.api.store.UrlPreviewValue
 import kotlinx.collections.immutable.toImmutableList
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.collect
@@ -58,19 +57,7 @@ class AdvancedSettingsPresenter(
             appPreferencesStore.getLiveLocationMinimumDistanceInMetersUpdateFlow().collect { value = it }
         }
 
-        val hideRedactedEvents by remember {
-            appPreferencesStore.getHideRedactedEventsFlow()
-        }.collectAsState(initial = false)
-
-        val mediaAutoDownloadOnWifiOnly by remember {
-            appPreferencesStore.getMediaAutoDownloadOnWifiOnlyFlow()
-        }.collectAsState(initial = false)
-
         val mediaPreviewConfigState = mediaPreviewConfigStateStore.state()
-
-        val urlPreviewValue by remember {
-            appPreferencesStore.getUrlPreviewValueFlow()
-        }.collectAsState(initial = UrlPreviewValue.DEFAULT)
 
         val themeOption by remember {
             derivedStateOf {
@@ -134,17 +121,8 @@ class AdvancedSettingsPresenter(
                 }
                 is AdvancedSettingsEvents.SetHideInviteAvatars -> mediaPreviewConfigStateStore.setHideInviteAvatars(event.value)
                 is AdvancedSettingsEvents.SetTimelineMediaPreviewValue -> mediaPreviewConfigStateStore.setTimelineMediaPreviewValue(event.value)
-                is AdvancedSettingsEvents.SetUrlPreviewValue -> sessionCoroutineScope.launch {
-                    appPreferencesStore.setUrlPreviewValue(event.value)
-                }
                 is AdvancedSettingsEvents.SetLiveLocationMinimumDistanceUpdate -> sessionCoroutineScope.launch {
                     appPreferencesStore.setLiveLocationMinimumDistanceInMetersUpdate(event.value)
-                }
-                is AdvancedSettingsEvents.SetHideRedactedEvents -> sessionCoroutineScope.launch {
-                    appPreferencesStore.setHideRedactedEvents(event.value)
-                }
-                is AdvancedSettingsEvents.SetMediaAutoDownloadOnWifiOnly -> sessionCoroutineScope.launch {
-                    appPreferencesStore.setMediaAutoDownloadOnWifiOnly(event.value)
                 }
                 is AdvancedSettingsEvents.SetCompressImages -> sessionCoroutineScope.launch {
                     sessionPreferencesStore.setOptimizeImages(event.compress)
@@ -162,10 +140,7 @@ class AdvancedSettingsPresenter(
             theme = themeOption,
             availableThemeOptions = availableThemeOptions,
             mediaPreviewConfigState = mediaPreviewConfigState,
-            urlPreviewValue = urlPreviewValue,
             liveLocationMinimumDistanceUpdate = liveLocationMinimumDistanceUpdate,
-            hideRedactedEvents = hideRedactedEvents,
-            mediaAutoDownloadOnWifiOnly = mediaAutoDownloadOnWifiOnly,
             eventSink = ::handleEvent,
         )
     }

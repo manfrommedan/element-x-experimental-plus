@@ -20,7 +20,6 @@ data class AppDeveloperSettingsState(
     val customElementCallBaseUrlState: CustomElementCallBaseUrlState,
     val tracingLogLevel: AsyncData<LogLevelItem>,
     val tracingLogPacks: ImmutableList<TraceLogPack>,
-    val appLanguage: AppLanguageItem,
     val eventSink: (AppDeveloperSettingsEvent) -> Unit
 )
 

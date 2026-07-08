@@ -13,7 +13,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.MutableState
 import io.element.android.compound.theme.ElementTheme
-import io.element.android.libraries.androidutils.browser.openUrlInMxtrAwareCustomTab
+import io.element.android.libraries.androidutils.browser.openUrlInChromeCustomTab
 
 @Suppress("MutableStateParam")
 @Composable
@@ -23,7 +23,7 @@ fun OpenUrlInTabView(url: MutableState<String?>) {
 
     LaunchedEffect(url.value) {
         url.value?.let {
-            activity.openUrlInMxtrAwareCustomTab(null, darkTheme, it)
+            activity.openUrlInChromeCustomTab(null, darkTheme, it)
             url.value = null
         }
     }

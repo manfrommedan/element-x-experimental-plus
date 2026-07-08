@@ -37,7 +37,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -92,8 +91,6 @@ import io.element.android.features.messages.impl.timeline.model.TimelineItem
 import io.element.android.features.messages.impl.timeline.model.TimelineItemGroupPosition
 import io.element.android.features.messages.impl.timeline.model.event.aTimelineItemStateEventContent
 import io.element.android.features.messages.impl.timeline.model.event.aTimelineItemTextContent
-import io.element.android.features.messages.impl.timeline.model.event.isBulkSelectable
-import io.element.android.features.messages.impl.timeline.model.event.opensMediaViewer
 import io.element.android.features.messages.impl.topbars.MessagesViewTopBar
 import io.element.android.features.messages.impl.topbars.ThreadTopBar
 import io.element.android.features.messages.impl.voicemessages.composer.VoiceMessagePermissionRationaleDialog
@@ -161,27 +158,6 @@ fun MessagesView(
 
     val snackbarHostState = rememberSnackbarHostState(snackbarMessage = state.snackbarMessage)
 
-    var showBulkDeleteConfirm by remember { mutableStateOf(false) }
-
-    // Back press while selecting should exit selection mode rather than the room.
-    androidx.activity.compose.BackHandler(enabled = state.selectionState.isActive) {
-        state.eventSink(MessagesEvent.ClearSelection)
-    }
-
-    if (showBulkDeleteConfirm) {
-        io.element.android.libraries.designsystem.components.dialogs.ConfirmationDialog(
-            title = androidx.compose.ui.res.stringResource(io.element.android.libraries.ui.strings.CommonStrings.action_remove),
-            content = androidx.compose.ui.res.stringResource(R.string.screen_messages_selection_delete_confirm, state.selectionState.count),
-            submitText = androidx.compose.ui.res.stringResource(io.element.android.libraries.ui.strings.CommonStrings.action_remove),
-            destructiveSubmit = true,
-            onSubmitClick = {
-                showBulkDeleteConfirm = false
-                state.eventSink(MessagesEvent.BulkRedactSelected)
-            },
-            onDismiss = { showBulkDeleteConfirm = false },
-        )
-    }
-
     var maxComposerHeightPx by remember { mutableIntStateOf(120) }
 
     // This is needed because the composer is inside an AndroidView that can't be affected by the FocusManager in Compose
@@ -192,38 +168,8 @@ fun MessagesView(
         block()
     }
 
-    // Live view of selection mode, read by the row click handlers below. They get captured by
-    // LazyColumn rows; a row retained across a selection-clear (a small scroll) keeps a stale
-    // snapshot, so reading a rememberUpdatedState value here avoids re-toggling on the next tap.
-    val selectionActive by rememberUpdatedState(state.selectionState.isActive)
-
     fun onContentClick(event: TimelineItem.Event) {
         Timber.v("onMessageClick= ${event.id}")
-        if (selectionActive) {
-            // In selection mode a tap toggles membership instead of opening the item.
-            state.eventSink(MessagesEvent.ToggleSelection(event))
-            return
-        }
-        if (state.isMultiSelectEnabled) {
-            // Tap/long-press split (long-press enters selection, see onMessageLongClick).
-            // A single tap opens the content when it has its own viewer (image/video/file/
-            // audio/location -> onEventContentClick returns true). When there is nothing to
-            // open (text and friends -> false) it falls back to the context menu instead.
-            val opened = onEventContentClick(state.timelineState.isLive, event)
-            if (opened) {
-                localView.hideKeyboard()
-            } else {
-                hidingKeyboard {
-                    state.actionListState.eventSink(
-                        ActionListEvent.ComputeForMessage(
-                            event = event,
-                            userEventPermissions = state.userEventPermissions,
-                        )
-                    )
-                }
-            }
-            return
-        }
         val hideKeyboard = onEventContentClick(state.timelineState.isLive, event)
         if (hideKeyboard) {
             localView.hideKeyboard()
@@ -232,28 +178,6 @@ fun MessagesView(
 
     fun onMessageLongClick(event: TimelineItem.Event) {
         Timber.v("OnMessageLongClicked= ${event.id}")
-        if (selectionActive) {
-            state.eventSink(MessagesEvent.ToggleSelection(event))
-            return
-        }
-        if (state.isMultiSelectEnabled && event.content.isBulkSelectable()) {
-            if (event.content.opensMediaViewer()) {
-                // Media: tap already opens the viewer, so long-press surfaces the context menu
-                // (details, edit caption, forward, react, and "Select" to start mass-selection).
-                hidingKeyboard {
-                    state.actionListState.eventSink(
-                        ActionListEvent.ComputeForMessage(
-                            event = event,
-                            userEventPermissions = state.userEventPermissions,
-                        )
-                    )
-                }
-            } else {
-                // Text & friends: long-press enters selection directly.
-                state.eventSink(MessagesEvent.EnterSelection(event))
-            }
-            return
-        }
         hidingKeyboard {
             state.actionListState.eventSink(
                 ActionListEvent.ComputeForMessage(
@@ -269,27 +193,15 @@ fun MessagesView(
     }
 
     fun onEmojiReactionClick(emoji: String, event: TimelineItem.Event) {
-        if (selectionActive) {
-            state.eventSink(MessagesEvent.ToggleSelection(event))
-            return
-        }
         state.eventSink(MessagesEvent.ToggleReaction(emoji, event.eventOrTransactionId))
     }
 
     fun onEmojiReactionLongClick(emoji: String, event: TimelineItem.Event) {
-        if (selectionActive) {
-            state.eventSink(MessagesEvent.ToggleSelection(event))
-            return
-        }
         if (event.eventId == null) return
         state.reactionSummaryState.eventSink(ReactionSummaryEvent.ShowReactionSummary(event.eventId, event.reactionsState.reactions, emoji))
     }
 
     fun onMoreReactionsClick(event: TimelineItem.Event) {
-        if (selectionActive) {
-            state.eventSink(MessagesEvent.ToggleSelection(event))
-            return
-        }
         state.customReactionState.eventSink(CustomReactionEvent.ShowCustomReactionSheet(event))
     }
 
@@ -309,21 +221,7 @@ fun MessagesView(
             Scaffold(
                 contentWindowInsets = WindowInsets.statusBars,
                 topBar = {
-                    if (state.selectionState.isActive) {
-                        io.element.android.features.messages.impl.selection.MessagesSelectionTopBar(
-                            state = state.selectionState,
-                            canDeleteSelection = io.element.android.features.messages.impl.selection.canDeleteSelection(
-                                timelineItems = state.timelineState.timelineItems,
-                                selectedIds = state.selectionState.selectedIds,
-                                userEventPermissions = state.userEventPermissions,
-                            ),
-                            onCancelClick = { state.eventSink(MessagesEvent.ClearSelection) },
-                            // Clipboard write + snackbar are handled in the presenter.
-                            onCopyClick = { state.eventSink(MessagesEvent.BulkCopySelected) },
-                            onForwardClick = { state.eventSink(MessagesEvent.BulkForwardSelected) },
-                            onDeleteClick = { showBulkDeleteConfirm = true },
-                        )
-                    } else if (state.timelineState.timelineMode is Timeline.Mode.Thread) {
+                    if (state.timelineState.timelineMode is Timeline.Mode.Thread) {
                         ThreadTopBar(
                             roomName = state.roomName,
                             roomAvatarData = state.roomAvatar,
@@ -373,38 +271,28 @@ fun MessagesView(
                             },
                             onMessageLongClick = ::onMessageLongClick,
                             onUserDataClick = {
-                                if (!selectionActive) {
-                                    hidingKeyboard {
-                                        state.eventSink(MessagesEvent.OnUserClicked(it))
-                                    }
+                                hidingKeyboard {
+                                    state.eventSink(MessagesEvent.OnUserClicked(it))
                                 }
                             },
                             onLinkClick = { link, customTab ->
-                                if (!selectionActive) {
-                                    if (customTab) {
-                                        onLinkClick(link.url, true)
-                                        // Do not check those links, they are internal link only
-                                    } else {
-                                        state.linkState.eventSink(LinkEvent.OnLinkClick(link))
-                                    }
+                                if (customTab) {
+                                    onLinkClick(link.url, true)
+                                    // Do not check those links, they are internal link only
+                                } else {
+                                    state.linkState.eventSink(LinkEvent.OnLinkClick(link))
                                 }
                             },
                             onReactionClick = ::onEmojiReactionClick,
                             onReactionLongClick = ::onEmojiReactionLongClick,
                             onMoreReactionsClick = ::onMoreReactionsClick,
                             onReadReceiptClick = { event ->
-                                if (selectionActive) {
-                                    state.eventSink(MessagesEvent.ToggleSelection(event))
-                                } else {
-                                    state.readReceiptBottomSheetState.eventSink(ReadReceiptBottomSheetEvent.EventSelected(event))
-                                }
+                                state.readReceiptBottomSheetState.eventSink(ReadReceiptBottomSheetEvent.EventSelected(event))
                             },
                             onSendLocationClick = onSendLocationClick,
                             onCreatePollClick = onCreatePollClick,
                             onSwipeToReply = { targetEvent ->
-                                if (!selectionActive) {
-                                    state.eventSink(MessagesEvent.HandleAction(TimelineItemAction.Reply, targetEvent))
-                                }
+                                state.eventSink(MessagesEvent.HandleAction(TimelineItemAction.Reply, targetEvent))
                             },
                             forceJumpToBottomVisibility = forceJumpToBottomVisibility,
                             onViewAllPinnedMessagesClick = onViewAllPinnedMessagesClick,
@@ -626,7 +514,9 @@ private fun MessagesViewContent(
                 pinnedMessagesCount = (state.pinnedMessagesBannerState as? PinnedMessagesBannerState.Visible)?.pinnedMessagesCount() ?: 0,
             )
             val density = LocalDensity.current
-            var pinnedBannerHeightDp by remember { mutableStateOf(0.dp) }
+            // Combined height of the banners overlaid above the timeline. Drives the floating
+            // date badge offset so the badge sits below whichever banners are currently showing.
+            var topBannersHeightDp by remember { mutableStateOf(0.dp) }
 
             TimelineView(
                 state = state.timelineState,
@@ -643,15 +533,15 @@ private fun MessagesViewContent(
                 onReadReceiptClick = onReadReceiptClick,
                 forceJumpToBottomVisibility = forceJumpToBottomVisibility,
                 nestedScrollConnection = scrollBehavior.nestedScrollConnection,
-                floatingDateTopOffset = pinnedBannerHeightDp,
-                selectedEventIds = if (state.selectionState.isActive) state.selectionState.selectedIds else null,
+                floatingDateTopOffset = topBannersHeightDp,
             )
 
             if (state.timelineState.timelineMode !is Timeline.Mode.Thread) {
-                Column {
+                Column(
+                    modifier = Modifier.onSizeChanged { topBannersHeightDp = with(density) { it.height.toDp() } },
+                ) {
                     AnimatedVisibility(
                         visible = state.pinnedMessagesBannerState is PinnedMessagesBannerState.Visible && scrollBehavior.isVisible,
-                        modifier = Modifier.onSizeChanged { pinnedBannerHeightDp = with(density) { it.height.toDp() } },
                         enter = expandVertically(),
                         exit = shrinkVertically(),
                     ) {

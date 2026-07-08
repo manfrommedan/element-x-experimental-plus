@@ -663,8 +663,6 @@ class RoomListPresenterTest {
         seenInvitesStore: SeenInvitesStore = InMemorySeenInvitesStore(),
         announcementService: AnnouncementService = FakeAnnouncementService(),
         featureFlagService: FeatureFlagService = FakeFeatureFlagService(),
-        elementCallEntryPoint: io.element.android.features.call.api.ElementCallEntryPoint =
-            io.element.android.features.call.test.FakeElementCallEntryPoint(),
         markRoomAsRead: MarkRoomAsRead? = null,
     ) = RoomListPresenter(
         client = client,
@@ -697,6 +695,5 @@ class RoomListPresenterTest {
         announcementService = announcementService,
         coldStartWatcher = FakeAnalyticsColdStartWatcher(),
         featureFlagService = featureFlagService,
-        elementCallEntryPoint = elementCallEntryPoint,
     )
 }

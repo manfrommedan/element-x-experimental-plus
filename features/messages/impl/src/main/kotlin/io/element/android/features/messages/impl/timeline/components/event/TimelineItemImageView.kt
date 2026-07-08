@@ -25,11 +25,9 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
@@ -51,7 +49,6 @@ import io.element.android.features.messages.impl.timeline.model.event.aTimelineI
 import io.element.android.features.messages.impl.timeline.protection.ProtectedView
 import io.element.android.features.messages.impl.timeline.protection.coerceRatioWhenHidingContent
 import io.element.android.libraries.designsystem.components.blurhash.blurHashBackground
-import io.element.android.libraries.designsystem.components.media.LocalAutoLoadMedia
 import io.element.android.libraries.designsystem.modifiers.onKeyboardContextMenuAction
 import io.element.android.libraries.designsystem.preview.ElementPreview
 import io.element.android.libraries.designsystem.preview.PreviewsDayNight
@@ -73,8 +70,6 @@ fun TimelineItemImageView(
     onShowContentClick: () -> Unit,
     onContentLayoutChange: (ContentAvoidingLayoutData) -> Unit,
     modifier: Modifier = Modifier,
-    uploadProgress: io.element.android.libraries.matrix.api.timeline.item.event.LocalEventSendState.Sending.MediaWithProgress? = null,
-    onCancelUpload: (() -> Unit)? = null,
 ) {
     val a11yLabel = stringResource(CommonStrings.common_image)
     val description = content.caption?.let { "$a11yLabel: $it" } ?: a11yLabel
@@ -92,67 +87,29 @@ fun TimelineItemImageView(
                 hideContent = hideMediaContent,
                 onShowClick = onShowContentClick,
             ) {
-                val autoLoad = LocalAutoLoadMedia.current
-                var userTapped by rememberSaveable { mutableStateOf(false) }
-                val networkAllowed = autoLoad || userTapped || onCancelUpload != null
-                // Always issue the request; the fetcher honors allowNetwork to
-                // refuse new fetches in wifi-only mode, but Coil's memory + disk
-                // caches are checked first - so previously loaded thumbnails
-                // render instantly even on mobile data. Tap-to-download only
-                // appears on the painter's Error state (cache miss + can't fetch).
-                val model = remember(content.thumbnailMediaRequestData, networkAllowed) {
-                    if (networkAllowed) {
-                        content.thumbnailMediaRequestData
-                    } else {
-                        content.thumbnailMediaRequestData.copy(allowNetwork = false)
-                    }
-                }
-                var painterState by remember(model) {
-                    mutableStateOf<AsyncImagePainter.State>(AsyncImagePainter.State.Empty)
-                }
-                val isLoaded = painterState is AsyncImagePainter.State.Success
-                val showTapToDownload = !networkAllowed && painterState is AsyncImagePainter.State.Error
-                if (!showTapToDownload) {
-                    AsyncImage(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .then(if (onCancelUpload != null) Modifier.blur(12.dp) else Modifier)
-                            .then(if (isLoaded) Modifier.background(Color.White) else Modifier)
-                            .then(
-                                if (!isTalkbackActive() && onContentClick != null) {
-                                    Modifier
-                                        .combinedClickable(
-                                            onClick = onContentClick,
-                                            onLongClick = onLongClick,
-                                        )
-                                        .onKeyboardContextMenuAction(onLongClick)
-                                } else {
-                                    Modifier
-                                }
-                            ),
-                        model = model,
-                        contentScale = ContentScale.Crop,
-                        alignment = Alignment.Center,
-                        contentDescription = description,
-                        onState = { painterState = it },
-                    )
-                } else {
-                    TapToDownloadOverlay(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .combinedClickable(
-                                onClick = { userTapped = true },
-                                onLongClick = onLongClick,
-                            ),
-                    )
-                }
-                if (onCancelUpload != null) {
-                    MediaUploadOverlay(
-                        progress = uploadProgress?.progress ?: 0L,
-                        total = uploadProgress?.total ?: 0L,
-                        onCancel = onCancelUpload,
-                    )
-                }
+                var isLoaded by remember { mutableStateOf(false) }
+                AsyncImage(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .then(if (isLoaded) Modifier.background(Color.White) else Modifier)
+                        .then(
+                            if (!isTalkbackActive() && onContentClick != null) {
+                                Modifier
+                                    .combinedClickable(
+                                        onClick = onContentClick,
+                                        onLongClick = onLongClick,
+                                    )
+                                    .onKeyboardContextMenuAction(onLongClick)
+                            } else {
+                                Modifier
+                            }
+                        ),
+                    model = content.thumbnailMediaRequestData,
+                    contentScale = ContentScale.Crop,
+                    alignment = Alignment.Center,
+                    contentDescription = description,
+                    onState = { isLoaded = it is AsyncImagePainter.State.Success },
+                )
             }
         }
 

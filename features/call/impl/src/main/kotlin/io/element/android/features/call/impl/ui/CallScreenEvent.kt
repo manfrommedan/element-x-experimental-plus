@@ -14,5 +14,4 @@ sealed interface CallScreenEvent {
     data object Hangup : CallScreenEvent
     data class SetupMessageChannels(val widgetMessageInterceptor: WidgetMessageInterceptor) : CallScreenEvent
     data class OnWebViewError(val description: String?) : CallScreenEvent
-    data object WebViewRenderGone : CallScreenEvent
 }

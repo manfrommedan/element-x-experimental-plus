@@ -18,7 +18,6 @@ import dev.zacsweers.metro.Assisted
 import dev.zacsweers.metro.AssistedInject
 import io.element.android.annotations.ContributesNode
 import io.element.android.libraries.androidutils.system.openAppSettingsPage
-import io.element.android.libraries.architecture.callback
 import io.element.android.libraries.di.SessionScope
 
 @ContributesNode(SessionScope::class)
@@ -28,12 +27,6 @@ class AdvancedSettingsNode(
     @Assisted plugins: List<Plugin>,
     private val presenter: AdvancedSettingsPresenter,
 ) : Node(buildContext, plugins = plugins) {
-    interface Callback : Plugin {
-        fun navigateToMxtrSettings()
-    }
-
-    private val callback: Callback = callback()
-
     @Composable
     override fun View(modifier: Modifier) {
         val state = presenter.present()
@@ -42,8 +35,7 @@ class AdvancedSettingsNode(
             state = state,
             modifier = modifier,
             onBackClick = ::navigateUp,
-            onOpenAppSettingsClick = context::openAppSettingsPage,
-            onOpenMxtrSettings = callback::navigateToMxtrSettings,
+            onOpenAppSettingsClick = context::openAppSettingsPage
         )
     }
 }

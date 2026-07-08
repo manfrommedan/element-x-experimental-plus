@@ -28,7 +28,6 @@ import io.element.android.libraries.textcomposer.model.TextEditorState
 import io.element.android.libraries.textcomposer.model.aTextEditorStateMarkdown
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.persistentListOf
-import kotlinx.collections.immutable.toImmutableList
 import java.io.File
 
 open class AttachmentsPreviewStateProvider : PreviewParameterProvider<AttachmentsPreviewState> {
@@ -68,7 +67,6 @@ open class AttachmentsPreviewStateProvider : PreviewParameterProvider<Attachment
 
 fun anAttachmentsPreviewState(
     mediaInfo: MediaInfo = anImageMediaInfo(),
-    totalCount: Int = 1,
     textEditorState: TextEditorState = aTextEditorStateMarkdown(),
     sendActionState: SendActionState = SendActionState.Idle,
     imageEditorState: AttachmentImageEditorState? = null,
@@ -76,9 +74,11 @@ fun anAttachmentsPreviewState(
     displayFileTooLargeError: Boolean = false,
     currentIndex: Int = 0,
 ) = AttachmentsPreviewState(
-    attachments = List(totalCount.coerceAtLeast(1)) {
-        Attachment.Media(localMedia = LocalMedia("file://path-$it".toUri(), mediaInfo))
-    }.toImmutableList(),
+    attachments = persistentListOf(
+        Attachment.Media(
+            localMedia = LocalMedia("file://path".toUri(), mediaInfo),
+        ),
+    ),
     imageEditorState = imageEditorState,
     canEditImage = true,
     isApplyingImageEdits = false,

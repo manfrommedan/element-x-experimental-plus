@@ -131,7 +131,6 @@ class MessagesFlowNode(
     private val knockRequestsListEntryPoint: KnockRequestsListEntryPoint,
     private val dateFormatter: DateFormatter,
     private val coroutineDispatchers: CoroutineDispatchers,
-    @io.element.android.libraries.di.annotations.ApplicationContext private val context: android.content.Context,
     private val hasVulkanSupport: DeviceHasVulkanSupport,
 ) : BaseFlowNode<MessagesFlowNode.NavTarget>(
     backstack = BackStack(
@@ -178,7 +177,7 @@ class MessagesFlowNode(
 
         @Parcelize
         data class ForwardEvent(
-            val eventIds: List<EventId>,
+            val eventId: EventId,
             val fromPinnedEvents: Boolean,
         ) : NavTarget
 
@@ -303,12 +302,7 @@ class MessagesFlowNode(
                     }
 
                     override fun forwardEvent(eventId: EventId) {
-                        backstack.push(NavTarget.ForwardEvent(listOf(eventId), fromPinnedEvents = false))
-                    }
-
-                    override fun forwardEvents(eventIds: List<EventId>) {
-                        if (eventIds.isEmpty()) return
-                        backstack.push(NavTarget.ForwardEvent(eventIds, fromPinnedEvents = false))
+                        backstack.push(NavTarget.ForwardEvent(eventId, fromPinnedEvents = false))
                     }
 
                     override fun navigateToReportMessage(eventId: EventId, senderId: UserId) {
@@ -467,17 +461,10 @@ class MessagesFlowNode(
                 } else {
                     timelineController
                 }
-                val params = ForwardEntryPoint.Params(navTarget.eventIds, timelineProvider)
+                val params = ForwardEntryPoint.Params(navTarget.eventId, timelineProvider)
                 val callback = object : ForwardEntryPoint.Callback {
                     override fun onDone(roomIds: List<RoomId>) {
                         backstack.pop()
-                        if (roomIds.isNotEmpty()) {
-                            android.widget.Toast.makeText(
-                                context,
-                                R.string.screen_messages_forwarded,
-                                android.widget.Toast.LENGTH_SHORT,
-                            ).show()
-                        }
                         roomIds.singleOrNull()?.let { roomId ->
                             callback.navigateToRoom(roomId)
                         }
@@ -561,7 +548,7 @@ class MessagesFlowNode(
                     }
 
                     override fun handleForwardEventClick(eventId: EventId) {
-                        backstack.push(NavTarget.ForwardEvent(eventIds = listOf(eventId), fromPinnedEvents = true))
+                        backstack.push(NavTarget.ForwardEvent(eventId = eventId, fromPinnedEvents = true))
                     }
 
                     override fun navigateToThread(threadRootId: ThreadId) {
@@ -628,11 +615,7 @@ class MessagesFlowNode(
                     }
 
                     override fun handleForwardEventClick(eventId: EventId) {
-                        backstack.push(NavTarget.ForwardEvent(listOf(eventId), fromPinnedEvents = false))
-                    }
-
-                    override fun handleBulkForwardEventClick(eventIds: List<EventId>) {
-                        if (eventIds.isNotEmpty()) backstack.push(NavTarget.ForwardEvent(eventIds, fromPinnedEvents = false))
+                        backstack.push(NavTarget.ForwardEvent(eventId, fromPinnedEvents = false))
                     }
 
                     override fun navigateToReportMessage(eventId: EventId, senderId: UserId) {

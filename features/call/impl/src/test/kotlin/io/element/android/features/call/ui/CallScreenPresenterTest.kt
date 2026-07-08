@@ -14,7 +14,6 @@ import app.cash.turbine.test
 import com.google.common.truth.Truth.assertThat
 import im.vector.app.features.analytics.plan.MobileScreen
 import io.element.android.features.call.api.CallData
-import io.element.android.features.call.api.CallSummaryStore
 import io.element.android.features.call.impl.ui.CallScreenEvent
 import io.element.android.features.call.impl.ui.CallScreenNavigator
 import io.element.android.features.call.impl.ui.CallScreenPresenter
@@ -312,7 +311,6 @@ class CallScreenPresenterTest {
         activeCallManager: FakeActiveCallManager = FakeActiveCallManager(),
         screenTracker: ScreenTracker = FakeScreenTracker(),
         appForegroundStateService: FakeAppForegroundStateService = FakeAppForegroundStateService(),
-        callSummaryStore: CallSummaryStore = FakeCallSummaryStore(),
     ): CallScreenPresenter {
         val userAgentProvider = object : UserAgentProvider {
             override fun provide(): String {
@@ -334,7 +332,6 @@ class CallScreenPresenterTest {
             appForegroundStateService = appForegroundStateService,
             appCoroutineScope = backgroundScope,
             widgetMessageSerializer = WidgetMessageSerializer(DefaultJsonProvider()),
-            callSummaryStore = callSummaryStore,
         )
     }
 }

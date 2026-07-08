@@ -8,7 +8,6 @@
 
 package io.element.android.features.messages.impl.timeline.components.event
 
-import androidx.compose.foundation.layout.Box
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
@@ -18,34 +17,26 @@ import io.element.android.features.messages.impl.timeline.components.layout.Cont
 import io.element.android.features.messages.impl.timeline.model.event.TimelineItemFileContent
 import io.element.android.features.messages.impl.timeline.model.event.TimelineItemFileContentProvider
 import io.element.android.libraries.designsystem.preview.PreviewsDayNight
-import io.element.android.libraries.matrix.api.timeline.item.event.LocalEventSendState
 import io.element.android.libraries.ui.strings.CommonStrings
 
+/**
+ * https://www.figma.com/design/G1xy0HDZKJf5TCRFmKb5d5/Compound-Android-Components?node-id=2019-6477&t=2yr7kvVEdtsP4p26-4
+ */
 @Composable
 fun TimelineItemFileView(
     content: TimelineItemFileContent,
     onContentLayoutChange: (ContentAvoidingLayoutData) -> Unit,
     modifier: Modifier = Modifier,
-    uploadProgress: LocalEventSendState.Sending.MediaWithProgress? = null,
-    onCancelUpload: (() -> Unit)? = null,
 ) {
-    Box(modifier = modifier) {
-        TimelineItemAttachmentView(
-            icon = CompoundIcons.Attachment(),
-            iconContentDescription = stringResource(CommonStrings.common_file),
-            filename = content.filename,
-            fileExtensionAndSize = content.fileExtensionAndSize,
-            caption = content.caption,
-            onContentLayoutChange = onContentLayoutChange,
-        )
-        if (onCancelUpload != null) {
-            MediaUploadOverlay(
-                progress = uploadProgress?.progress ?: 0L,
-                total = uploadProgress?.total ?: 0L,
-                onCancel = onCancelUpload,
-            )
-        }
-    }
+    TimelineItemAttachmentView(
+        icon = CompoundIcons.Attachment(),
+        iconContentDescription = stringResource(CommonStrings.common_file),
+        filename = content.filename,
+        fileExtensionAndSize = content.fileExtensionAndSize,
+        caption = content.caption,
+        onContentLayoutChange = onContentLayoutChange,
+        modifier = modifier,
+    )
 }
 
 @PreviewsDayNight

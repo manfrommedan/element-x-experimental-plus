@@ -31,7 +31,7 @@ dependencyResolutionManagement {
             url = uri("https://repo1.maven.org/maven2/")
         }
         flatDir {
-            dirs("libraries/matrix/libs", "features/call/impl/libs")
+            dirs("libraries/matrix/libs")
         }
     }
 }
@@ -67,7 +67,6 @@ fun includeProjects(directory: File, path: String, maxDepth: Int = 1) {
 }
 
 includeProjects(File(rootDir, "enterprise"), ":enterprise", maxDepth = 2)
-includeProjects(File(rootDir, "phone-layer"), ":phone-layer")
 includeProjects(File(rootDir, "features"), ":features")
 includeProjects(File(rootDir, "libraries"), ":libraries")
 includeProjects(File(rootDir, "services"), ":services")
