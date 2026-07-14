@@ -35,7 +35,6 @@ import io.element.android.libraries.androidutils.file.safeDelete
 import io.element.android.libraries.androidutils.hash.hash
 import io.element.android.libraries.architecture.Presenter
 import io.element.android.libraries.core.coroutine.CoroutineDispatchers
-import io.element.android.libraries.core.coroutine.firstInstanceOf
 import io.element.android.libraries.core.extensions.runCatchingExceptions
 import io.element.android.libraries.core.mimetype.MimeTypes.isMimeTypeVideo
 import io.element.android.libraries.di.annotations.SessionCoroutineScope
@@ -55,6 +54,7 @@ import kotlinx.collections.immutable.toImmutableList
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import timber.log.Timber
@@ -152,8 +152,13 @@ class AttachmentsPreviewPresenter(
 
         var displayFileTooLargeError by remember { mutableStateOf(false) }
 
+        // MediaOptimizationSelectorState is not @Immutable and holds an eventSink lambda, so its
+        // equals changes on every recomposition. Keying this effect on the states restarts the
+        // in-progress video transcode on each recomposition, so a multi-video selection never
+        // finishes pre-processing and the send waits forever. Key on the values that actually
+        // change the pre-processing outcome instead.
         LaunchedEffect(
-            mediaOptimizationSelectorStates,
+            mediaOptimizationSelectorStates.map { it.toPreProcessingKey() },
             imageEditorState,
             isApplyingImageEdits,
             editedAttachments,
@@ -253,8 +258,15 @@ class AttachmentsPreviewPresenter(
                             sendActionState.value = SendActionState.Sending.Processing(displayProgress = true)
                         }
 
-                        // Wait until the media is ready to be uploaded
-                        val allMediaUploadInfos = observableSendState.firstInstanceOf<SendActionState.Sending.ReadyToUpload>().mediaInfos
+                        // Wait until the media is ready to upload, or bail out if pre-processing
+                        // failed, so the send coroutine cannot hang forever. The Failure state
+                        // already drives the error UI.
+                        val terminalState = observableSendState.first {
+                            it is SendActionState.Sending.ReadyToUpload || it is SendActionState.Failure
+                        }
+                        val allMediaUploadInfos = (terminalState as? SendActionState.Sending.ReadyToUpload)
+                            ?.mediaInfos
+                            ?: return@launch
 
                         // Pre-processing is done, send the attachment
                         val caption = markdownTextEditorState.getMessageMarkdown(permalinkBuilder)
@@ -561,3 +573,20 @@ class AttachmentsPreviewPresenter(
         }
     )
 }
+
+/**
+ * The subset of [MediaOptimizationSelectorState] that affects pre-processing, used as a stable
+ * key for the pre-processing effect. Excludes the eventSink lambda that otherwise makes the state
+ * unequal on every recomposition.
+ */
+private data class MediaPreProcessingKey(
+    val displayMediaSelectorViews: Boolean?,
+    val compressImages: Boolean?,
+    val videoPreset: VideoCompressionPreset?,
+)
+
+private fun MediaOptimizationSelectorState.toPreProcessingKey() = MediaPreProcessingKey(
+    displayMediaSelectorViews = displayMediaSelectorViews,
+    compressImages = isImageOptimizationEnabled,
+    videoPreset = selectedVideoPreset,
+)
