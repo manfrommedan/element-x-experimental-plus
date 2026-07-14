@@ -49,5 +49,7 @@ class RustHomeserverLoginCompatibilityCheckerTest {
                 FakeFfiClient(homeserverLoginDetailsResult = result)
             }
         },
+        userCertificatesProvider = FakeUserCertificatesProvider(),
+        proxyProvider = FakeProxyProvider(),
     )
 }

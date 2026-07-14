@@ -108,14 +108,6 @@ enum class FeatureFlags(
         defaultValue = { true },
         isFinished = false,
     ),
-    JumpToUnread(
-        key = "feature.jump_to_unread",
-        title = "Jump to unread messages",
-        description = "Show a button to jump to the read marker, plus a count badge on the scroll-to-bottom button " +
-            "when new messages arrive while scrolled away.",
-        defaultValue = { false },
-        isFinished = false,
-    ),
     SlashCommand(
         key = "feature.slash_command",
         title = "Parse slash commands in the message composer",
@@ -137,6 +129,77 @@ enum class FeatureFlags(
             "\nRequires an app restart to take effect.",
         defaultValue = { false },
         isFinished = false,
+    ),
+    PhoneVoiceLayout(
+        key = "feature.phone_voice_layout",
+        title = "Phone-style calls",
+        description = "Switches the call experience to a messenger flow: voice and video buttons in every room (1:1 and group), no lobby preview, and a classic phone-style UI for voice calls." +
+            " Disable to fall back to the upstream Element Call experience.",
+        defaultValue = { true },
+        isFinished = false,
+        isInLabs = true,
+    ),
+    BulkAttachmentsPicker(
+        key = "feature.bulk_attachments_picker",
+        title = "Bulk image / video picker",
+        description = "Attach several photos or videos in one go from the composer, like WhatsApp or Telegram." +
+            " Caption attaches to the first message; the rest are sent in selection order. Disable to fall back to the upstream single-pick behaviour.",
+        defaultValue = { true },
+        isFinished = false,
+        isInLabs = true,
+    ),
+    ShareMxidShortcut(
+        key = "feature.share_mxid_shortcut",
+        title = "Copy Matrix ID from settings",
+        description = "Adds a copy-to-clipboard button next to your Matrix ID in the settings header so you can share it in one tap.",
+        defaultValue = { true },
+        isFinished = false,
+        isInLabs = true,
+    ),
+    MessageMultiSelect(
+        key = "feature.message_multi_select",
+        title = "Multi-select messages",
+        description = "Long-press a text message to start selecting and drag up or down to sweep a whole range (the list auto-scrolls at the edges). Long-press media for its menu, where \"Select\" also starts selection. Bulk copy, forward and delete up to 30 at once.",
+        defaultValue = { false },
+        isFinished = false,
+        isInLabs = true,
+    ),
+    FavoritesPinnedToTop(
+        key = "feature.favorites_pinned_to_top",
+        title = "Pin favourites at the top",
+        description = "Always show your favourite rooms above the rest of the chat list, in their own section.",
+        defaultValue = { true },
+        isFinished = false,
+        isInLabs = true,
+    ),
+    PhoneIncomingCall(
+        key = "feature.phone_incoming_call",
+        title = "Phone-style incoming calls",
+        description = "Show a full-screen ringing call (with ringtone, answerable over the lock screen) when a call comes in, instead of a quiet heads-up notification." +
+            " Voice and video calls are labelled distinctly. Disable to fall back to the upstream incoming-call notification.",
+        defaultValue = { true },
+        isFinished = false,
+        isInLabs = true,
+    ),
+    RoomListCallShortcut(
+        key = "feature.room_list_call_shortcut",
+        title = "Join calls from the chat list",
+        description = "Tap the call icon on a room in the chat list to join its ongoing call right away, like WhatsApp or Telegram.",
+        // Temporarily disabled and hidden from Labs: joining a call from the chat list leaves
+        // a dangling call membership (the ongoing-call event/indicator never clears). Off by
+        // default (canJoinCallFromList stays false) and not shown until the leave/cleanup path
+        // is fixed; the implementation is kept in place. Re-enable: defaultValue/isInLabs -> true.
+        defaultValue = { false },
+        isFinished = false,
+        isInLabs = false,
+    ),
+    AnswerCallOnLockScreen(
+        key = "feature.answer_call_on_lock_screen",
+        title = "Answer calls without unlocking",
+        description = "Answer an incoming call straight from the lock screen, without unlocking the device first, like WhatsApp.",
+        defaultValue = { false },
+        isFinished = false,
+        isInLabs = true,
     ),
     UnreadIndicatorCount(
         key = "feature.unread_indicator_count",

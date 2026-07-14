@@ -53,6 +53,9 @@ class LabsPresenter(
         }
         var isApplyingChanges by remember { mutableStateOf(false) }
         val featureUiModels = createUiModels(enabledFeatures)
+        val sections = remember(featureUiModels) {
+            buildSections(enabledFeatures, featureUiModels)
+        }
 
         fun handleEvent(event: LabsEvents) {
             when (event) {
@@ -75,10 +78,46 @@ class LabsPresenter(
             }
         }
         return LabsState(
-            features = featureUiModels,
+            sections = sections,
             isApplyingChanges = isApplyingChanges,
             eventSink = ::handleEvent,
         )
+    }
+
+    private fun buildSections(
+        enabledFeatures: SnapshotStateList<EnabledFeature>,
+        uiModels: ImmutableList<FeatureUiModel>,
+    ): ImmutableList<LabsSection> {
+        val byKey = uiModels.associateBy { it.key }
+        // Categorise each feature; anything not categorised falls into the upstream Labs bucket.
+        val callsKeys = setOf(
+            FeatureFlags.PhoneVoiceLayout.key,
+            FeatureFlags.PhoneIncomingCall.key,
+            FeatureFlags.RoomListCallShortcut.key,
+            FeatureFlags.AnswerCallOnLockScreen.key,
+        )
+        val ourImprovementsKeys = setOf(
+            FeatureFlags.BulkAttachmentsPicker.key,
+            FeatureFlags.ShareMxidShortcut.key,
+            FeatureFlags.MessageMultiSelect.key,
+            FeatureFlags.FavoritesPinnedToTop.key,
+        )
+        val calls = mutableListOf<FeatureUiModel>()
+        val ours = mutableListOf<FeatureUiModel>()
+        val upstream = mutableListOf<FeatureUiModel>()
+        enabledFeatures.forEach { enabled ->
+            val model = byKey[enabled.feature.key] ?: return@forEach
+            when (enabled.feature.key) {
+                in callsKeys -> calls.add(model)
+                in ourImprovementsKeys -> ours.add(model)
+                else -> upstream.add(model)
+            }
+        }
+        return listOfNotNull(
+            upstream.takeIf { it.isNotEmpty() }?.let { LabsSection(R.string.screen_labs_section_upstream, it.toImmutableList()) },
+            ours.takeIf { it.isNotEmpty() }?.let { LabsSection(R.string.screen_labs_section_make_element_better, it.toImmutableList()) },
+            calls.takeIf { it.isNotEmpty() }?.let { LabsSection(R.string.screen_labs_section_calls, it.toImmutableList()) },
+        ).toImmutableList()
     }
 
     @Composable
@@ -89,14 +128,54 @@ class LabsPresenter(
             key(enabledFeature.feature.key) {
                 val title = when (enabledFeature.feature) {
                     FeatureFlags.Threads -> stringProvider.getString(R.string.screen_labs_enable_threads)
+                    FeatureFlags.PhoneVoiceLayout ->
+                        stringProvider.getString(R.string.screen_labs_enable_phone_voice_layout)
+                    FeatureFlags.BulkAttachmentsPicker ->
+                        stringProvider.getString(R.string.screen_labs_enable_bulk_attachments_picker)
+                    FeatureFlags.ShareMxidShortcut ->
+                        stringProvider.getString(R.string.screen_labs_enable_share_mxid_shortcut)
+                    FeatureFlags.MessageMultiSelect ->
+                        stringProvider.getString(R.string.screen_labs_enable_message_multi_select)
+                    FeatureFlags.FavoritesPinnedToTop ->
+                        stringProvider.getString(R.string.screen_labs_enable_favorites_pinned_to_top)
+                    FeatureFlags.PhoneIncomingCall ->
+                        stringProvider.getString(R.string.screen_labs_enable_phone_incoming_call)
+                    FeatureFlags.RoomListCallShortcut ->
+                        stringProvider.getString(R.string.screen_labs_enable_room_list_call_shortcut)
+                    FeatureFlags.AnswerCallOnLockScreen ->
+                        stringProvider.getString(R.string.screen_labs_enable_answer_call_on_lock_screen)
                     else -> enabledFeature.feature.title
                 }
                 val description = when (enabledFeature.feature) {
                     FeatureFlags.Threads -> stringProvider.getString(R.string.screen_labs_enable_threads_description)
+                    FeatureFlags.PhoneVoiceLayout ->
+                        stringProvider.getString(R.string.screen_labs_enable_phone_voice_layout_description)
+                    FeatureFlags.BulkAttachmentsPicker ->
+                        stringProvider.getString(R.string.screen_labs_enable_bulk_attachments_picker_description)
+                    FeatureFlags.ShareMxidShortcut ->
+                        stringProvider.getString(R.string.screen_labs_enable_share_mxid_shortcut_description)
+                    FeatureFlags.MessageMultiSelect ->
+                        stringProvider.getString(R.string.screen_labs_enable_message_multi_select_description)
+                    FeatureFlags.FavoritesPinnedToTop ->
+                        stringProvider.getString(R.string.screen_labs_enable_favorites_pinned_to_top_description)
+                    FeatureFlags.PhoneIncomingCall ->
+                        stringProvider.getString(R.string.screen_labs_enable_phone_incoming_call_description)
+                    FeatureFlags.RoomListCallShortcut ->
+                        stringProvider.getString(R.string.screen_labs_enable_room_list_call_shortcut_description)
+                    FeatureFlags.AnswerCallOnLockScreen ->
+                        stringProvider.getString(R.string.screen_labs_enable_answer_call_on_lock_screen_description)
                     else -> enabledFeature.feature.description
                 }
                 val icon = when (enabledFeature.feature) {
                     FeatureFlags.Threads -> CompoundIcons.Threads()
+                    FeatureFlags.PhoneVoiceLayout -> CompoundIcons.VoiceCall()
+                    FeatureFlags.BulkAttachmentsPicker -> CompoundIcons.Image()
+                    FeatureFlags.ShareMxidShortcut -> CompoundIcons.Copy()
+                    FeatureFlags.MessageMultiSelect -> CompoundIcons.CheckCircle()
+                    FeatureFlags.FavoritesPinnedToTop -> CompoundIcons.Favourite()
+                    FeatureFlags.PhoneIncomingCall -> CompoundIcons.VoiceCallSolid()
+                    FeatureFlags.RoomListCallShortcut -> CompoundIcons.VideoCallSolid()
+                    FeatureFlags.AnswerCallOnLockScreen -> CompoundIcons.LockOff()
                     else -> null
                 }
                 remember(enabledFeature) {

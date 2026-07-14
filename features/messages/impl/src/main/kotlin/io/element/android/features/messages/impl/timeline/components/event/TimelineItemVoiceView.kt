@@ -10,6 +10,7 @@ package io.element.android.features.messages.impl.timeline.components.event
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -51,6 +52,7 @@ import io.element.android.libraries.designsystem.theme.components.CircularProgre
 import io.element.android.libraries.designsystem.theme.components.Icon
 import io.element.android.libraries.designsystem.theme.components.IconButton
 import io.element.android.libraries.designsystem.theme.components.Text
+import io.element.android.libraries.matrix.api.timeline.item.event.LocalEventSendState
 import io.element.android.libraries.ui.strings.CommonStrings
 import io.element.android.libraries.ui.utils.a11y.isTalkbackActive
 import io.element.android.libraries.voiceplayer.api.VoiceMessageEvent
@@ -64,6 +66,8 @@ fun TimelineItemVoiceView(
     content: TimelineItemVoiceContent,
     onContentLayoutChange: (ContentAvoidingLayoutData) -> Unit,
     modifier: Modifier = Modifier,
+    uploadProgress: LocalEventSendState.Sending.MediaWithProgress? = null,
+    onCancelUpload: (() -> Unit)? = null,
 ) {
     fun playPause() {
         state.eventSink(VoiceMessageEvent.PlayPause)
@@ -79,8 +83,9 @@ fun TimelineItemVoiceView(
             VoiceMessageState.ButtonType.Disabled -> CommonStrings.error_unknown
         }
     )
+    Box(modifier = modifier) {
     Row(
-        modifier = modifier
+        modifier = Modifier
             .clearAndSetSemantics {
                 contentDescription = a11y
                 if (state.buttonType == VoiceMessageState.ButtonType.Disabled) {
@@ -139,6 +144,14 @@ fun TimelineItemVoiceView(
             seekEnabled = !isTalkbackActive(),
             onSeek = { state.eventSink(VoiceMessageEvent.Seek(it)) },
         )
+    }
+        if (onCancelUpload != null) {
+            MediaUploadOverlay(
+                progress = uploadProgress?.progress ?: 0L,
+                total = uploadProgress?.total ?: 0L,
+                onCancel = onCancelUpload,
+            )
+        }
     }
 }
 

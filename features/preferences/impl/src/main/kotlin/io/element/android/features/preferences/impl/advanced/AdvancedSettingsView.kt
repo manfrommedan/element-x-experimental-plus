@@ -28,6 +28,7 @@ import androidx.compose.ui.tooling.preview.PreviewParameter
 import androidx.compose.ui.unit.dp
 import im.vector.app.features.analytics.plan.Interaction
 import io.element.android.compound.theme.ElementTheme
+import io.element.android.compound.tokens.generated.CompoundIcons
 import io.element.android.features.preferences.impl.R
 import io.element.android.libraries.architecture.coverage.ExcludeFromCoverage
 import io.element.android.libraries.designsystem.components.dialogs.ListDialog
@@ -43,6 +44,7 @@ import io.element.android.libraries.designsystem.preview.ElementPreviewLight
 import io.element.android.libraries.designsystem.preview.PreviewWithLargeHeight
 import io.element.android.libraries.designsystem.preview.PreviewsDayNight
 import io.element.android.libraries.designsystem.text.stringWithLink
+import io.element.android.libraries.designsystem.theme.components.IconSource
 import io.element.android.libraries.designsystem.theme.components.ListItem
 import io.element.android.libraries.designsystem.theme.components.ListSectionHeader
 import io.element.android.libraries.designsystem.theme.components.ListSupportingText
@@ -54,6 +56,7 @@ import io.element.android.libraries.designsystem.utils.snackbar.SnackbarHost
 import io.element.android.libraries.designsystem.utils.snackbar.collectSnackbarMessageAsState
 import io.element.android.libraries.designsystem.utils.snackbar.rememberSnackbarHostState
 import io.element.android.libraries.matrix.api.media.MediaPreviewValue
+import io.element.android.libraries.preferences.api.store.UrlPreviewValue
 import io.element.android.libraries.preferences.api.store.VideoCompressionPreset
 import io.element.android.libraries.ui.strings.CommonStrings
 import io.element.android.services.analytics.compose.LocalAnalyticsService
@@ -65,6 +68,7 @@ fun AdvancedSettingsView(
     state: AdvancedSettingsState,
     onBackClick: () -> Unit,
     onOpenAppSettingsClick: () -> Unit,
+    onOpenMxtrSettings: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val analyticsService = LocalAnalyticsService.current
@@ -84,6 +88,16 @@ fun AdvancedSettingsView(
             )
         }
     ) {
+        ListItem(
+            headlineContent = {
+                Text(text = stringResource(id = R.string.screen_advanced_settings_mxtr_title))
+            },
+            supportingContent = {
+                Text(text = stringResource(id = R.string.screen_advanced_settings_mxtr_subtitle))
+            },
+            leadingContent = ListItemContent.Icon(IconSource.Vector(CompoundIcons.LockSolid())),
+            onClick = onOpenMxtrSettings,
+        )
         PreferenceDropdown(
             title = stringResource(id = CommonStrings.common_appearance),
             selectedOption = state.theme,
@@ -203,6 +217,7 @@ fun AdvancedSettingsView(
         }
 
         ModerationAndSafety(state)
+        LinkPreviews(state)
         if (state.liveLocationMinimumDistanceUpdate != null) {
             LiveLocationUpdatesSection(
                 value = state.liveLocationMinimumDistanceUpdate,
@@ -290,6 +305,19 @@ private fun ModerationAndSafety(
             },
             enabled = !state.mediaPreviewConfigState.setHideInviteAvatarsAction.isLoading()
         )
+        PreferenceSwitch(
+            title = stringResource(R.string.screen_advanced_settings_hide_redacted_events_toggle_title),
+            subtitle = stringResource(R.string.screen_advanced_settings_hide_redacted_events_toggle_subtitle),
+            isChecked = state.hideRedactedEvents,
+            onCheckedChange = {
+                state.eventSink(AdvancedSettingsEvents.SetHideRedactedEvents(it))
+            },
+        )
+        // Wifi-only auto-download toggle is hidden until the matrix media cache
+        // story is fully sorted - on app restart Coil's disk cache isn't reliably
+        // populated for matrix thumbnails, which made the gate surface the
+        // tap-to-download prompt for every image again. The preference plumbing
+        // stays so re-enabling is just uncommenting this block.
         ListSectionHeader(
             title = stringResource(R.string.screen_advanced_settings_show_media_timeline_title),
             hasDivider = false,
@@ -332,6 +360,59 @@ private fun ModerationAndSafety(
                 state.eventSink(AdvancedSettingsEvents.SetTimelineMediaPreviewValue(MediaPreviewValue.On))
             },
             enabled = !state.mediaPreviewConfigState.setTimelineMediaPreviewAction.isLoading()
+        )
+    }
+}
+
+@Composable
+private fun LinkPreviews(
+    state: AdvancedSettingsState,
+    modifier: Modifier = Modifier,
+) {
+    PreferenceCategory(
+        modifier = modifier,
+        title = stringResource(R.string.screen_advanced_settings_show_link_previews_title),
+        showTopDivider = true
+    ) {
+        ListSectionHeader(
+            title = stringResource(R.string.screen_advanced_settings_show_link_previews_title),
+            hasDivider = false,
+            description = {
+                ListSupportingText(
+                    text = stringResource(R.string.screen_advanced_settings_show_link_previews_subtitle),
+                    contentPadding = ListSupportingTextDefaults.Padding.None,
+                )
+            }
+        )
+        ListItem(
+            headlineContent = { Text(text = stringResource(R.string.screen_advanced_settings_show_link_previews_off)) },
+            leadingContent = ListItemContent.RadioButton(
+                selected = state.urlPreviewValue == UrlPreviewValue.Off,
+                compact = true
+            ),
+            onClick = {
+                state.eventSink(AdvancedSettingsEvents.SetUrlPreviewValue(UrlPreviewValue.Off))
+            },
+        )
+        ListItem(
+            headlineContent = { Text(text = stringResource(R.string.screen_advanced_settings_show_link_previews_unencrypted_only)) },
+            leadingContent = ListItemContent.RadioButton(
+                selected = state.urlPreviewValue == UrlPreviewValue.UnencryptedOnly,
+                compact = true
+            ),
+            onClick = {
+                state.eventSink(AdvancedSettingsEvents.SetUrlPreviewValue(UrlPreviewValue.UnencryptedOnly))
+            },
+        )
+        ListItem(
+            headlineContent = { Text(text = stringResource(R.string.screen_advanced_settings_show_link_previews_all)) },
+            leadingContent = ListItemContent.RadioButton(
+                selected = state.urlPreviewValue == UrlPreviewValue.On,
+                compact = true
+            ),
+            onClick = {
+                state.eventSink(AdvancedSettingsEvents.SetUrlPreviewValue(UrlPreviewValue.On))
+            },
         )
     }
 }
@@ -429,7 +510,8 @@ private fun ContentToPreview(state: AdvancedSettingsState) {
     AdvancedSettingsView(
         state = state,
         onBackClick = { },
-        onOpenAppSettingsClick = {}
+        onOpenAppSettingsClick = {},
+        onOpenMxtrSettings = {},
     )
 }
 

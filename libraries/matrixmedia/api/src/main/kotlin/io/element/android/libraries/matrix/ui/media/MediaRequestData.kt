@@ -23,7 +23,15 @@ import io.element.android.libraries.matrix.api.media.MediaSource
  */
 data class MediaRequestData(
     val source: MediaSource?,
-    val kind: Kind
+    val kind: Kind,
+    /**
+     * When false, CoilMediaFetcher refuses to do the network fetch and returns
+     * null - Coil's memory and disk caches still satisfy the request before the
+     * fetcher is consulted, so previously-loaded thumbnails keep rendering. Used
+     * by the wifi-only auto-download gate to suppress new fetches on mobile data
+     * without hiding cached images.
+     */
+    val allowNetwork: Boolean = true,
 ) {
     sealed interface Kind {
         data object Content : Kind

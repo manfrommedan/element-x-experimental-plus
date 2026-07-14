@@ -15,6 +15,8 @@ import androidx.core.content.getSystemService
 import dev.zacsweers.metro.AppScope
 import dev.zacsweers.metro.ContributesBinding
 import io.element.android.libraries.di.annotations.ApplicationContext
+import io.element.android.libraries.matrix.impl.mxtr.MxtrConfig
+import io.element.android.libraries.matrix.impl.mxtr.MxtrPreferencesStore
 import timber.log.Timber
 
 /**
@@ -34,6 +36,18 @@ class DefaultProxyProvider(
     private val context: Context
 ) : ProxyProvider {
     override fun provides(): String? {
+        val mxtr = MxtrPreferencesStore(context).snapshotBlocking()
+        if (mxtr.enabled && mxtr.data != null) {
+            // The local listener publishes its OS-assigned port only after it binds. Until then
+            // activeLocalPort() is 0; emitting http://127.0.0.1:0 would hand the SDK an invalid
+            // proxy URL, so report no proxy for this resolve and let it be picked up once bound.
+            if (MxtrConfig.activeLocalPort() == 0) {
+                Timber.w("mxtr enabled but local listener not bound yet; no proxy URL this resolve")
+                return null
+            }
+            Timber.d("Using mxtr local proxy -> %s:%d", mxtr.data.host, mxtr.data.port)
+            return MxtrConfig.proxyUrl()
+        }
         val defaultProxy = context.getSystemService<ConnectivityManager>()?.defaultProxy
         if (defaultProxy == null) {
             // Note: can be tested by running:

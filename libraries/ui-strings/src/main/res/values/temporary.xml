@@ -6,6 +6,8 @@
   -->
 
 <resources>
-    <string name="action_mark_as_read">"Mark as read"</string>
-    <string name="a11y_jump_to_unread_messages">"Jump to first unread message"</string>
+    <!-- Audio-call timeline card label, shown next to the icon when the
+         phone-style voice mode is on. Falls back to the upstream
+         common_call_started string when the mode is off. -->
+    <string name="common_voice_call">"Voice call"</string>
 </resources>

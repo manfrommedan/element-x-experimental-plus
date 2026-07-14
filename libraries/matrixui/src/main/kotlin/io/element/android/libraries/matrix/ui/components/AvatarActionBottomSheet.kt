@@ -18,8 +18,7 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.SheetValue
-import androidx.compose.material3.rememberBottomSheetState
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
@@ -48,9 +47,8 @@ fun AvatarActionBottomSheet(
     modifier: Modifier = Modifier,
 ) {
     val coroutineScope = rememberCoroutineScope()
-    val sheetState = rememberBottomSheetState(
-        initialValue = SheetValue.Hidden,
-        enabledValues = setOf(SheetValue.Hidden, SheetValue.Expanded),
+    val sheetState = rememberModalBottomSheetState(
+        skipPartiallyExpanded = true
     )
 
     BackHandler(enabled = isVisible) {
@@ -115,7 +113,7 @@ private fun AvatarActionBottomSheetContent(
 
 @PreviewsDayNight
 @Composable
-internal fun AvatarActionBottomSheetPreview() = ElementPreview(fillMaxSize = true) {
+internal fun AvatarActionBottomSheetPreview() = ElementPreview {
     AvatarActionBottomSheet(
         actions = persistentListOf(AvatarAction.TakePhoto, AvatarAction.ChoosePhoto, AvatarAction.Remove),
         isVisible = true,

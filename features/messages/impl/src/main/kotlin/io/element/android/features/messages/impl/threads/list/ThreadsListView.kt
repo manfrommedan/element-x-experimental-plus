@@ -67,7 +67,6 @@ import io.element.android.libraries.matrix.api.timeline.item.event.TextMessageTy
 import io.element.android.libraries.matrix.api.timeline.item.event.getAvatarUrl
 import io.element.android.libraries.matrix.api.timeline.item.event.getDisambiguatedDisplayName
 import io.element.android.libraries.ui.strings.CommonStrings
-import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.toImmutableList
 import kotlinx.coroutines.delay
 
@@ -103,10 +102,7 @@ fun ThreadsListView(
                                 url = state.roomAvatarUrl,
                                 size = AvatarSize.CurrentUserTopBar,
                             ),
-                            avatarType = AvatarType.Room(
-                                heroes = state.heroes,
-                                isTombstoned = state.isRoomTombstoned,
-                            ),
+                            avatarType = AvatarType.Room(isTombstoned = state.isRoomTombstoned),
                             contentDescription = null,
                         )
                         Column {
@@ -327,7 +323,6 @@ internal fun ThreadsListViewPreview() {
                 roomId = RoomId("!room-id:server"),
                 roomName = ROOM_NAME,
                 roomAvatarUrl = null,
-                heroes = persistentListOf(),
                 threads = List(10) { aThreadListRowItem(threadId = ThreadId("\$thread-$it")) }.toImmutableList(),
                 isRoomTombstoned = false,
                 eventSink = {},

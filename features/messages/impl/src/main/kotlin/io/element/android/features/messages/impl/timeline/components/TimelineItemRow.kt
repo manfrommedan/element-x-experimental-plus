@@ -8,17 +8,31 @@
 
 package io.element.android.features.messages.impl.timeline.components
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.expandHorizontally
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkHorizontally
+import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.waitForUpOrCancellation
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.isTraversalGroup
@@ -26,6 +40,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import io.element.android.compound.theme.ElementTheme
+import io.element.android.features.messages.impl.selection.SelectionIndicator
 import io.element.android.features.messages.impl.timeline.TimelineEvent
 import io.element.android.features.messages.impl.timeline.TimelineRoomInfo
 import io.element.android.features.messages.impl.timeline.components.event.TimelineItemEventContentView
@@ -36,6 +51,7 @@ import io.element.android.features.messages.impl.timeline.model.event.TimelineIt
 import io.element.android.features.messages.impl.timeline.model.event.TimelineItemRtcNotificationContent
 import io.element.android.features.messages.impl.timeline.model.event.TimelineItemStateContent
 import io.element.android.features.messages.impl.timeline.model.event.TimelineItemVoiceContent
+import io.element.android.features.messages.impl.timeline.model.event.isBulkSelectable
 import io.element.android.features.messages.impl.timeline.protection.TimelineProtectionEvent
 import io.element.android.features.messages.impl.timeline.protection.TimelineProtectionState
 import io.element.android.libraries.designsystem.colors.gradientSubtleColors
@@ -49,6 +65,7 @@ import io.element.android.libraries.matrix.api.user.MatrixUser
 import io.element.android.libraries.ui.strings.CommonStrings
 import io.element.android.libraries.ui.utils.a11y.isTalkbackActive
 import io.element.android.wysiwyg.link.Link
+import kotlinx.collections.immutable.ImmutableSet
 import kotlin.time.DurationUnit
 
 @Composable
@@ -74,11 +91,13 @@ internal fun TimelineItemRow(
     onSwipeToReply: (TimelineItem.Event) -> Unit,
     eventSink: (TimelineEvent.TimelineItemEvent) -> Unit,
     modifier: Modifier = Modifier,
+    selectedEventIds: ImmutableSet<EventId>? = null,
     eventContentView: @Composable (TimelineItem.Event, Modifier, (ContentAvoidingLayoutData) -> Unit) -> Unit =
         { event, contentModifier, onContentLayoutChange ->
             TimelineItemEventContentView(
                 content = event.content,
                 hideMediaContent = timelineProtectionState.hideMediaContent(event.eventId, event.isMine),
+                showUrlPreviews = timelineProtectionState.showUrlPreviews,
                 onShowContentClick = { timelineProtectionState.eventSink(TimelineProtectionEvent.ShowContent(event.eventId)) },
                 onContentClick = { onContentClick(event) },
                 onGalleryItemClick = { index -> onGalleryItemClick(event, index) },
@@ -88,6 +107,8 @@ internal fun TimelineItemRow(
                 eventSink = eventSink,
                 modifier = contentModifier,
                 onContentLayoutChange = onContentLayoutChange,
+                localSendState = event.localSendState,
+                transactionId = event.transactionId,
             )
         },
 ) {
@@ -101,7 +122,96 @@ internal fun TimelineItemRow(
     } else {
         Modifier
     }
-    Box(modifier = modifier.then(backgroundModifier)) {
+    val selectableEvent = (timelineItem as? TimelineItem.Event)?.takeIf {
+        it.eventId != null && selectedEventIds != null && it.content.isBulkSelectable()
+    }
+    val isSelected = selectableEvent != null && selectableEvent.eventId in selectedEventIds!!
+    val selectionTint = if (isSelected) {
+        Modifier.background(ElementTheme.colors.bgAccentSelected)
+    } else {
+        Modifier
+    }
+    val selectionClick = if (selectableEvent != null) {
+        // While selecting, a tap anywhere on the row toggles it. We intercept in the Initial
+        // pass and consume the up, so inner content handlers (notably opening the media viewer
+        // for an image) never steal the tap and drop us out of selection. A drag still scrolls:
+        // movement cancels waitForUpOrCancellation, so nothing is consumed.
+        Modifier.pointerInput(selectableEvent.eventId) {
+            awaitEachGesture {
+                awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
+                val up = waitForUpOrCancellation(pass = PointerEventPass.Initial)
+                if (up != null) {
+                    up.consume()
+                    onContentClick(selectableEvent)
+                }
+            }
+        }
+    } else {
+        Modifier
+    }
+    Box(modifier = modifier.then(backgroundModifier).then(selectionTint).then(selectionClick)) {
+        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+            AnimatedVisibility(
+                visible = selectableEvent != null,
+                enter = fadeIn(tween(150)) + expandHorizontally(tween(180)),
+                exit = fadeOut(tween(120)) + shrinkHorizontally(tween(150)),
+            ) {
+                SelectionIndicator(checked = isSelected)
+            }
+            Box(modifier = Modifier.weight(1f)) {
+                TimelineItemRowContent(
+                    timelineItem = timelineItem,
+                    timelineMode = timelineMode,
+                    timelineRoomInfo = timelineRoomInfo,
+                    isLastOutgoingMessage = isLastOutgoingMessage,
+                    timelineProtectionState = timelineProtectionState,
+                    focusedEventId = focusedEventId,
+                    displayThreadSummaries = displayThreadSummaries,
+                    onUserDataClick = onUserDataClick,
+                    onLinkClick = onLinkClick,
+                    onLinkLongClick = onLinkLongClick,
+                    onContentClick = onContentClick,
+                    onLongClick = onLongClick,
+                    inReplyToClick = inReplyToClick,
+                    onReactionClick = onReactionClick,
+                    onReactionLongClick = onReactionLongClick,
+                    onMoreReactionsClick = onMoreReactionsClick,
+                    onReadReceiptClick = onReadReceiptClick,
+                    onSwipeToReply = onSwipeToReply,
+                    onGalleryItemClick = onGalleryItemClick,
+                    eventSink = eventSink,
+                    eventContentView = eventContentView,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun TimelineItemRowContent(
+    timelineItem: TimelineItem,
+    timelineMode: Timeline.Mode,
+    timelineRoomInfo: TimelineRoomInfo,
+    isLastOutgoingMessage: Boolean,
+    timelineProtectionState: TimelineProtectionState,
+    focusedEventId: EventId?,
+    displayThreadSummaries: Boolean,
+    onUserDataClick: (MatrixUser) -> Unit,
+    onLinkClick: (Link) -> Unit,
+    onLinkLongClick: (Link) -> Unit,
+    onContentClick: (TimelineItem.Event) -> Unit,
+    onLongClick: (TimelineItem.Event) -> Unit,
+    inReplyToClick: (EventId) -> Unit,
+    onReactionClick: (key: String, TimelineItem.Event) -> Unit,
+    onReactionLongClick: (key: String, TimelineItem.Event) -> Unit,
+    onMoreReactionsClick: (TimelineItem.Event) -> Unit,
+    onReadReceiptClick: (TimelineItem.Event) -> Unit,
+    onSwipeToReply: (TimelineItem.Event) -> Unit,
+    onGalleryItemClick: (TimelineItem.Event, Int) -> Unit,
+    eventSink: (TimelineEvent.TimelineItemEvent) -> Unit,
+    eventContentView: @Composable (TimelineItem.Event, Modifier, (ContentAvoidingLayoutData) -> Unit) -> Unit,
+) {
+    Box {
         when (timelineItem) {
             is TimelineItem.Virtual -> {
                 TimelineItemVirtualRow(

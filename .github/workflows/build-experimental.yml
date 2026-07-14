@@ -1,0 +1,218 @@
+name: Build Element X+ APKs
+
+on:
+  # Manual-only: triggered by `gh workflow run experimental-build.yml`
+  # or via the "Run workflow" button on the Actions tab. Avoids burning
+  # CI minutes (and producing a release per-commit) for every push,
+  # which is overkill for this fork's pace.
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  actions: write
+
+env:
+  GRADLE_OPTS: -Dorg.gradle.jvmargs=-Xmx8g -XX:MaxMetaspaceSize=512m -Dfile.encoding=UTF-8 -XX:+HeapDumpOnOutOfMemoryError -XX:+UseG1GC -Dkotlin.daemon.jvm.options=-Xmx4g
+
+jobs:
+  build:
+    name: Build "Element X+" APKs
+    runs-on: ubuntu-latest
+    steps:
+      - name: Free disk space
+        uses: jlumbroso/free-disk-space@54081f138730dfa15788a46383842cd2f914a1be
+        with:
+          tool-cache: true
+          android: false
+          dotnet: true
+          haskell: true
+          large-packages: false
+          docker-images: true
+          swap-storage: false
+
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          ref: ${{ github.ref }}
+          persist-credentials: false
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654 # v5.2.0
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Configure gradle
+        uses: gradle/actions/setup-gradle@50e97c2cd7a37755bbfafc9c5b7cafaece252f6e # v6.1.0
+        with:
+          cache-read-only: false
+
+      - name: Decode release keystore
+        # Pulls the PKCS12 keystore from a base64-encoded GitHub Secret and
+        # writes it to a workflow-scoped temp path that the gradle release
+        # signingConfig reads via ELEMENT_PLUS_KEYSTORE_PATH. Avoids signing
+        # release APKs with the debug keystore - Google Play Protect flags
+        # the shared debug SHA-1 as a known low-trust signer and blocks
+        # install on user devices ("Вредоносное приложение заблокировано").
+        env:
+          KS_B64: ${{ secrets.ELEMENT_PLUS_KEYSTORE_BASE64 }}
+        run: |
+          if [ -z "${KS_B64:-}" ]; then
+            echo "::warning::ELEMENT_PLUS_KEYSTORE_BASE64 not set; falling back to debug keystore"
+          else
+            mkdir -p "$RUNNER_TEMP/keystore"
+            printf '%s' "$KS_B64" | base64 -d > "$RUNNER_TEMP/keystore/mxtr-release.keystore"
+            echo "ELEMENT_PLUS_KEYSTORE_PATH=$RUNNER_TEMP/keystore/mxtr-release.keystore" >> "$GITHUB_ENV"
+          fi
+
+      - name: Assemble F-Droid Plus release APKs
+        # CI has 16 GB RAM so we keep R8 enabled here for ~60% smaller APKs.
+        # Local builds still pass -PdisableR8 because the dev host only has
+        # ~9.8 GB and R8 would OOM. If R8 ever breaks the bundled Element
+        # Call WebView at runtime, flip back to -PdisableR8 here.
+        # The phone-layer fork dimension has vanilla / plus variants;
+        # ship the plus variant (Element X+ branding + bundled Element Call).
+        env:
+          # Active runtime provider: Geoapify. MapTiler vars kept only because
+          # upstream BuildConfig fields still exist (legacy classes compiled
+          # but no longer used at runtime - see features/location/api/internal/).
+          # Geoapify free tier covers static maps; MapTiler free tier doesn't.
+          ELEMENT_ANDROID_GEOAPIFY_API_KEY: ${{ secrets.ELEMENT_ANDROID_GEOAPIFY_API_KEY }}
+          ELEMENT_ANDROID_GEOAPIFY_LIGHT_STYLE: ${{ secrets.ELEMENT_ANDROID_GEOAPIFY_LIGHT_STYLE }}
+          ELEMENT_ANDROID_GEOAPIFY_DARK_STYLE: ${{ secrets.ELEMENT_ANDROID_GEOAPIFY_DARK_STYLE }}
+          ELEMENT_ANDROID_MAPTILER_API_KEY: ${{ secrets.ELEMENT_ANDROID_MAPTILER_API_KEY }}
+          ELEMENT_ANDROID_MAPTILER_LIGHT_MAP_ID: ${{ secrets.ELEMENT_ANDROID_MAPTILER_LIGHT_MAP_ID }}
+          ELEMENT_ANDROID_MAPTILER_DARK_MAP_ID: ${{ secrets.ELEMENT_ANDROID_MAPTILER_DARK_MAP_ID }}
+          ELEMENT_PLUS_KEYSTORE_PASSWORD: ${{ secrets.ELEMENT_PLUS_KEYSTORE_PASSWORD }}
+          ELEMENT_PLUS_KEY_ALIAS: ${{ secrets.ELEMENT_PLUS_KEY_ALIAS }}
+        run: ./gradlew :app:assembleFdroidPlusRelease --stacktrace --no-configuration-cache
+
+      - name: Collect build metadata
+        id: meta
+        run: |
+          set -euo pipefail
+          short_sha="${GITHUB_SHA::7}"
+          echo "short_sha=${short_sha}" >> "$GITHUB_OUTPUT"
+          # Derive the version name the same way Versions.kt does
+          # (year.month(2-digit).release + the "-plus" release suffix).
+          y=$(sed -n 's/^private const val versionYear = \([0-9]*\).*/\1/p' plugins/src/main/kotlin/Versions.kt)
+          m=$(sed -n 's/^private const val versionMonth = \([0-9]*\).*/\1/p' plugins/src/main/kotlin/Versions.kt)
+          r=$(sed -n 's/^private const val versionReleaseNumber = \([0-9]*\).*/\1/p' plugins/src/main/kotlin/Versions.kt)
+          version=$(printf '%d.%02d.%d' "$y" "$m" "$r")
+          echo "version=${version}" >> "$GITHUB_OUTPUT"
+          echo "Version: ${version}"
+
+      - name: Rename APKs (flavor + version)
+        # Default Gradle names (app-fdroid-plus-<abi>-release.apk) carry no
+        # version. Republish them as element-x-plus-fdroid-<version>-<abi>.apk
+        # so the release assets state both the F-Droid flavor and the version.
+        run: |
+          set -euo pipefail
+          v="${{ steps.meta.outputs.version }}"
+          src="app/build/outputs/apk/fdroidPlus/release"
+          mkdir -p dist
+          for abi in arm64-v8a armeabi-v7a x86_64 x86 universal; do
+            cp "$src/app-fdroid-plus-${abi}-release.apk" "dist/element-x-plus-fdroid-${v}-${abi}.apk"
+          done
+          ls -1 dist
+
+      - name: Prune older experimental releases
+        # Keep at most two historical releases alongside the build we're
+        # about to publish, total = 3, the new one plus the two most
+        # recent previous builds as a rollback safety net. Older
+        # releases are dropped along with their tags. Runs before the
+        # publish step so a failed publish leaves the prior set intact.
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NEW_TAG: experimental-${{ steps.meta.outputs.short_sha }}
+          KEEP_PREVIOUS: '2'
+        run: |
+          set -euo pipefail
+          # `gh release list` returns newest-first by default. Filter
+          # to our experimental-<sha> releases, exclude the tag we're
+          # about to (re)publish, then drop the first KEEP_PREVIOUS of
+          # what's left. Every remaining tag gets deleted.
+          gh release list \
+            --repo "${{ github.repository }}" \
+            --limit 100 \
+            --json tagName,createdAt \
+            --jq '
+              [ .[]
+                | select(.tagName | startswith("experimental-"))
+                | select(.tagName != env.NEW_TAG)
+              ]
+              | sort_by(.createdAt) | reverse
+              | .[(env.KEEP_PREVIOUS | tonumber):]
+              | .[].tagName
+            ' \
+          | while read -r tag; do
+              [ -z "$tag" ] && continue
+              echo "Deleting old release: $tag"
+              gh release delete "$tag" \
+                --repo "${{ github.repository }}" \
+                --yes --cleanup-tag || true
+            done
+
+      - name: Prune older workflow runs
+        # Mirror the release-prune policy on the Actions tab: keep the
+        # KEEP_PREVIOUS most recent completed runs plus the currently-running
+        # execution (= KEEP_PREVIOUS + 1 total). Runs as a late step so the
+        # cleanup happens after the build artefacts and logs are no longer
+        # needed by the rest of the workflow.
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          KEEP_PREVIOUS: '2'
+        run: |
+          set -euo pipefail
+          gh run list \
+            --repo "${{ github.repository }}" \
+            --workflow build-experimental.yml \
+            --limit 100 \
+            --json databaseId,status,createdAt \
+            --jq '
+              [ .[]
+                | select(.status == "completed")
+                | select((.databaseId | tostring) != "${{ github.run_id }}")
+              ]
+              | sort_by(.createdAt) | reverse
+              | .[(env.KEEP_PREVIOUS | tonumber):]
+              | .[].databaseId
+            ' \
+          | while read -r run_id; do
+              [ -z "$run_id" ] && continue
+              echo "Deleting old run: $run_id"
+              gh run delete "$run_id" \
+                --repo "${{ github.repository }}" || true
+            done
+
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2.6.2
+        with:
+          tag_name: experimental-${{ steps.meta.outputs.short_sha }}
+          name: Element X+ fdroid ${{ steps.meta.outputs.version }} (${{ steps.meta.outputs.short_sha }})
+          target_commitish: ${{ github.sha }}
+          fail_on_unmatched_files: true
+          generate_release_notes: false
+          body: |
+            **Like Element X, but better.**
+
+            Unofficial experimental build of Element X Android. Not affiliated
+            with Element Hq Ltd. Works as is, at your own risk.
+
+            Built from commit [`${{ github.sha }}`](https://github.com/${{ github.repository }}/commit/${{ github.sha }}).
+            See [EXPERIMENTS.md](https://github.com/${{ github.repository }}/blob/experiments/phone-layer/docs/EXPERIMENTS.md)
+            for what this build changes versus upstream Element X.
+
+            ### Pick the right APK
+
+            * `element-x-plus-fdroid-${{ steps.meta.outputs.version }}-arm64-v8a.apk` for most modern Android phones (recommended).
+            * `element-x-plus-fdroid-${{ steps.meta.outputs.version }}-armeabi-v7a.apk` for older 32-bit ARM phones.
+            * `element-x-plus-fdroid-${{ steps.meta.outputs.version }}-x86_64.apk` / `element-x-plus-fdroid-${{ steps.meta.outputs.version }}-x86.apk` for emulators or x86 devices.
+            * `element-x-plus-fdroid-${{ steps.meta.outputs.version }}-universal.apk` is a fat APK with every ABI (largest, works everywhere).
+
+            The `applicationId` is `io.element.android.x.plusng`, so the build installs
+            side by side with the official Element X without overwriting it. The package id
+            changed from an earlier `.plus`; if you had that build, uninstall it first - the
+            new one cannot upgrade in place.
+          files: |
+            dist/element-x-plus-fdroid-*.apk

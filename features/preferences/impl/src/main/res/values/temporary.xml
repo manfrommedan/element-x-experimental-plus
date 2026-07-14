@@ -1,0 +1,120 @@
+<?xml version="1.0" encoding="utf-8"?><!--
+  ~ Copyright (c) 2026 Element Creations Ltd.
+  ~
+  ~ SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Element-Commercial.
+  ~ Please see LICENSE files in the repository root for full details.
+  -->
+
+<resources>
+    <!-- Labs toggle: phone-style 1:1 voice call layout. -->
+    <string name="screen_labs_enable_phone_voice_layout">"Phone-style voice calls"</string>
+    <string name="screen_labs_enable_phone_voice_layout_description">"Use a classic phone-style layout for 1:1 voice calls."</string>
+    <!-- Labs toggle: bulk image/video picker in the composer. -->
+    <string name="screen_labs_enable_bulk_attachments_picker">"Bulk image / video picker"</string>
+    <string name="screen_labs_enable_bulk_attachments_picker_description">"Attach up to 30 photos or videos in one go, like WhatsApp and Telegram. Caption attaches to the first message; the rest are sent in selection order."</string>
+    <!-- Labs toggle: copy Matrix ID shortcut in settings header. -->
+    <string name="screen_labs_enable_share_mxid_shortcut">"Copy Matrix ID from settings"</string>
+    <string name="screen_labs_enable_share_mxid_shortcut_description">"Adds a copy button next to your Matrix ID in the settings header so you can share it in one tap."</string>
+    <!-- Labs toggle: multi-select messages with bulk actions. -->
+    <string name="screen_labs_enable_message_multi_select">"Multi-select messages"</string>
+    <string name="screen_labs_enable_message_multi_select_description">"Long-press a text message to start selecting, then drag up or down to sweep a whole range (the list auto-scrolls at the edges). Long-press media for its menu, where \"Select\" also starts selection. Bulk copy, forward and delete up to 30 at once."</string>
+    <!-- Labs toggle: favourites pinned at the top of the chat list. -->
+    <string name="screen_labs_enable_favorites_pinned_to_top">"Favourites at the top"</string>
+    <string name="screen_labs_enable_favorites_pinned_to_top_description">"Show your favourite rooms in their own section above the rest of the chat list, like SchildiChat or Telegram pinned chats."</string>
+    <!-- Labs toggle: phone-style incoming call screen. -->
+    <string name="screen_labs_enable_phone_incoming_call">"Phone-style incoming calls"</string>
+    <string name="screen_labs_enable_phone_incoming_call_description">"Show a full-screen ringing call with ringtone, answerable over the lock screen, when a call comes in - instead of a quiet heads-up notification. Voice and video calls are labelled distinctly."</string>
+    <!-- Labs toggle: join an ongoing call from the chat list. -->
+    <string name="screen_labs_enable_room_list_call_shortcut">"Join calls from the chat list"</string>
+    <string name="screen_labs_enable_room_list_call_shortcut_description">"Tap the call icon on a room in the chat list to join its ongoing call right away, like WhatsApp or Telegram."</string>
+    <!-- Labs toggle: answer an incoming call from the lock screen without unlocking. -->
+    <string name="screen_labs_enable_answer_call_on_lock_screen">"Answer calls without unlocking"</string>
+    <string name="screen_labs_enable_answer_call_on_lock_screen_description">"Answer an incoming call straight from the lock screen, without unlocking the device first, like WhatsApp. You still need to unlock to leave the call for the rest of the app."</string>
+    <!-- Advanced settings toggle: collapse runs of redacted (deleted) events in timelines. -->
+    <string name="screen_advanced_settings_hide_redacted_events_toggle_title">"Collapse deleted messages"</string>
+    <string name="screen_advanced_settings_hide_redacted_events_toggle_subtitle">"Three or more deleted messages in a row are collapsed into one item. Tap to expand."</string>
+    <!-- Advanced settings toggle: do not auto-download thumbnails/previews on mobile data; user taps to load each one. -->
+    <string name="screen_advanced_settings_media_wifi_only_title">"Auto-download media on Wi-Fi only"</string>
+    <string name="screen_advanced_settings_media_wifi_only_subtitle">"On mobile data, image/video thumbnails and map previews aren't fetched automatically. Tap each one to download it."</string>
+    <!-- Advanced settings field: user-supplied Geoapify API key for the Location attachment. -->
+    <string name="screen_advanced_settings_geoapify_api_key_title">"Geoapify API key (Location)"</string>
+    <string name="screen_advanced_settings_geoapify_api_key_description">"Paste a free Geoapify API key (geoapify.com, 3000 requests/day) to enable the Location attachment and render maps in chat. The key is stored locally on this device and overrides the bundled one. Leave empty to use the bundled key."</string>
+    <string name="screen_advanced_settings_geoapify_api_key_set">"Personal API key in use. Location attachment is enabled."</string>
+    <!-- Selection mode top bar. -->
+    <string name="screen_messages_selection_count">"%1$d selected"</string>
+    <string name="screen_messages_selection_delete_confirm">"Delete %1$d messages?"</string>
+    <!-- Labs section headers. -->
+    <string name="screen_labs_section_make_element_better">"Like ElementX, but better"</string>
+    <string name="screen_labs_section_calls">"Calls"</string>
+    <string name="screen_labs_section_upstream">"Element Labs"</string>
+
+    <!-- mxtr-proxy entry under Advanced settings. -->
+    <string name="screen_advanced_settings_mxtr_title">"Anti-censorship proxy"</string>
+    <string name="screen_advanced_settings_mxtr_subtitle">"DPI &amp; TSPU bypass via your own server"</string>
+
+    <!-- mxtr-proxy settings screen. -->
+    <string name="screen_mxtr_settings_title">"Anti-censorship proxy"</string>
+    <string name="screen_mxtr_settings_back">"Back"</string>
+    <!-- Connection status pill. -->
+    <string name="screen_mxtr_settings_status_off">"Off"</string>
+    <string name="screen_mxtr_settings_status_connected">"Connected"</string>
+    <string name="screen_mxtr_settings_status_starting">"Starting…"</string>
+    <!-- Label above the current server address. -->
+    <string name="screen_mxtr_settings_server">"Server"</string>
+    <!-- Live metric: number of active connections. -->
+    <string name="screen_mxtr_settings_metric_active">"Active"</string>
+    <!-- Enable/disable card. -->
+    <string name="screen_mxtr_settings_use_proxy">"Use proxy"</string>
+    <string name="screen_mxtr_settings_use_proxy_description">"Secure connection through your server"</string>
+    <!-- Connection string input card. -->
+    <string name="screen_mxtr_settings_connection_string">"Connection string"</string>
+    <string name="screen_mxtr_settings_connection_string_hint">"Paste the connection string from your server"</string>
+    <!-- Summary shown when the connection string is valid. %1$s = host, %2$d = port. -->
+    <string name="screen_mxtr_settings_server_summary">"Server %1$s:%2$d"</string>
+    <!-- Error shown when the connection string cannot be parsed. -->
+    <string name="screen_mxtr_settings_format_error">"Invalid format. Expected mxtr://&lt;base58-32B-psk&gt;@&lt;ipv4-or-ipv6&gt;:&lt;port&gt;?sni=&lt;name&gt;. Host must be an IP literal, hostname is rejected."</string>
+    <!-- Tool buttons under the connection string. -->
+    <string name="screen_mxtr_settings_action_copy">"Copy"</string>
+    <string name="screen_mxtr_settings_action_share">"Share"</string>
+    <!-- Primary action buttons. -->
+    <string name="screen_mxtr_settings_action_apply">"Apply"</string>
+    <string name="screen_mxtr_settings_action_reset">"Reset"</string>
+    <!-- Confirmation shown after applying settings. -->
+    <string name="screen_mxtr_settings_restart_hint">"Saved. Restart the app to apply."</string>
+    <!-- Diagnostics card. -->
+    <string name="screen_mxtr_settings_diagnostics">"Diagnostics"</string>
+    <!-- Collapsed diagnostics summary. %1$d = total, %2$d = errors, %3$d = restarts. -->
+    <string name="screen_mxtr_settings_diagnostics_summary">"Total %1$d · errors %2$d · restarts %3$d"</string>
+    <!-- Chevron accessibility labels. -->
+    <string name="screen_mxtr_settings_collapse">"Collapse"</string>
+    <string name="screen_mxtr_settings_expand">"Expand"</string>
+    <!-- Diagnostics detail rows. -->
+    <string name="screen_mxtr_settings_diag_accept_status">"Accept status"</string>
+    <!-- Listener address. %1$d = local port. -->
+    <string name="screen_mxtr_settings_diag_listening">"Listening 127.0.0.1:%1$d"</string>
+    <string name="screen_mxtr_settings_diag_not_started">"Not started"</string>
+    <string name="screen_mxtr_settings_diag_restarts">"Restarts"</string>
+    <string name="screen_mxtr_settings_diag_sni_sent">"SNI we send"</string>
+    <string name="screen_mxtr_settings_diag_total_connections">"Total connections"</string>
+    <string name="screen_mxtr_settings_diag_succeeded">"Succeeded"</string>
+    <string name="screen_mxtr_settings_diag_failed">"Failed"</string>
+    <string name="screen_mxtr_settings_diag_sent">"Sent"</string>
+    <string name="screen_mxtr_settings_diag_received">"Received"</string>
+    <!-- Diagnostics error sections. -->
+    <string name="screen_mxtr_settings_errors_by_type">"Errors by type"</string>
+    <string name="screen_mxtr_settings_recent_errors">"Recent errors"</string>
+    <!-- Share sheet chooser title. -->
+    <string name="screen_mxtr_settings_share_chooser_title">"Share mxtr"</string>
+    <!-- Byte-size units. %1$s = formatted number. -->
+    <string name="screen_mxtr_settings_unit_bytes">"%1$s B"</string>
+    <string name="screen_mxtr_settings_unit_kib">"%1$s KB"</string>
+    <string name="screen_mxtr_settings_unit_mib">"%1$s MB"</string>
+    <string name="screen_mxtr_settings_unit_gib">"%1$s GB"</string>
+
+    <!-- Advanced settings: link (URL) preview policy. -->
+    <string name="screen_advanced_settings_show_link_previews_title">"Show link previews"</string>
+    <string name="screen_advanced_settings_show_link_previews_subtitle">"Previews may share your IP address with the linked website"</string>
+    <string name="screen_advanced_settings_show_link_previews_off">"Never show"</string>
+    <string name="screen_advanced_settings_show_link_previews_unencrypted_only">"In unencrypted rooms only"</string>
+    <string name="screen_advanced_settings_show_link_previews_all">"Always show"</string>
+</resources>

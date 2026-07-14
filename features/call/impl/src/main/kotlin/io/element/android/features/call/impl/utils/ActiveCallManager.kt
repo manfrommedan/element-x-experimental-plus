@@ -9,7 +9,9 @@
 package io.element.android.features.call.impl.utils
 
 import android.annotation.SuppressLint
+import android.app.KeyguardManager
 import android.content.Context
+import android.content.Intent
 import android.os.PowerManager
 import androidx.annotation.VisibleForTesting
 import androidx.core.app.NotificationManagerCompat
@@ -24,9 +26,12 @@ import io.element.android.features.call.api.CallData
 import io.element.android.features.call.api.CurrentCall
 import io.element.android.features.call.impl.notifications.CallNotificationData
 import io.element.android.features.call.impl.notifications.RingingCallNotificationCreator
+import io.element.android.features.call.impl.ui.IncomingCallActivity
 import io.element.android.libraries.core.extensions.runCatchingExceptions
 import io.element.android.libraries.di.annotations.AppCoroutineScope
 import io.element.android.libraries.di.annotations.ApplicationContext
+import io.element.android.libraries.featureflag.api.FeatureFlagService
+import io.element.android.libraries.featureflag.api.FeatureFlags
 import io.element.android.libraries.matrix.api.MatrixClientProvider
 import io.element.android.libraries.matrix.api.core.SessionId
 import io.element.android.libraries.matrix.ui.media.ImageLoaderHolder
@@ -92,7 +97,7 @@ interface ActiveCallManager {
 @SingleIn(AppScope::class)
 @ContributesBinding(AppScope::class)
 class DefaultActiveCallManager(
-    @ApplicationContext context: Context,
+    @ApplicationContext private val context: Context,
     @AppCoroutineScope
     private val coroutineScope: CoroutineScope,
     private val onMissedCallNotificationHandler: OnMissedCallNotificationHandler,
@@ -103,6 +108,7 @@ class DefaultActiveCallManager(
     private val appForegroundStateService: AppForegroundStateService,
     private val imageLoaderHolder: ImageLoaderHolder,
     private val systemClock: SystemClock,
+    private val featureFlagService: FeatureFlagService,
 ) : ActiveCallManager {
     private val tag = "ActiveCallManager"
     private var timedOutCallJob: Job? = null
@@ -147,13 +153,25 @@ class DefaultActiveCallManager(
                     sessionId = notificationData.sessionId,
                     roomId = notificationData.roomId,
                     isAudioCall = notificationData.audioOnly,
+                    notifyEventId = notificationData.eventId.value,
                 ),
                 callState = CallState.Ringing(notificationData),
             )
 
             timedOutCallJob = coroutineScope.launch {
                 setUpCoil(notificationData.sessionId)
-                showIncomingCallNotification(notificationData)
+                val phoneStyleIncoming = featureFlagService.isFeatureEnabled(FeatureFlags.PhoneIncomingCall)
+                if (phoneStyleIncoming && appForegroundStateService.isInForeground.value && isScreenOnAndUnlocked()) {
+                    // Foreground with the screen on and unlocked: Android won't auto-fire the
+                    // notification's full-screen intent here, so launch the incoming-call screen
+                    // ourselves (it rings). Skip the heads-up notification for a single surface.
+                    launchIncomingCallScreen(notificationData)
+                } else {
+                    // Locked / screen off / background: a direct activity start would be dropped by
+                    // background-activity-launch limits over the keyguard, so post the full-screen
+                    // intent notification, which the system reliably shows over the lock screen.
+                    showIncomingCallNotification(notificationData)
+                }
 
                 // Wait for the ringing call to time out
                 delay(timeMillis = ringDuration)
@@ -219,7 +237,9 @@ class DefaultActiveCallManager(
             return@withLock
         }
 
-        if (currentActiveCall.callData != callData) {
+        // Match by call identity (session + room + audio mode). notifyEventId is incoming-call
+        // metadata that is not always carried on the hang-up side, so it must not break the match.
+        if (currentActiveCall.callData.copy(notifyEventId = null) != callData.copy(notifyEventId = null)) {
             Timber.tag(tag).w("Call type $callData does not match the active call type, ignoring")
             return@withLock
         }
@@ -257,6 +277,35 @@ class DefaultActiveCallManager(
             callData = callData,
             callState = CallState.InCall,
         )
+    }
+
+    // Launch the incoming-call screen directly. Used when the app is in the
+    // foreground, where Android won't auto-fire the notification's full-screen
+    // intent (it would only show a heads-up banner). EXTRA_PLAY_RINGTONE tells the
+    // activity to ring itself, since we skip the (ringing) notification in this case.
+    // Safe from background-activity-launch limits because callers gate on a foreground,
+    // on-and-unlocked screen (see isScreenOnAndUnlocked).
+    private fun launchIncomingCallScreen(notificationData: CallNotificationData) {
+        Timber.tag(tag).d("App in foreground, launching incoming call screen directly")
+        val intent = Intent(context, IncomingCallActivity::class.java).apply {
+            putExtra(IncomingCallActivity.EXTRA_NOTIFICATION_DATA, notificationData)
+            putExtra(IncomingCallActivity.EXTRA_PLAY_RINGTONE, true)
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        }
+        context.startActivity(intent)
+    }
+
+    // A direct activity start only reaches the user when the screen is on and unlocked. While the
+    // device is locked or the screen is off, background-activity-launch limits silently drop it, so
+    // the incoming-call screen must come from the notification's full-screen intent instead.
+    // isInForeground alone is not enough: this ringing call's own foreground service keeps the
+    // process "foreground" even while the device is locked.
+    private fun isScreenOnAndUnlocked(): Boolean {
+        val powerManager = context.getSystemService<PowerManager>()
+        val keyguardManager = context.getSystemService<KeyguardManager>()
+        val screenOn = powerManager?.isInteractive != false
+        val locked = keyguardManager?.isKeyguardLocked == true
+        return screenOn && !locked
     }
 
     @SuppressLint("MissingPermission")

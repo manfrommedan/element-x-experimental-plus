@@ -106,7 +106,7 @@ private fun RoomListModalBottomSheetContent(
             ListItem(
                 headlineContent = {
                     Text(
-                        text = stringResource(id = CommonStrings.action_mark_as_read),
+                        text = stringResource(id = R.string.screen_roomlist_mark_as_read),
                         style = MaterialTheme.typography.bodyLarge,
                     )
                 },
@@ -193,6 +193,10 @@ private fun RoomListModalBottomSheetContent(
             ),
             style = ListItemStyle.Destructive,
         )
+        // NOTE(fork): "Clear room cache" action retired. It relied on per-room
+        // Room.clearEventCacheStorage(), which the Rust SDK removed as of 26.06.x
+        // (only client-wide MatrixClient.clearCache() remains). Old impl is on
+        // backup/pre-develop-merge-20260704 if a per-room API ever returns.
     }
 }
 
@@ -200,7 +204,7 @@ private fun RoomListModalBottomSheetContent(
 @Composable
 internal fun RoomListContextMenuPreview(
     @PreviewParameter(RoomListStateContextMenuShownProvider::class) contextMenu: RoomListState.ContextMenu.Shown
-) = ElementPreview(fillMaxSize = true) {
+) = ElementPreview {
     RoomListContextMenu(
         contextMenu = contextMenu,
         canReportRoom = true,

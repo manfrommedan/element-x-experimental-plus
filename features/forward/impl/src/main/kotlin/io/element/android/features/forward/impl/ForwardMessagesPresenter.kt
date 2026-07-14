@@ -28,22 +28,22 @@ import timber.log.Timber
 
 @AssistedInject
 class ForwardMessagesPresenter(
-    @Assisted eventId: String,
+    @Assisted eventIds: List<String>,
     @Assisted private val timelineProvider: TimelineProvider,
     @SessionCoroutineScope
     private val sessionCoroutineScope: CoroutineScope,
 ) : Presenter<ForwardMessagesState> {
-    private val eventId: EventId = EventId(eventId)
+    private val eventIds: List<EventId> = eventIds.map(::EventId)
 
     @AssistedFactory
     fun interface Factory {
-        fun create(eventId: String, timelineProvider: TimelineProvider): ForwardMessagesPresenter
+        fun create(eventIds: List<String>, timelineProvider: TimelineProvider): ForwardMessagesPresenter
     }
 
     private val forwardingActionState: MutableState<AsyncAction<List<RoomId>>> = mutableStateOf(AsyncAction.Uninitialized)
 
     fun onRoomSelected(roomIds: List<RoomId>) {
-        sessionCoroutineScope.forwardEvent(eventId, roomIds)
+        sessionCoroutineScope.forwardEvents(eventIds, roomIds)
     }
 
     @Composable
@@ -60,16 +60,24 @@ class ForwardMessagesPresenter(
         )
     }
 
-    private fun CoroutineScope.forwardEvent(
-        eventId: EventId,
+    private fun CoroutineScope.forwardEvents(
+        eventIds: List<EventId>,
         roomIds: List<RoomId>,
     ) = launch {
         suspend {
-            timelineProvider.getActiveTimeline().forwardEvent(eventId, roomIds)
-                .onFailure {
-                    Timber.e(it, "Error while forwarding event")
+            val timeline = timelineProvider.getActiveTimeline()
+            var failures = 0
+            var lastError: Throwable? = null
+            for ((index, eventId) in eventIds.withIndex()) {
+                val result = timeline.forwardEvent(eventId, roomIds)
+                if (result.isFailure) {
+                    failures += 1
+                    lastError = result.exceptionOrNull()
+                    Timber.e(lastError, "Error forwarding event $eventId (${failures} failed so far)")
                 }
-                .getOrThrow()
+                if (index < eventIds.lastIndex) kotlinx.coroutines.delay(150)
+            }
+            if (failures == eventIds.size && lastError != null) throw lastError
             roomIds
         }.runCatchingUpdatingState(forwardingActionState)
     }

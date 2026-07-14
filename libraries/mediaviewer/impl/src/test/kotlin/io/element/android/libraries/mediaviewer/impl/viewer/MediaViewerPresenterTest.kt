@@ -644,7 +644,7 @@ class MediaViewerPresenterTest {
                     }
                 )
             )
-            skipItems(1)
+            skipItems(2)
             val stateWithSnackbar = awaitItem()
             assertThat(stateWithSnackbar.snackbarMessage!!.messageResId).isEqualTo(expectedSnackbarResId)
         }

@@ -14,15 +14,20 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.PreviewParameter
 import androidx.compose.ui.unit.dp
 import io.element.android.compound.theme.ElementTheme
+import io.element.android.compound.tokens.generated.CompoundIcons
 import io.element.android.libraries.designsystem.components.avatar.Avatar
 import io.element.android.libraries.designsystem.components.avatar.AvatarSize
 import io.element.android.libraries.designsystem.components.avatar.AvatarType
@@ -32,11 +37,13 @@ import io.element.android.libraries.designsystem.theme.components.Text
 import io.element.android.libraries.matrix.api.user.MatrixUser
 import io.element.android.libraries.matrix.ui.model.getAvatarData
 import io.element.android.libraries.matrix.ui.model.getBestName
+import io.element.android.libraries.ui.strings.CommonStrings
 
 @Composable
 fun MatrixUserHeader(
     matrixUser: MatrixUser,
     modifier: Modifier = Modifier,
+    onCopyMxidClick: (() -> Unit)? = null,
 ) {
     Row(
         modifier = modifier
@@ -74,6 +81,16 @@ fun MatrixUserHeader(
                     color = ElementTheme.colors.textSecondary,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
+                )
+            }
+        }
+        if (onCopyMxidClick != null) {
+            IconButton(onClick = onCopyMxidClick) {
+                Icon(
+                    modifier = Modifier.size(24.dp),
+                    imageVector = CompoundIcons.Copy(),
+                    contentDescription = stringResource(CommonStrings.action_copy),
+                    tint = ElementTheme.colors.iconAccentPrimary,
                 )
             }
         }

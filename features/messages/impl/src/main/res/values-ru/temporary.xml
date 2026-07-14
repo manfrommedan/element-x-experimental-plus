@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?><!--
+  ~ Copyright (c) 2026 Element Creations Ltd.
+  ~
+  ~ SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Element-Commercial.
+  ~ Please see LICENSE files in the repository root for full details.
+  -->
+
+<resources>
+    <string name="action_select_messages">"Выбрать"</string>
+    <string name="screen_messages_selection_count_short">"Выбрано: %1$d"</string>
+    <string name="screen_messages_selection_delete_confirm">"Удалить %1$d сообщений?"</string>
+    <string name="screen_messages_selection_cap_reached">"Выбран максимум сообщений"</string>
+    <string name="screen_composer_attachments_cap_reached">"Можно отправить до 30 файлов за раз"</string>
+    <string name="screen_messages_forwarded">"Переслано"</string>
+</resources>

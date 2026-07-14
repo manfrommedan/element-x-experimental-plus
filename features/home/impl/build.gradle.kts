@@ -48,6 +48,7 @@ dependencies {
     implementation(projects.libraries.push.api)
     implementation(projects.libraries.sessionStorage.api)
     implementation(projects.features.announcement.api)
+    implementation(projects.features.call.api)
     implementation(projects.features.invite.api)
     implementation(projects.features.networkmonitor.api)
     implementation(projects.features.logout.api)
@@ -65,6 +66,7 @@ dependencies {
 
     testCommonDependencies(libs, true)
     testImplementation(projects.features.announcement.test)
+    testImplementation(projects.features.call.test)
     testImplementation(projects.features.invite.test)
     testImplementation(projects.features.logout.test)
     testImplementation(projects.features.networkmonitor.test)

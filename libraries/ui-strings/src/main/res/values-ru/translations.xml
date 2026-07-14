@@ -558,4 +558,5 @@
   <string name="timeline_decryption_failure_withheld_unverified">"Это сообщение было заблокировано либо потому, что вы не подтвердили свое устройство, либо потому, что отправителю необходимо подтвердить вашу цифровую личность."</string>
   <string name="vulkan_not_supported_dialog_content_android">"Ваше устройство слишком старое, требуется устройство с Android 8 или более новой версией."</string>
   <string name="vulkan_not_supported_dialog_title_android">"Отображение карт не поддерживается"</string>
+  <string name="common_voice_call">"Голосовой вызов"</string>
 </resources>

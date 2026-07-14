@@ -8,6 +8,7 @@
 
 package io.element.android.features.login.impl.screens.onboarding
 
+import android.content.Intent
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -18,6 +19,7 @@ import dev.zacsweers.metro.AppScope
 import dev.zacsweers.metro.Assisted
 import dev.zacsweers.metro.AssistedInject
 import io.element.android.annotations.ContributesNode
+import io.element.android.features.login.impl.mxtr.MxtrSettingsActivity
 import io.element.android.features.login.impl.util.openLearnMorePage
 import io.element.android.libraries.architecture.NodeInputs
 import io.element.android.libraries.architecture.callback
@@ -77,6 +79,9 @@ class OnBoardingNode(
             onCreateAccountContinue = callback::navigateToCreateAccount,
             onBackClick = callback::onDone,
             onDeveloperSettingsClick = callback::navigateToDeveloperSettings,
+            onMxtrSettingsClick = {
+                context.startActivity(Intent(context, MxtrSettingsActivity::class.java))
+            },
         )
     }
 }

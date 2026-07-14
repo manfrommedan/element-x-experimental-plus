@@ -28,6 +28,8 @@ import io.element.android.features.messages.impl.timeline.model.event.TimelineIt
 import io.element.android.features.messages.impl.timeline.model.event.TimelineItemUnknownContent
 import io.element.android.features.messages.impl.timeline.model.event.TimelineItemVideoContent
 import io.element.android.features.messages.impl.timeline.model.event.TimelineItemVoiceContent
+import io.element.android.libraries.designsystem.components.avatar.AvatarData
+import io.element.android.libraries.matrix.api.core.UserId
 import io.element.android.libraries.matrix.api.timeline.MatrixTimelineItem
 import io.element.android.libraries.matrix.api.timeline.item.event.CallNotifyContent
 import io.element.android.libraries.matrix.api.timeline.item.event.FailedToParseMessageLikeContent
@@ -43,6 +45,41 @@ import io.element.android.libraries.matrix.api.timeline.item.event.StateContent
 import io.element.android.libraries.matrix.api.timeline.item.event.StickerContent
 import io.element.android.libraries.matrix.api.timeline.item.event.UnableToDecryptContent
 import io.element.android.libraries.matrix.api.timeline.item.event.UnknownContent
+
+/**
+ * Return true when every event in the group is a redacted (deleted) message, i.e. the group is a
+ * collapsed run of deleted messages rather than the usual run of room state changes. Used to pick
+ * the group header label. An empty group is not considered a redacted group.
+ */
+internal fun TimelineItem.GroupedEvents.isRedactedMessagesGroup(): Boolean =
+    events.isNotEmpty() && events.all { it.content is TimelineItemRedactedContent }
+
+/**
+ * How many deleted messages each original author has in a collapsed redacted group. The SDK does
+ * not expose who performed the redaction, so this is keyed on the original sender (whose messages
+ * were removed), not the redacter. Authors are kept in first-seen (newest-first) order.
+ */
+internal data class RedactedSenderSummary(
+    val senderId: UserId,
+    val senderName: String,
+    val avatarData: AvatarData,
+    val count: Int,
+)
+
+internal fun TimelineItem.GroupedEvents.redactedSendersSummary(): List<RedactedSenderSummary> {
+    val bySender = LinkedHashMap<UserId, RedactedSenderSummary>()
+    events.forEach { event ->
+        val existing = bySender[event.senderId]
+        bySender[event.senderId] = existing?.copy(count = existing.count + 1)
+            ?: RedactedSenderSummary(
+                senderId = event.senderId,
+                senderName = event.safeSenderName,
+                avatarData = event.senderAvatar,
+                count = 1,
+            )
+    }
+    return bySender.values.toList()
+}
 
 /**
  * Return true if the Event can be grouped in a collapse/expand block

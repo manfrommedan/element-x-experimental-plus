@@ -58,12 +58,12 @@
   <string name="a11y_send_files">"Надіслати файли"</string>
   <string name="a11y_sender_location">"Локація відправника"</string>
   <string name="a11y_sent_by_sender_at_date">"Надіслано %1$s о %2$s"</string>
-  <string name="a11y_session_verification_time_limited_action_required">"Необхідно виконати дію, обмежену в часі, ви маєте одну хвилину, щоб звіритись"</string>
+  <string name="a11y_session_verification_time_limited_action_required">"Необхідно виконати дію, обмежену в часі, у вас є одна хвилина для верифікації"</string>
   <string name="a11y_settings_with_required_action">"Налаштування, потрібні дії"</string>
   <string name="a11y_show_password">"Показати пароль"</string>
   <string name="a11y_start_call">"Розпочати виклик"</string>
-  <string name="a11y_start_video_call">"Розпочати відеовиклик"</string>
-  <string name="a11y_start_voice_call">"Розпочати голосовий виклик"</string>
+  <string name="a11y_start_video_call">"Розпочати відеодзвінок"</string>
+  <string name="a11y_start_voice_call">"Розпочати голосовий дзвінок"</string>
   <string name="a11y_thread_in_room">"Гілка в %1$s"</string>
   <string name="a11y_threads_in_room">"Гілки в %1$s"</string>
   <string name="a11y_tombstoned_room">"Кімната більше не використовується"</string>

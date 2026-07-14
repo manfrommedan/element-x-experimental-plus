@@ -17,7 +17,8 @@ import io.element.android.libraries.textcomposer.model.TextEditorState
 import kotlinx.collections.immutable.ImmutableList
 
 data class AttachmentsPreviewState(
-    val attachments: ImmutableList<Attachment>,
+    val attachments: kotlinx.collections.immutable.ImmutableList<Attachment>,
+    val currentIndex: Int,
     val imageEditorState: AttachmentImageEditorState?,
     val canEditImage: Boolean,
     val isApplyingImageEdits: Boolean,
@@ -26,11 +27,10 @@ data class AttachmentsPreviewState(
     val textEditorState: TextEditorState,
     val mediaOptimizationSelectorState: MediaOptimizationSelectorState,
     val displayFileTooLargeError: Boolean,
-    val currentIndex: Int,
     val eventSink: (AttachmentsPreviewEvent) -> Unit,
 ) {
-    val isGallery: Boolean get() = attachments.size > 1
-    val totalCount: Int get() = attachments.size
+    val totalCount: Int = attachments.size
+    val attachment: Attachment = attachments[currentIndex]
 }
 
 @Immutable

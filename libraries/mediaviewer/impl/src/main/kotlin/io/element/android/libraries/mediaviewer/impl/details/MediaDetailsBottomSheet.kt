@@ -267,7 +267,7 @@ private fun SectionText(
 @Composable
 internal fun MediaDetailsBottomSheetPreview(
     @PreviewParameter(MediaBottomSheetStateDetailsProvider::class) state: MediaBottomSheetState.Details,
-) = ElementPreview(fillMaxSize = true) {
+) = ElementPreview {
     MediaDetailsBottomSheet(
         state = state,
         onViewInTimeline = {},

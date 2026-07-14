@@ -237,6 +237,10 @@ Compose:
       - LocalBuildMeta
       - LocalUiTestMode
       - LocalSdkIntVersionProvider
+      - LocalUrlPreviewService
+      - LocalPhoneVoiceLayoutEnabled
+      - LocalPermalinkParser
+      - LocalAutoLoadMedia
   CompositionLocalNaming:
     active: true
   ContentEmitterReturningValues:

@@ -20,15 +20,20 @@ class FakeCallWidgetProvider(
     var getWidgetCalled = false
         private set
 
+    var getWidgetStartVideoMuted: Boolean? = null
+        private set
+
     override suspend fun getWidget(
         sessionId: SessionId,
         roomId: RoomId,
         isAudioCall: Boolean,
         clientId: String,
         languageTag: String?,
-        theme: String?
+        theme: String?,
+        startVideoMuted: Boolean,
     ): Result<CallWidgetProvider.GetWidgetResult> {
         getWidgetCalled = true
+        getWidgetStartVideoMuted = startVideoMuted
         return Result.success(
             CallWidgetProvider.GetWidgetResult(
                 driver = widgetDriver,

@@ -42,7 +42,7 @@ import io.element.android.features.login.impl.screens.loginpassword.LoginPasswor
 import io.element.android.features.login.impl.screens.onboarding.OnBoardingNode
 import io.element.android.features.login.impl.screens.searchaccountprovider.SearchAccountProviderNode
 import io.element.android.features.preferences.api.PreferencesEntryPoint
-import io.element.android.libraries.androidutils.browser.openUrlInChromeCustomTab
+import io.element.android.libraries.androidutils.browser.openUrlInMxtrAwareCustomTab
 import io.element.android.libraries.architecture.BackstackView
 import io.element.android.libraries.architecture.BaseFlowNode
 import io.element.android.libraries.architecture.NodeInputs
@@ -336,7 +336,7 @@ class LoginFlowNode(
     private fun navigateToMas(oAuthDetails: OAuthDetails) {
         activity?.let {
             externalAppStarted = true
-            it.openUrlInChromeCustomTab(null, darkTheme, oAuthDetails.url)
+            it.openUrlInMxtrAwareCustomTab(null, darkTheme, oAuthDetails.url)
         }
     }
 

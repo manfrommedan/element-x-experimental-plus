@@ -7,6 +7,7 @@
 
 package io.element.android.features.preferences.impl.developer.appsettings
 
+import androidx.appcompat.app.AppCompatDelegate
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -17,6 +18,7 @@ import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.snapshots.SnapshotStateList
+import androidx.core.os.LocaleListCompat
 import dev.zacsweers.metro.Inject
 import io.element.android.features.preferences.impl.developer.tracing.toLogLevel
 import io.element.android.features.preferences.impl.developer.tracing.toLogLevelItem
@@ -71,6 +73,10 @@ class AppDeveloperSettingsPresenter(
                     enabledFeatures.add(EnabledFeature(feature, featureFlagService.isFeatureEnabled(feature)))
                 }
         }
+        // Read directly from AppCompatDelegate; changing it recreates the activity, which
+        // recomposes this presenter and re-reads the up-to-date value.
+        val appLanguage = AppLanguageItem.fromLocales(AppCompatDelegate.getApplicationLocales())
+
         val featureUiModels = createUiModels(enabledFeatures)
         val coroutineScope = rememberCoroutineScope()
         // Compute cache size each time the clear cache action value is changed
@@ -98,6 +104,12 @@ class AppDeveloperSettingsPresenter(
                     }
                     appPreferencesStore.setTracingLogPacks(currentPacks)
                 }
+                is AppDeveloperSettingsEvent.SetAppLanguage -> {
+                    val locales = event.language.localeTag
+                        ?.let { LocaleListCompat.forLanguageTags(it) }
+                        ?: LocaleListCompat.getEmptyLocaleList()
+                    AppCompatDelegate.setApplicationLocales(locales)
+                }
             }
         }
 
@@ -110,6 +122,7 @@ class AppDeveloperSettingsPresenter(
             ),
             tracingLogLevel = tracingLogLevel,
             tracingLogPacks = tracingLogPacks,
+            appLanguage = appLanguage,
             eventSink = ::handleEvent,
         )
     }

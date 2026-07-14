@@ -29,6 +29,7 @@ import io.element.android.libraries.di.RoomScope
 import io.element.android.libraries.matrix.api.core.EventId
 import io.element.android.libraries.matrix.api.core.SessionId
 import io.element.android.libraries.matrix.api.timeline.Timeline
+import io.element.android.libraries.mediapickers.api.PickerProvider
 import io.element.android.libraries.mediaviewer.api.local.LocalMediaRenderer
 import kotlinx.collections.immutable.ImmutableList
 
@@ -41,6 +42,7 @@ class AttachmentsPreviewNode(
     private val localMediaRenderer: LocalMediaRenderer,
     private val sessionId: SessionId,
     private val enterpriseService: EnterpriseService,
+    private val mediaPickerProvider: PickerProvider,
 ) : Node(buildContext, plugins = plugins) {
     data class Inputs(
         val attachments: ImmutableList<Attachment>,
@@ -70,10 +72,16 @@ class AttachmentsPreviewNode(
             colors = colors,
         ) {
             val state = presenter.present()
+            val addMorePicker = mediaPickerProvider.registerMultipleGalleryPicker { picked ->
+                if (picked.isNotEmpty()) {
+                    state.eventSink(AttachmentsPreviewEvent.AddMore(picked))
+                }
+            }
             AttachmentsPreviewView(
                 state = state,
                 localMediaRenderer = localMediaRenderer,
-                modifier = modifier
+                onAddMoreClick = { addMorePicker.launch() },
+                modifier = modifier,
             )
         }
     }

@@ -30,6 +30,7 @@ open class AppDeveloperSettingsStateProvider : PreviewParameterProvider<AppDevel
 fun anAppDeveloperSettingsState(
     customElementCallBaseUrlState: CustomElementCallBaseUrlState = aCustomElementCallBaseUrlState(),
     traceLogPacks: List<TraceLogPack> = emptyList(),
+    appLanguage: AppLanguageItem = AppLanguageItem.System,
     eventSink: (AppDeveloperSettingsEvent) -> Unit = {},
 ) = AppDeveloperSettingsState(
     features = aFeatureUiModelList(),
@@ -37,6 +38,7 @@ fun anAppDeveloperSettingsState(
     customElementCallBaseUrlState = customElementCallBaseUrlState,
     tracingLogLevel = AsyncData.Success(LogLevelItem.INFO),
     tracingLogPacks = traceLogPacks.toImmutableList(),
+    appLanguage = appLanguage,
     eventSink = eventSink,
 )
 

@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?><!--
+  ~ Copyright (c) 2026 Element Creations Ltd.
+  ~
+  ~ SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Element-Commercial.
+  ~ Please see LICENSE files in the repository root for full details.
+  -->
+
+<resources>
+    <!-- Субтитр экрана входящего звонка, разделённый по типу звонка (входящие в стиле телефона). -->
+    <string name="screen_incoming_call_subtitle_audio_android">"Входящий аудиовызов"</string>
+    <string name="screen_incoming_call_subtitle_video_android">"Входящий видеовызов"</string>
+    <!-- Вторичное действие при входящем видеозвонке: ответить с выключенной камерой. -->
+    <string name="screen_incoming_call_answer_without_camera_android">"Ответить без камеры"</string>
+</resources>

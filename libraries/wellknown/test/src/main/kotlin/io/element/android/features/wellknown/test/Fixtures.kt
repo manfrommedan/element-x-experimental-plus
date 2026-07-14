@@ -19,7 +19,6 @@ fun anElementWellKnown(
     notificationSound: String? = null,
     identityProviderAppScheme: String? = null,
     customRecoveryPassphrase: CustomRecoveryPassphrase? = null,
-    contentScannerUrl: String? = null,
 ) = ElementWellKnown(
     registrationHelperUrl = registrationHelperUrl,
     enforceElementPro = enforceElementPro,
@@ -28,7 +27,6 @@ fun anElementWellKnown(
     notificationSound = notificationSound,
     identityProviderAppScheme = identityProviderAppScheme,
     customRecoveryPassphrase = customRecoveryPassphrase,
-    contentScannerUrl = contentScannerUrl,
 )
 
 fun aCustomRecoveryPassphrase(

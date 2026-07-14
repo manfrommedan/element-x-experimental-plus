@@ -257,7 +257,8 @@ private fun AndroidComposeUiTest<ComponentActivity>.setAdvancedSettingsView(
             AdvancedSettingsView(
                 state = state,
                 onBackClick = onBackClick,
-                onOpenAppSettingsClick = onOpenAppSettings
+                onOpenAppSettingsClick = onOpenAppSettings,
+                onOpenMxtrSettings = {},
             )
         }
     }

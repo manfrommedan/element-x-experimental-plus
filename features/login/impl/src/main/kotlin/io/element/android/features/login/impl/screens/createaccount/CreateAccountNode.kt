@@ -20,7 +20,7 @@ import dev.zacsweers.metro.Assisted
 import dev.zacsweers.metro.AssistedInject
 import io.element.android.annotations.ContributesNode
 import io.element.android.compound.theme.ElementTheme
-import io.element.android.libraries.androidutils.browser.openUrlInChromeCustomTab
+import io.element.android.libraries.androidutils.browser.openUrlInMxtrAwareCustomTab
 import io.element.android.libraries.architecture.NodeInputs
 import io.element.android.libraries.architecture.inputs
 
@@ -38,7 +38,7 @@ class CreateAccountNode(
     private val presenter = presenterFactory.create(inputs<Inputs>().url)
 
     private fun onOpenExternalUrl(activity: Activity, darkTheme: Boolean, url: String) {
-        activity.openUrlInChromeCustomTab(null, darkTheme, url)
+        activity.openUrlInMxtrAwareCustomTab(null, darkTheme, url)
     }
 
     @Composable

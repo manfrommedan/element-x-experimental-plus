@@ -13,7 +13,6 @@ import coil3.decode.ImageSource
 import coil3.fetch.FetchResult
 import coil3.fetch.Fetcher
 import coil3.fetch.SourceFetchResult
-import io.element.android.libraries.matrix.api.exception.isNetworkError
 import io.element.android.libraries.matrix.api.media.MatrixMediaLoader
 import io.element.android.libraries.matrix.api.media.MediaSource
 import io.element.android.libraries.matrix.api.media.toFile
@@ -33,20 +32,18 @@ internal class CoilMediaFetcher(
             Timber.e("MediaData source is null")
             return null
         }
+        if (!mediaData.allowNetwork) {
+            // Wifi-only auto-download gate: refuse to invoke the matrix media
+            // loader (which would fetch over the wire). Coil's memory and disk
+            // caches were checked before us, so anything previously loaded is
+            // already rendered; the painter only reaches Error if neither cache
+            // had it, which is exactly when the UI wants to surface the
+            // tap-to-download prompt.
+            return null
+        }
         return when (val kind = mediaData.kind) {
             is MediaRequestData.Kind.Content -> fetchContent(mediaSource)
-            is MediaRequestData.Kind.Thumbnail -> {
-                fetchThumbnail(mediaSource, kind).fold(
-                    onSuccess = { it },
-                    onFailure = { error ->
-                        if (error.isNetworkError()) {
-                            null
-                        } else {
-                            fetchContent(mediaSource)
-                        }
-                    }
-                )
-            }
+            is MediaRequestData.Kind.Thumbnail -> fetchThumbnail(mediaSource, kind)
             is MediaRequestData.Kind.File -> fetchFile(mediaSource, kind)
         }
     }
@@ -86,7 +83,7 @@ internal class CoilMediaFetcher(
         }.getOrNull()
     }
 
-    private suspend fun fetchThumbnail(mediaSource: MediaSource, kind: MediaRequestData.Kind.Thumbnail): Result<FetchResult> {
+    private suspend fun fetchThumbnail(mediaSource: MediaSource, kind: MediaRequestData.Kind.Thumbnail): FetchResult? {
         return mediaLoader.loadMediaThumbnail(
             source = mediaSource,
             width = kind.width,
@@ -95,7 +92,7 @@ internal class CoilMediaFetcher(
             byteArray.asSourceResult()
         }.onFailure {
             Timber.e(it)
-        }
+        }.getOrNull()
     }
 
     private fun ByteArray.asSourceResult(): SourceFetchResult {
@@ -111,7 +108,13 @@ internal class CoilMediaFetcher(
                 fileSystem = FileSystem.SYSTEM,
             ),
             mimeType = null,
-            dataSource = DataSource.MEMORY
+            // NETWORK (not MEMORY) so Coil persists the bytes to its disk cache.
+            // Upstream tagged MEMORY because matrix-rust-sdk already caches, but
+            // that prevented Coil's disk cache from being populated - so on app
+            // restart (memory cache lost) the wifi-only fetcher gate had no
+            // cached path to fall back to and every thumbnail surfaced the
+            // tap-to-download overlay again.
+            dataSource = DataSource.NETWORK
         )
     }
 }

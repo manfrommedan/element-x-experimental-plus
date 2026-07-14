@@ -38,6 +38,7 @@ import io.element.android.features.messages.impl.link.LinkState
 import io.element.android.features.messages.impl.messagecomposer.MessageComposerEvent
 import io.element.android.features.messages.impl.messagecomposer.MessageComposerState
 import io.element.android.features.messages.impl.pinned.banner.PinnedMessagesBannerState
+import io.element.android.features.messages.impl.selection.TimelineSelectionState
 import io.element.android.features.messages.impl.timeline.MarkAsFullyRead
 import io.element.android.features.messages.impl.timeline.TimelineController
 import io.element.android.features.messages.impl.timeline.TimelineEvent
@@ -50,6 +51,7 @@ import io.element.android.features.messages.impl.timeline.model.TimelineItemThre
 import io.element.android.features.messages.impl.timeline.model.event.TimelineItemPollContent
 import io.element.android.features.messages.impl.timeline.model.event.TimelineItemStateContent
 import io.element.android.features.messages.impl.timeline.model.event.TimelineItemTextBasedContent
+import io.element.android.features.messages.impl.timeline.model.event.isBulkSelectable
 import io.element.android.features.messages.impl.timeline.model.event.captionOrNull
 import io.element.android.features.messages.impl.timeline.protection.TimelineProtectionState
 import io.element.android.features.messages.impl.voicemessages.composer.DefaultVoiceMessageComposerPresenter
@@ -82,6 +84,7 @@ import io.element.android.libraries.matrix.api.room.history.RoomHistoryVisibilit
 import io.element.android.libraries.matrix.api.room.powerlevels.permissionsAsState
 import io.element.android.libraries.matrix.api.timeline.Timeline
 import io.element.android.libraries.matrix.api.timeline.item.event.EventOrTransactionId
+import io.element.android.libraries.matrix.api.timeline.item.event.toEventOrTransactionId
 import io.element.android.libraries.matrix.ui.messages.reply.map
 import io.element.android.libraries.matrix.ui.model.getAvatarData
 import io.element.android.libraries.matrix.ui.room.getDirectRoomMember
@@ -91,13 +94,17 @@ import io.element.android.libraries.ui.strings.CommonStrings
 import io.element.android.services.analytics.api.AnalyticsService
 import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.toImmutableList
+import kotlinx.collections.immutable.toImmutableSet
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import timber.log.Timber
 import java.util.concurrent.atomic.AtomicBoolean
+
+private const val BULK_REDACT_THROTTLE_MS = 200L
 
 @AssistedInject
 class MessagesPresenter(
@@ -175,6 +182,20 @@ class MessagesPresenter(
         }
 
         val canOpenThreadList by featureFlagService.isFeatureEnabledFlow(FeatureFlags.RoomThreadList).collectAsState(initial = false)
+        // collectAsState(initial = false) momentarily reports false right after this screen
+        // recomposes (for instance when returning from the media viewer), which would make a
+        // long-press fall back to the context menu for a frame or two. Seed the initial value
+        // from a saved sticky flag so the selection gestures stay stable across recomposition.
+        var multiSelectSeen by rememberSaveable { mutableStateOf(false) }
+        val isMultiSelectEnabled by featureFlagService.isFeatureEnabledFlow(FeatureFlags.MessageMultiSelect)
+            .collectAsState(initial = multiSelectSeen)
+        // Track both directions: seeding from the last seen value kills the initial-frame flicker
+        // on screen re-entry, while still reflecting a disable on the next entry.
+        multiSelectSeen = isMultiSelectEnabled
+        // rememberSaveable so a large in-progress selection survives rotation / process death.
+        var selectionState by rememberSaveable(stateSaver = TimelineSelectionState.Saver) {
+            mutableStateOf(TimelineSelectionState.Empty)
+        }
         val isCurrentlySharingLiveLocationInRoom by remember { liveLocationShareManager.isCurrentlySharing(room.roomId) }.collectAsState()
 
         val userEventPermissions by room.permissionsAsState(UserEventPermissions.DEFAULT) { perms ->
@@ -242,6 +263,12 @@ class MessagesPresenter(
         fun handleEvent(event: MessagesEvent) {
             when (event) {
                 is MessagesEvent.HandleAction -> {
+                    if (event.action == io.element.android.features.messages.impl.actionlist.model.TimelineItemAction.Select) {
+                        // Intercept the "Select" action and route to selection-mode bookkeeping
+                        // instead of the per-event handler chain.
+                        handleEvent(MessagesEvent.EnterSelection(event.event))
+                        return@handleEvent
+                    }
                     localCoroutineScope.handleTimelineAction(
                         action = event.action,
                         targetEvent = event.event,
@@ -250,6 +277,101 @@ class MessagesPresenter(
                         timelineState = timelineState,
                         timelineProtectionState = timelineProtectionState,
                     )
+                }
+                is MessagesEvent.EnterSelection -> {
+                    val anchorEventId = event.anchor.eventId
+                    // Mirror the ToggleSelection guards so this canonical entry point can't add
+                    // noise (state changes / redacted) or push past the cap, whatever the caller.
+                    val alreadySelected = anchorEventId != null && anchorEventId in selectionState.selectedIds
+                    val underCap = selectionState.selectedIds.size < selectionState.maxSelection
+                    val canSelectAnchor = anchorEventId != null &&
+                        event.anchor.content.isBulkSelectable() &&
+                        (alreadySelected || underCap)
+                    if (canSelectAnchor) {
+                        selectionState = selectionState.copy(
+                            isActive = true,
+                            selectedIds = (selectionState.selectedIds + anchorEventId).toImmutableSet(),
+                        )
+                    }
+                }
+                is MessagesEvent.ToggleSelection -> {
+                    val targetId = event.event.eventId ?: return@handleEvent
+                    if (!event.event.content.isBulkSelectable()) return@handleEvent
+                    val current = selectionState.selectedIds
+                    val next = if (targetId in current) current - targetId else current + targetId
+                    if (next.size > selectionState.maxSelection) {
+                        // At the cap: silently ignore the extra tap. The top-bar counter shows
+                        // the "N (MAX)" state, so no (flooding) snackbar is needed.
+                        return@handleEvent
+                    }
+                    selectionState = selectionState.copy(
+                        isActive = next.isNotEmpty(),
+                        selectedIds = next.toImmutableSet(),
+                    )
+                }
+                MessagesEvent.ClearSelection -> {
+                    selectionState = TimelineSelectionState.Empty
+                }
+                MessagesEvent.BulkRedactSelected -> {
+                    // Only redact events the user is actually permitted to, skipping the rest so we
+                    // don't fire requests guaranteed to fail. Route through the current timeline so
+                    // thread/focused/pinned selections redact the right timeline.
+                    val targets = timelineState.timelineItems
+                        .asSequence()
+                        .filterIsInstance<TimelineItem.Event>()
+                        .filter { it.eventId != null && it.eventId in selectionState.selectedIds }
+                        .filter { if (it.isMine) userEventPermissions.canRedactOwn else userEventPermissions.canRedactOther }
+                        .mapNotNull { it.eventId }
+                        .toList()
+                    if (targets.isEmpty()) return@handleEvent
+                    selectionState = TimelineSelectionState.Empty
+                    sessionCoroutineScope.launch {
+                        var failures = 0
+                        targets.forEachIndexed { index, id ->
+                            timelineController.invokeOnCurrentTimeline {
+                                redactEvent(eventOrTransactionId = id.toEventOrTransactionId(), reason = null)
+                                    .onFailure { failures += 1 }
+                            }
+                            // Throttle against the homeserver per-room redact rate limit, but only
+                            // between sends so the final redact does not pay the delay.
+                            if (index < targets.lastIndex) delay(BULK_REDACT_THROTTLE_MS)
+                        }
+                        if (failures > 0) {
+                            Timber.w("BulkRedact: $failures of ${targets.size} redact requests failed")
+                            snackbarDispatcher.post(SnackbarMessage(CommonStrings.common_error))
+                        }
+                    }
+                }
+                MessagesEvent.BulkCopySelected -> {
+                    // Assemble + write here (not in the View) so we get the standard copied
+                    // snackbar. Ordered by sentTime so the pasted block reads chronologically.
+                    val text = timelineState.timelineItems
+                        .asSequence()
+                        .filterIsInstance<TimelineItem.Event>()
+                        .filter { it.eventId != null && it.eventId in selectionState.selectedIds }
+                        .sortedBy { it.sentTimeMillis }
+                        .mapNotNull { (it.content as? TimelineItemTextBasedContent)?.body }
+                        .joinToString("\n\n")
+                    if (text.isNotEmpty()) {
+                        clipboardHelper.copyPlainText(text)
+                        snackbarDispatcher.post(SnackbarMessage(CommonStrings.common_copied_to_clipboard))
+                    }
+                    selectionState = TimelineSelectionState.Empty
+                }
+                MessagesEvent.BulkForwardSelected -> {
+                    val selected = selectionState.selectedIds
+                    if (selected.isEmpty()) return@handleEvent
+                    // Order by sentTime where the event is in the loaded window, then append any
+                    // selected ids scrolled out of the window so nothing is silently dropped.
+                    val sentTimeById = timelineState.timelineItems
+                        .asSequence()
+                        .filterIsInstance<TimelineItem.Event>()
+                        .filter { it.eventId != null && it.eventId in selected }
+                        .mapNotNull { event -> event.eventId?.let { it to event.sentTimeMillis } }
+                        .toMap()
+                    val orderedTargets = selected.sortedBy { sentTimeById[it] ?: Long.MAX_VALUE }
+                    selectionState = TimelineSelectionState.Empty
+                    navigator.forwardEvents(orderedTargets)
                 }
                 is MessagesEvent.ToggleReaction -> {
                     localCoroutineScope.toggleReaction(event.emoji, event.eventOrTransactionId)
@@ -328,6 +450,8 @@ class MessagesPresenter(
                 hasUnreadThreads = false,
             ),
             showLiveLocationShareBanner = isCurrentlySharingLiveLocationInRoom && timelineState.timelineMode !is Timeline.Mode.Thread,
+            selectionState = selectionState,
+            isMultiSelectEnabled = isMultiSelectEnabled,
             eventSink = ::handleEvent,
         )
     }
@@ -398,6 +522,7 @@ class MessagesPresenter(
             TimelineItemAction.Pin -> handlePinAction(targetEvent)
             TimelineItemAction.Unpin -> handleUnpinAction(targetEvent)
             TimelineItemAction.ViewInTimeline -> Unit
+            TimelineItemAction.Select -> Unit // Handled upstream in handleEvent(HandleAction) before reaching here
         }
     }
 

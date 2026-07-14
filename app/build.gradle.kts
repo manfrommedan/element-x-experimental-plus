@@ -96,36 +96,65 @@ android {
             storePassword = System.getenv("ELEMENT_ANDROID_NIGHTLY_STOREPASSWORD")
                 ?: project.property("signing.element.nightly.storePassword") as? String?
         }
+        // Real release keystore for Plus builds. Decoded from a GitHub Secret
+        // in the experimental-build workflow; locally falls through to debug
+        // (so `assembleGplayPlusDebug` / `assembleGplayPlusRelease` still work
+        // on a dev machine without setting up the keystore).
+        register("release") {
+            val storePathEnv = System.getenv("ELEMENT_PLUS_KEYSTORE_PATH")
+            if (!storePathEnv.isNullOrBlank() && file(storePathEnv).exists()) {
+                storeFile = file(storePathEnv)
+                storePassword = System.getenv("ELEMENT_PLUS_KEYSTORE_PASSWORD")
+                keyAlias = System.getenv("ELEMENT_PLUS_KEY_ALIAS") ?: "mxtr-release"
+                keyPassword = System.getenv("ELEMENT_PLUS_KEY_PASSWORD")
+                    ?: System.getenv("ELEMENT_PLUS_KEYSTORE_PASSWORD")
+            }
+        }
     }
 
     val baseAppName = BuildTimeConfig.APPLICATION_NAME
     val buildType = if (isEnterpriseBuild) "Enterprise" else "FOSS"
     logger.warnInBox("Building ${defaultConfig.applicationId} ($baseAppName) [$buildType]")
 
+    val oAuthRedirectSchemeBase = BuildTimeConfig.METADATA_HOST_REVERSED ?: "io.element.android"
+
     buildTypes {
-        val oAuthRedirectSchemeBase = BuildTimeConfig.METADATA_HOST_REVERSED ?: "io.element.android"
         getByName("debug") {
-            resValue("string", "app_name", "$baseAppName dbg")
-            resValue(
-                "string",
-                "login_redirect_scheme",
-                "$oAuthRedirectSchemeBase.debug",
-            )
+            if (!isPhoneLayerBuild) {
+                resValue("string", "app_name", "$baseAppName dbg")
+                resValue(
+                    "string",
+                    "login_redirect_scheme",
+                    "$oAuthRedirectSchemeBase.debug",
+                )
+            }
             applicationIdSuffix = ".debug"
             signingConfig = signingConfigs.getByName("debug")
         }
 
         getByName("release") {
-            resValue("string", "app_name", baseAppName)
-            resValue(
-                "string",
-                "login_redirect_scheme",
-                oAuthRedirectSchemeBase,
-            )
-            signingConfig = signingConfigs.getByName("debug")
+            if (!isPhoneLayerBuild) {
+                resValue("string", "app_name", baseAppName)
+                resValue(
+                    "string",
+                    "login_redirect_scheme",
+                    oAuthRedirectSchemeBase,
+                )
+            }
+            // Use the real release keystore when the workflow set it up;
+            // otherwise fall back to debug for local dev. The release config
+            // has storeFile=null when env was missing, which Gradle interprets
+            // as "no signing" — so we explicitly fall through.
+            signingConfig = if (signingConfigs.getByName("release").storeFile != null) {
+                signingConfigs.getByName("release")
+            } else {
+                signingConfigs.getByName("debug")
+            }
 
             optimization {
-                enable = true
+                // Toggle minification off for low-RAM build hosts: pass
+                // -PdisableR8 to gradle to skip R8 entirely.
+                enable = !project.hasProperty("disableR8")
                 keepRules {
                     files.add(File(projectDir, "common-proguard-rules.pro"))
                     files.add(getDefaultProguardFile("proguard-android-optimize.txt"))
@@ -153,12 +182,14 @@ android {
             initWith(release)
             applicationIdSuffix = ".nightly"
             versionNameSuffix = "-nightly"
-            resValue("string", "app_name", "$baseAppName nightly")
-            resValue(
-                "string",
-                "login_redirect_scheme",
-                "$oAuthRedirectSchemeBase.nightly",
-            )
+            if (!isPhoneLayerBuild) {
+                resValue("string", "app_name", "$baseAppName nightly")
+                resValue(
+                    "string",
+                    "login_redirect_scheme",
+                    "$oAuthRedirectSchemeBase.nightly",
+                )
+            }
             matchingFallbacks += listOf("release")
             signingConfig = signingConfigs.getByName("nightly")
 
@@ -192,6 +223,9 @@ android {
         resValues = true
     }
     flavorDimensions += "store"
+    if (isPhoneLayerBuild) {
+        flavorDimensions += "fork"
+    }
     productFlavors {
         create("gplay") {
             dimension = "store"
@@ -203,6 +237,26 @@ android {
             dimension = "store"
             buildConfigFieldStr("SHORT_FLAVOR_DESCRIPTION", "F")
             buildConfigFieldStr("FLAVOR_DESCRIPTION", "FDroid")
+        }
+        if (isPhoneLayerBuild) {
+            create("vanilla") {
+                dimension = "fork"
+                isDefault = true
+                resValue("string", "app_name", baseAppName)
+                resValue("string", "login_redirect_scheme", oAuthRedirectSchemeBase)
+            }
+            create("plus") {
+                dimension = "fork"
+                // applicationIdSuffix bumped from .plus to .plusng (2026-05-27)
+                // to escape Google Play Protect verdict cache that flagged the
+                // previous package id as 'potentially harmful' under a server-
+                // side ML rule update. New package = fresh reputation bucket.
+                // Cannot upgrade-in-place; users must reinstall.
+                applicationIdSuffix = ".plusng"
+                versionNameSuffix = "-plus"
+                resValue("string", "app_name", "Element X+")
+                resValue("string", "login_redirect_scheme", "$oAuthRedirectSchemeBase.plusng")
+            }
         }
     }
 
@@ -259,6 +313,10 @@ dependencies {
     if (isEnterpriseBuild) {
         allEnterpriseImpl(project)
         implementation(projects.appicon.enterprise)
+    } else if (isPhoneLayerBuild) {
+        implementation(projects.features.enterprise.implFoss)
+        "vanillaImplementation"(projects.appicon.element)
+        "plusImplementation"(projects.phoneLayer.brand)
     } else {
         implementation(projects.features.enterprise.implFoss)
         implementation(projects.appicon.element)
@@ -286,6 +344,7 @@ dependencies {
     implementation(libs.androidx.activity.compose)
     implementation(libs.androidx.startup)
     implementation(libs.androidx.preference)
+    implementation(libs.androidx.webkit)
     implementation(libs.coil)
 
     implementation(platform(libs.network.okhttp.bom))

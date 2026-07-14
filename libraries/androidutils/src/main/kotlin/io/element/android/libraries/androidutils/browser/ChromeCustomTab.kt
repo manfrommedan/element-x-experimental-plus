@@ -10,13 +10,16 @@ package io.element.android.libraries.androidutils.browser
 
 import android.app.Activity
 import android.content.ActivityNotFoundException
+import android.content.Intent
 import android.os.Bundle
 import android.provider.Browser
 import androidx.browser.customtabs.CustomTabColorSchemeParams
 import androidx.browser.customtabs.CustomTabsIntent
 import androidx.browser.customtabs.CustomTabsSession
 import androidx.core.net.toUri
+import io.element.android.libraries.androidutils.mxtr.MxtrBridge
 import io.element.android.libraries.androidutils.system.openUrlInExternalApp
+import timber.log.Timber
 import java.util.Locale
 
 /**
@@ -63,4 +66,38 @@ fun Activity.openUrlInChromeCustomTab(
     } catch (_: ActivityNotFoundException) {
         openUrlInExternalApp(url)
     }
+}
+
+private const val MXTR_BROWSER_FQCN = "io.element.android.features.login.impl.mxtr.MxtrBrowserActivity"
+private const val MXTR_BROWSER_EXTRA_URL = "extra_url"
+
+/**
+ * URL open entry-point that respects the mxtr on/off preference: when enabled,
+ * routes the open through an in-app WebView (MxtrBrowserActivity) so requests
+ * traverse the local mxtr CONNECT listener instead of escaping via a system
+ * Chrome Custom Tab. When disabled (or the bridge has not been initialised,
+ * e.g. test harness), behaviour is identical to upstream Element X.
+ *
+ * The bridge contract takes [android.content.Context] per call so this helper
+ * never retains an Activity reference past the launch site.
+ */
+fun Activity.openUrlInMxtrAwareCustomTab(
+    session: CustomTabsSession?,
+    darkTheme: Boolean,
+    url: String,
+) {
+    val mxtrOn = MxtrBridge.state?.isEnabled(applicationContext) == true
+    if (mxtrOn) {
+        try {
+            val intent = Intent().apply {
+                setClassName(packageName, MXTR_BROWSER_FQCN)
+                putExtra(MXTR_BROWSER_EXTRA_URL, url)
+            }
+            startActivity(intent)
+            return
+        } catch (e: Throwable) {
+            Timber.w(e, "mxtr browser launch failed; falling back to system custom tab")
+        }
+    }
+    openUrlInChromeCustomTab(session, darkTheme, url)
 }

@@ -85,8 +85,8 @@ Si vous continuez, il est possible que certains de vos paramètres soient modifi
   <string name="screen_notification_settings_mode_mentions">"Mentions"</string>
   <string name="screen_notification_settings_notification_section_title">"Prévenez-moi pour"</string>
   <string name="screen_notification_settings_room_mention_label">"Prévenez-moi si un message contient \"@room\""</string>
-  <string name="screen_notification_settings_sound_custom_fallback">"Personnalisé"</string>
   <string name="screen_notification_settings_sound_custom_sound_button_title">"Son personnalisé…"</string>
+  <string name="screen_notification_settings_sound_custom_fallback">"Personnalisé"</string>
   <string name="screen_notification_settings_sound_delete_sound_error_title">"Erreur lors de la suppression du fichier"</string>
   <string name="screen_notification_settings_sound_element_default">"Element - défaut"</string>
   <string name="screen_notification_settings_sound_element_fade">"Element - doux"</string>

@@ -9,9 +9,11 @@
 package io.element.android.features.preferences.impl.labs
 
 import androidx.compose.ui.tooling.preview.PreviewParameterProvider
+import io.element.android.features.preferences.impl.R
 import io.element.android.libraries.designsystem.icons.CompoundDrawables
 import io.element.android.libraries.designsystem.theme.components.IconSource
 import io.element.android.libraries.featureflag.ui.model.FeatureUiModel
+import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.toImmutableList
 
 internal class LabsStateProvider : PreviewParameterProvider<LabsState> {
@@ -26,7 +28,13 @@ internal fun aLabsState(
     features: List<FeatureUiModel> = emptyList(),
     isApplyingChanges: Boolean = false,
 ) = LabsState(
-    features = features.toImmutableList(),
+    sections = if (features.isEmpty()) {
+        persistentListOf()
+    } else {
+        persistentListOf(
+            LabsSection(R.string.screen_labs_section_make_element_better, features.toImmutableList())
+        )
+    },
     isApplyingChanges = isApplyingChanges,
     eventSink = {},
 )

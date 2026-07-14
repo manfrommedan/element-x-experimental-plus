@@ -31,6 +31,7 @@ import io.element.android.features.preferences.impl.analytics.AnalyticsSettingsN
 import io.element.android.features.preferences.impl.blockedusers.BlockedUsersNode
 import io.element.android.features.preferences.impl.developer.DeveloperSettingsNode
 import io.element.android.features.preferences.impl.labs.LabsNode
+import io.element.android.features.preferences.impl.mxtr.MxtrSettingsNode
 import io.element.android.features.preferences.impl.notifications.NotificationSettingsNode
 import io.element.android.features.preferences.impl.notifications.edit.EditDefaultNotificationSettingNode
 import io.element.android.features.preferences.impl.root.PreferencesRootNode
@@ -76,6 +77,9 @@ class PreferencesFlowNode(
 
         @Parcelize
         data object AdvancedSettings : NavTarget
+
+        @Parcelize
+        data object MxtrSettings : NavTarget
 
         @Parcelize
         data object Labs : NavTarget
@@ -280,7 +284,15 @@ class PreferencesFlowNode(
                 createNode<EditDefaultNotificationSettingNode>(buildContext, plugins = listOf(input, callback))
             }
             NavTarget.AdvancedSettings -> {
-                createNode<AdvancedSettingsNode>(buildContext)
+                val advancedSettingsCallback = object : AdvancedSettingsNode.Callback {
+                    override fun navigateToMxtrSettings() {
+                        backstack.push(NavTarget.MxtrSettings)
+                    }
+                }
+                createNode<AdvancedSettingsNode>(buildContext, listOf(advancedSettingsCallback))
+            }
+            NavTarget.MxtrSettings -> {
+                createNode<MxtrSettingsNode>(buildContext)
             }
             is NavTarget.UserProfile -> {
                 val inputs = EditUserProfileNode.Inputs(navTarget.matrixUser)

@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?><!--
+  ~ Copyright (c) 2026 Element Creations Ltd.
+  ~
+  ~ SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Element-Commercial.
+  ~ Please see LICENSE files in the repository root for full details.
+  -->
+
+<resources>
+    <string name="action_select_messages">"Select"</string>
+    <string name="action_select_all">"Select all"</string>
+    <string name="screen_messages_selection_count_short">"%1$d"</string>
+    <string name="screen_messages_selection_delete_confirm">"Delete %1$d messages?"</string>
+    <string name="screen_messages_selection_cap_reached">"Maximum messages selected"</string>
+    <string name="screen_composer_attachments_cap_reached">"You can share up to 30 items at a time"</string>
+    <string name="screen_messages_forwarded">"Forwarded"</string>
+    <plurals name="screen_room_timeline_redacted_messages_from">
+        <item quantity="one">"Deleted %1$d message from %2$s"</item>
+        <item quantity="other">"Deleted %1$d messages from %2$s"</item>
+    </plurals>
+    <string name="screen_room_timeline_redacted_messages_others_suffix">"and others"</string>
+</resources>
