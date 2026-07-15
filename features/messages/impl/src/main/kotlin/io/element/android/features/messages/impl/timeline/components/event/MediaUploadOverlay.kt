@@ -7,7 +7,9 @@
 
 package io.element.android.features.messages.impl.timeline.components.event
 
+import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
@@ -20,38 +22,99 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.tooling.preview.PreviewParameter
+import androidx.compose.ui.tooling.preview.PreviewParameterProvider
 import androidx.compose.ui.unit.dp
 import io.element.android.compound.theme.ElementTheme
 import io.element.android.compound.tokens.generated.CompoundIcons
+import io.element.android.libraries.designsystem.preview.ElementPreview
+import io.element.android.libraries.designsystem.preview.PreviewsDayNight
 import io.element.android.libraries.designsystem.theme.components.CircularProgressIndicator
 import io.element.android.libraries.designsystem.theme.components.Icon
 import io.element.android.libraries.designsystem.theme.components.Text
-import kotlin.math.roundToInt
+import io.element.android.libraries.matrix.api.timeline.item.event.LocalEventSendState
+import io.element.android.libraries.ui.strings.CommonStrings
 
 /**
- * Translucent dim + circular determinate progress (with a % readout) + X cancel button,
- * overlaid on the thumbnail of a media event that is currently uploading
- * (LocalEventSendState.Sending.MediaWithProgress).
+ * The three real phases of a locally-sending media event, derived from the send state
+ * (see [LocalEventSendState.Sending]) rather than from a raw byte threshold.
+ */
+private enum class UploadPhase { Queued, Uploading, Finalising }
+
+/**
+ * Translucent scrim + phase-aware progress indicator + X cancel button, overlaid on a media
+ * event that is still being sent.
  *
- * Tapping the circle invokes [onCancel]; the caller is responsible for wiring
- * that to Timeline.cancelSend(transactionId).
+ * Real data (matrix-rust-sdk): [progress] is `null` while the event is only QUEUED
+ * (LocalEventSendState.Sending.Event) and no figures exist yet; once uploading it carries
+ * current/total in coarse "pseudo units" (not raw bytes) where `total` can momentarily be 0 and
+ * `current` can briefly exceed `total`, and thumbnail+file are aggregated into one figure.
+ *
+ * The indicator is chosen from the phase (not from the fraction each frame), so it flips at most
+ * twice — queued -> uploading -> finalising — and never per update:
+ *  - Queued / no movement yet: indeterminate spinner + "Waiting…" (never a frozen 0% ring).
+ *  - Uploading: determinate, smoothed + monotonic ring + an honest "N%" (capped at 99%).
+ *  - Finalising (all bytes in, event not yet acked): indeterminate spinner + "Sending…"
+ *    (never a static "100%" that reads as already done).
+ *
+ * Tapping the circle invokes [onCancel]; the caller wires that to Timeline.cancelSend(transactionId).
  */
 @Composable
 fun MediaUploadOverlay(
-    progress: Long,
-    total: Long,
+    progress: LocalEventSendState.Sending.MediaWithProgress?,
     onCancel: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val fraction = if (total > 0L) (progress.toDouble() / total.toDouble()).toFloat().coerceIn(0f, 1f) else 0f
-    // Animate the real byte fraction so sparse / jumpy upload updates render as one smooth fill,
-    // instead of the ring snapping between values or flipping to a spinner and back.
-    val animatedFraction by animateFloatAsState(targetValue = fraction, label = "MediaUploadProgress")
-    val percent = (animatedFraction * 100).roundToInt()
+    val total = progress?.total ?: 0L
+    val current = progress?.progress ?: 0L
+    val hasBytes = progress != null && total > 0L
+    val rawFraction = if (hasBytes) (current.toFloat() / total.toFloat()).coerceIn(0f, 1f) else 0f
+
+    // Monotonic clamp: the pseudo-unit stream is coarse and can re-emit a lower value (e.g. the
+    // thumbnail -> file two-phase upload). Never let the ring travel backwards within a send. This
+    // also provides the hysteresis that keeps the finalising boundary from bouncing.
+    var maxFraction by remember { mutableFloatStateOf(0f) }
+    if (rawFraction > maxFraction) {
+        maxFraction = rawFraction
+    }
+
+    // Smooth the (monotonic) fraction so a coarse 0 -> total jump renders as one continuous fill.
+    val animatedFraction by animateFloatAsState(
+        targetValue = maxFraction,
+        animationSpec = tween(durationMillis = 500, easing = FastOutSlowInEasing),
+        label = "MediaUploadProgress",
+    )
+
+    val phase = when {
+        progress == null -> UploadPhase.Queued
+        total <= 0L -> UploadPhase.Queued
+        animatedFraction >= 0.999f -> UploadPhase.Finalising
+        // A held (current == 0) emit is still "waiting", not a real 0% upload: keep the spinner
+        // rather than drawing a frozen, empty determinate ring.
+        animatedFraction <= 0f -> UploadPhase.Queued
+        else -> UploadPhase.Uploading
+    }
+
+    // Honest percentage: shown only while genuinely transferring, floored and capped at 99 so
+    // "100%" is never displayed before the bytes are actually done.
+    val percent = (animatedFraction * 100).toInt().coerceIn(0, 99)
+
+    val cancelLabel = stringResource(CommonStrings.action_cancel)
+    val statusText = when (phase) {
+        UploadPhase.Queued -> stringResource(CommonStrings.common_waiting)
+        UploadPhase.Uploading -> "$percent%"
+        UploadPhase.Finalising -> stringResource(CommonStrings.common_sending)
+    }
+
     Box(
         modifier = modifier
             .fillMaxSize()
@@ -66,48 +129,70 @@ fun MediaUploadOverlay(
                     .size(48.dp)
                     .clip(CircleShape)
                     .background(Color.Black.copy(alpha = 0.6f))
-                    .clickable(onClick = onCancel),
+                    .clickable(role = Role.Button, onClick = onCancel),
                 contentAlignment = Alignment.Center,
             ) {
-                if (animatedFraction < 1f) {
-                    // Uploading: real determinate progress, smoothed with animateFloatAsState so even
-                    // coarse (0→100) byte updates render as a continuous fill.
-                    CircularProgressIndicator(
-                        progress = { animatedFraction },
-                        modifier = Modifier.size(44.dp),
-                        color = Color.White,
-                        strokeWidth = 2.dp,
-                        trackColor = Color.White.copy(alpha = 0.3f),
-                    )
-                } else {
-                    // Finalising: all bytes uploaded but the event is still being sent to the server, which
-                    // can take a while — an animated spinner so it never sits as a frozen full "100%" ring
-                    // that looks already done.
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(44.dp),
-                        color = Color.White,
-                        strokeWidth = 2.dp,
-                        trackColor = Color.White.copy(alpha = 0.3f),
-                    )
+                when (phase) {
+                    UploadPhase.Uploading ->
+                        CircularProgressIndicator(
+                            progress = { animatedFraction },
+                            modifier = Modifier.size(44.dp),
+                            color = Color.White,
+                            strokeWidth = 2.dp,
+                            trackColor = Color.White.copy(alpha = 0.3f),
+                        )
+                    UploadPhase.Queued,
+                    UploadPhase.Finalising ->
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(44.dp),
+                            color = Color.White,
+                            strokeWidth = 2.dp,
+                            trackColor = Color.White.copy(alpha = 0.3f),
+                        )
                 }
                 Icon(
                     imageVector = CompoundIcons.Close(),
-                    contentDescription = null,
+                    contentDescription = cancelLabel,
                     tint = Color.White,
                     modifier = Modifier
                         .padding(10.dp)
                         .size(20.dp),
                 )
             }
-            // Always show the exact percentage (0% queued → N% uploading → 100% finalising). At the
-            // 0%/100% ends the ring is a spinner, so the number reads as "queued" / "finalising, working"
-            // rather than a frozen static ring.
             Spacer(modifier = Modifier.height(6.dp))
             Text(
-                text = "$percent%",
+                text = statusText,
                 color = Color.White,
                 style = ElementTheme.typography.fontBodyXsMedium,
             )
         }
+    }
+}
+
+internal class MediaUploadOverlayStateProvider : PreviewParameterProvider<LocalEventSendState.Sending.MediaWithProgress?> {
+    override val values: Sequence<LocalEventSendState.Sending.MediaWithProgress?> = sequenceOf(
+        // Queued (Sending.Event -> no progress object).
+        null,
+        // Uploading, mid.
+        LocalEventSendState.Sending.MediaWithProgress(index = 0L, progress = 45L, total = 100L),
+        // Finalising (all bytes in, still being sent).
+        LocalEventSendState.Sending.MediaWithProgress(index = 0L, progress = 100L, total = 100L),
+    )
+}
+
+@PreviewsDayNight
+@Composable
+internal fun MediaUploadOverlayPreview(
+    @PreviewParameter(MediaUploadOverlayStateProvider::class) progress: LocalEventSendState.Sending.MediaWithProgress?,
+) = ElementPreview {
+    Box(
+        modifier = Modifier
+            .size(160.dp)
+            .background(Color.DarkGray)
+    ) {
+        MediaUploadOverlay(
+            progress = progress,
+            onCancel = {},
+        )
     }
 }

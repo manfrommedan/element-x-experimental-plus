@@ -147,8 +147,7 @@ fun TimelineItemVoiceView(
     }
         if (onCancelUpload != null) {
             MediaUploadOverlay(
-                progress = uploadProgress?.progress ?: 0L,
-                total = uploadProgress?.total ?: 0L,
+                progress = uploadProgress,
                 onCancel = onCancelUpload,
             )
         }
