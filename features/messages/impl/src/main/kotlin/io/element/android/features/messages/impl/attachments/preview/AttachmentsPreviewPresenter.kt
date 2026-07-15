@@ -35,7 +35,6 @@ import io.element.android.libraries.androidutils.file.safeDelete
 import io.element.android.libraries.androidutils.hash.hash
 import io.element.android.libraries.architecture.Presenter
 import io.element.android.libraries.core.coroutine.CoroutineDispatchers
-import io.element.android.libraries.core.coroutine.firstInstanceOf
 import io.element.android.libraries.core.extensions.runCatchingExceptions
 import io.element.android.libraries.core.mimetype.MimeTypes.isMimeTypeVideo
 import io.element.android.libraries.di.annotations.SessionCoroutineScope
@@ -56,6 +55,7 @@ import kotlinx.collections.immutable.toImmutableList
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -318,7 +318,16 @@ class AttachmentsPreviewPresenter(
                             if (sendActionState.value is SendActionState.Sending.Processing) {
                                 sendActionState.value = SendActionState.Sending.Processing(displayProgress = true)
                             }
-                            val mediaUploadInfo = observableSendState.firstInstanceOf<SendActionState.Sending.ReadyToUpload>().mediaInfos.first()
+                            // Wait until the media is ready to upload, or bail out if pre-processing
+                            // failed, so the send coroutine cannot hang forever. The Failure state
+                            // already drives the error UI.
+                            val terminalState = observableSendState.first {
+                                it is SendActionState.Sending.ReadyToUpload || it is SendActionState.Failure
+                            }
+                            val mediaUploadInfo = (terminalState as? SendActionState.Sending.ReadyToUpload)
+                                ?.mediaInfos
+                                ?.first()
+                                ?: return@launch
                             val editedTempFileToDelete = editedTempFiles.getOrNull(0)
                             if (editedTempFiles.isNotEmpty()) editedTempFiles[0] = null
                             if (coroutineContext.isActive) {
