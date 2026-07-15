@@ -54,13 +54,26 @@ fun MediaUploadOverlay(
                 .clickable(onClick = onCancel),
             contentAlignment = Alignment.Center,
         ) {
-            CircularProgressIndicator(
-                progress = { fraction },
-                modifier = Modifier.size(44.dp),
-                color = Color.White,
-                strokeWidth = 2.dp,
-                trackColor = Color.White.copy(alpha = 0.3f),
-            )
+            // Show the real upload fraction only while bytes are actively transferring (0 < f < 1).
+            // Before the first byte (f == 0) and once all bytes are sent but the event is still being
+            // finalised (f == 1), use an animated spinner so the ring is never a frozen empty or full
+            // circle that looks stuck/done while the send is still in progress.
+            if (fraction > 0f && fraction < 1f) {
+                CircularProgressIndicator(
+                    progress = { fraction },
+                    modifier = Modifier.size(44.dp),
+                    color = Color.White,
+                    strokeWidth = 2.dp,
+                    trackColor = Color.White.copy(alpha = 0.3f),
+                )
+            } else {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(44.dp),
+                    color = Color.White,
+                    strokeWidth = 2.dp,
+                    trackColor = Color.White.copy(alpha = 0.3f),
+                )
+            }
             Icon(
                 imageVector = CompoundIcons.Close(),
                 contentDescription = null,
