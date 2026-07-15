@@ -255,14 +255,12 @@ private fun AttachmentSendStateView(
                 if (sendActionState.displayProgress) {
                     if (sendActionState.total > 1) {
                         // Bulk send, preparing phase (compress/transcode): "Preparing N/total", cancellable.
-                        // Show a determinate ring once real transcode progress arrives; until then (and for
-                        // images, which report no incremental progress) keep an indeterminate spinner.
+                        // Animated spinner, NOT a determinate ring: the transcoder reports 100% before the
+                        // export is finalised (and is unavailable for many videos), which left a ring frozen
+                        // at 100% while the item was still processing/uploading. A spinner never lies about
+                        // being done; the N/total text carries batch position.
                         ProgressDialog(
-                            type = if (sendActionState.fraction > 0f) {
-                                ProgressDialogType.Determinate(sendActionState.fraction)
-                            } else {
-                                ProgressDialogType.Indeterminate
-                            },
+                            type = ProgressDialogType.Indeterminate,
                             text = stringResource(
                                 R.string.screen_attachments_preview_preparing_progress,
                                 sendActionState.index + 1,
