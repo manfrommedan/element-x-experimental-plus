@@ -26,6 +26,7 @@ class FakeMediaSender(
         uri: Uri,
         mimeType: String,
         mediaOptimizationConfig: MediaOptimizationConfig,
+        onProgress: ((Float) -> Unit)?,
     ): Result<MediaUploadInfo> {
         return preProcessMediaResult()
     }

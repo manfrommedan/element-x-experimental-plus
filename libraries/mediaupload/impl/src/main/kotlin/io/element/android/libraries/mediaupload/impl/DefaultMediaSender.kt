@@ -82,6 +82,7 @@ class DefaultMediaSender(
         uri: Uri,
         mimeType: String,
         mediaOptimizationConfig: MediaOptimizationConfig,
+        onProgress: ((Float) -> Unit)?,
     ): Result<MediaUploadInfo> {
         Timber.d("Pre-processing media | uri: ${mediaId(uri)} | mimeType: $mimeType")
         return preProcessor
@@ -90,6 +91,7 @@ class DefaultMediaSender(
                 mimeType = mimeType,
                 deleteOriginal = false,
                 mediaOptimizationConfig = mediaOptimizationConfig,
+                onProgress = onProgress,
             )
     }
 

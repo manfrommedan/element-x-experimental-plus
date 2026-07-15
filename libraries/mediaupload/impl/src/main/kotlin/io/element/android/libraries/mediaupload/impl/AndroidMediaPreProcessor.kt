@@ -80,6 +80,7 @@ class AndroidMediaPreProcessor(
         mimeType: String,
         deleteOriginal: Boolean,
         mediaOptimizationConfig: MediaOptimizationConfig,
+        onProgress: ((Float) -> Unit)?,
     ): Result<MediaUploadInfo> = withContext(coroutineDispatchers.computation) {
         runCatchingExceptions {
             val result = when {
@@ -91,7 +92,7 @@ class AndroidMediaPreProcessor(
                     val shouldBeCompressed = mediaOptimizationConfig.compressImages && mimeType !in notCompressibleImageTypes
                     processImage(uri, mimeType, shouldBeCompressed)
                 }
-                mimeType.isMimeTypeVideo() -> processVideo(uri, mimeType, mediaOptimizationConfig.videoCompressionPreset)
+                mimeType.isMimeTypeVideo() -> processVideo(uri, mimeType, mediaOptimizationConfig.videoCompressionPreset, onProgress)
                 mimeType.isMimeTypeAudio() -> processAudio(uri, mimeType)
                 else -> processFile(uri, mimeType)
             }
@@ -220,13 +221,20 @@ class AndroidMediaPreProcessor(
         }
     }
 
-    private suspend fun processVideo(uri: Uri, mimeType: String?, videoCompressionPreset: VideoCompressionPreset): MediaUploadInfo {
+    private suspend fun processVideo(
+        uri: Uri,
+        mimeType: String?,
+        videoCompressionPreset: VideoCompressionPreset,
+        onProgress: ((Float) -> Unit)?,
+    ): MediaUploadInfo {
         Timber.d("Processing video ${uri.path.orEmpty().hash()}")
         val resultFile = runCatchingExceptions {
             videoCompressor.compress(uri, videoCompressionPreset)
                 .onEach {
                     if (it is VideoTranscodingEvent.Progress) {
                         Timber.d("Video compression progress: ${it.value}%")
+                        // VideoTranscodingEvent.Progress.value is a 0..100 percentage; expose it as a 0f..1f fraction.
+                        onProgress?.invoke((it.value / 100f).coerceIn(0f, 1f))
                     } else if (it is VideoTranscodingEvent.Completed) {
                         Timber.d("Video compression completed: ${it.file.path}")
                     }

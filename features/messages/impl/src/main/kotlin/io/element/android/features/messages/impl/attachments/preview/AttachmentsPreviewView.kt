@@ -255,8 +255,14 @@ private fun AttachmentSendStateView(
                 if (sendActionState.displayProgress) {
                     if (sendActionState.total > 1) {
                         // Bulk send, preparing phase (compress/transcode): "Preparing N/total", cancellable.
+                        // Show a determinate ring once real transcode progress arrives; until then (and for
+                        // images, which report no incremental progress) keep an indeterminate spinner.
                         ProgressDialog(
-                            type = ProgressDialogType.Determinate(sendActionState.fraction),
+                            type = if (sendActionState.fraction > 0f) {
+                                ProgressDialogType.Determinate(sendActionState.fraction)
+                            } else {
+                                ProgressDialogType.Indeterminate
+                            },
                             text = stringResource(
                                 R.string.screen_attachments_preview_preparing_progress,
                                 sendActionState.index + 1,
@@ -277,9 +283,10 @@ private fun AttachmentSendStateView(
             }
             is SendActionState.Sending.Uploading -> {
                 if (sendActionState.total > 1) {
-                    // Bulk send, uploading phase: "Sending N/total", cancellable.
+                    // Bulk send, uploading phase: "Sending N/total". The upload has no exposed progress
+                    // (unlike transcoding), so the ring stays indeterminate rather than faking a value.
                     ProgressDialog(
-                        type = ProgressDialogType.Determinate(sendActionState.fraction),
+                        type = ProgressDialogType.Indeterminate,
                         text = stringResource(
                             R.string.screen_attachments_preview_sending_progress,
                             sendActionState.index + 1,

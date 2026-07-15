@@ -631,27 +631,35 @@ class AttachmentsPreviewPresenter(
         val total = items.size
         for ((index, attach) in items.withIndex()) {
             val media = attach as? Attachment.Media ?: continue
-            val batchFraction = if (total == 0) 0f else index.toFloat() / total
             runCatchingExceptions {
                 // Preparing phase (image compression / video transcoding): "Preparing N/total".
+                // The ring shows the current item's real transcoding progress (0f..1f), fed by onProgress.
                 sendActionState.value = SendActionState.Sending.Processing(
                     displayProgress = true,
                     index = index,
                     total = total,
-                    fraction = batchFraction,
+                    fraction = 0f,
                 )
                 val mediaUploadInfo = mediaSender.preProcessMedia(
                     uri = media.localMedia.uri,
                     mimeType = media.localMedia.info.mimeType,
                     mediaOptimizationConfig = mediaOptimizationConfig,
+                    onProgress = { progress ->
+                        sendActionState.value = SendActionState.Sending.Processing(
+                            displayProgress = true,
+                            index = index,
+                            total = total,
+                            fraction = progress,
+                        )
+                    },
                 ).getOrThrow()
                 // Uploading phase: "Sending N/total". The single shared caption and reply target
                 // attach to the first item only (standard batched-share semantics).
+                // Uploading has no exposed progress, so the ring is indeterminate (fraction unused).
                 sendActionState.value = SendActionState.Sending.Uploading(
                     mediaInfos = listOf(mediaUploadInfo),
                     index = index,
                     total = total,
-                    fraction = batchFraction,
                 )
                 mediaSender.sendPreProcessedMedia(
                     mediaUploadInfo = mediaUploadInfo,
