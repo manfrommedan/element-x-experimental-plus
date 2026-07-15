@@ -365,11 +365,12 @@ class AttachmentsPreviewPresenter(
                             val editedToDelete = editedTempFiles.toList()
                             editedTempFiles.indices.forEach { editedTempFiles[it] = null }
                             // Send inside the preview lifecycle: keep the preview open and drive the
-                            // Uploading dialog until the whole batch finishes, then dismiss. The job is
+                            // progress dialog until the whole batch finishes, then dismiss. The job is
                             // tracked in ongoingSendAttachmentJob so Cancel/Dismiss can cancel it, and it
                             // can never leak onto the session scope to overlap a later send.
-                            sendActionState.value = SendActionState.Sending.Uploading(
-                                mediaInfos = emptyList(),
+                            // Seed the first phase (preparing item 1) so the dialog opens on "Preparing 1/N".
+                            sendActionState.value = SendActionState.Sending.Processing(
+                                displayProgress = true,
                                 index = 0,
                                 total = snapshot.size,
                                 fraction = 0f,
@@ -408,7 +409,11 @@ class AttachmentsPreviewPresenter(
                     // preview: items already delivered are in the timeline, so re-sending the same list
                     // would duplicate them. Stop the batch and dismiss. The single-attachment
                     // pre-processing cancel keeps the existing "return to preview" behaviour.
-                    val wasBulkSend = (sendActionState.value as? SendActionState.Sending.Uploading)?.let { it.total > 1 } == true
+                    val wasBulkSend = when (val sendState = sendActionState.value) {
+                        is SendActionState.Sending.Processing -> sendState.total > 1
+                        is SendActionState.Sending.Uploading -> sendState.total > 1
+                        else -> false
+                    }
                     ongoingSendAttachmentJob.value?.let {
                         it.cancel()
                         ongoingSendAttachmentJob.value = null
@@ -626,23 +631,39 @@ class AttachmentsPreviewPresenter(
         val total = items.size
         for ((index, attach) in items.withIndex()) {
             val media = attach as? Attachment.Media ?: continue
-            // Drive the in-preview batch progress ("item N of total") before sending each item.
-            sendActionState.value = SendActionState.Sending.Uploading(
-                mediaInfos = emptyList(),
-                index = index,
-                total = total,
-                fraction = if (total == 0) 0f else index.toFloat() / total,
-            )
+            val batchFraction = if (total == 0) 0f else index.toFloat() / total
             runCatchingExceptions {
-                mediaSender.sendMedia(
+                // Preparing phase (image compression / video transcoding): "Preparing N/total".
+                sendActionState.value = SendActionState.Sending.Processing(
+                    displayProgress = true,
+                    index = index,
+                    total = total,
+                    fraction = batchFraction,
+                )
+                val mediaUploadInfo = mediaSender.preProcessMedia(
                     uri = media.localMedia.uri,
                     mimeType = media.localMedia.info.mimeType,
-                    caption = if (index == 0) batchCaption else null,
-                    inReplyToEventId = if (index == 0) inReplyToEventId else null,
                     mediaOptimizationConfig = mediaOptimizationConfig,
                 ).getOrThrow()
+                // Uploading phase: "Sending N/total". The single shared caption and reply target
+                // attach to the first item only (standard batched-share semantics).
+                sendActionState.value = SendActionState.Sending.Uploading(
+                    mediaInfos = listOf(mediaUploadInfo),
+                    index = index,
+                    total = total,
+                    fraction = batchFraction,
+                )
+                mediaSender.sendPreProcessedMedia(
+                    mediaUploadInfo = mediaUploadInfo,
+                    caption = if (index == 0) batchCaption else null,
+                    formattedCaption = null,
+                    inReplyToEventId = if (index == 0) inReplyToEventId else null,
+                ).getOrThrow()
+                // Reclaim the transcoded temp file now the item is sent (a failed item's file is
+                // reclaimed by the batch-end mediaSender.cleanUp() below).
+                cleanUp(mediaUploadInfo)
             }.onFailure { cause ->
-                Timber.e(cause, "Failed to send bulk attachment ${index + 1}/${items.size}")
+                Timber.e(cause, "Failed to send bulk attachment ${index + 1}/$total")
                 if (cause is CancellationException) throw cause
             }
             temporaryUriDeleter.delete(media.localMedia.uri)

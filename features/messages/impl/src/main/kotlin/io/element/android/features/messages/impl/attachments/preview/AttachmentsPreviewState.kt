@@ -39,7 +39,14 @@ sealed interface SendActionState {
 
     @Immutable
     sealed interface Sending : SendActionState {
-        data class Processing(val displayProgress: Boolean) : Sending
+        data class Processing(
+            val displayProgress: Boolean,
+            // Batch progress for the bulk (multi-attachment) send while an item is being prepared
+            // (compressed/transcoded). A single-attachment send leaves the defaults (index 0 / total 1).
+            val index: Int = 0,
+            val total: Int = 1,
+            val fraction: Float = 0f,
+        ) : Sending
         data class ReadyToUpload(val mediaInfos: List<MediaUploadInfo>) : Sending
         data class Uploading(
             val mediaInfos: List<MediaUploadInfo>,

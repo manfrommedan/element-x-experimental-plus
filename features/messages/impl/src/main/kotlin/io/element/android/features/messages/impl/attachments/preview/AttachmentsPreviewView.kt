@@ -253,20 +253,38 @@ private fun AttachmentSendStateView(
         else -> when (sendActionState) {
             is SendActionState.Sending.Processing -> {
                 if (sendActionState.displayProgress) {
-                    ProgressDialog(
-                        type = ProgressDialogType.Indeterminate,
-                        text = stringResource(CommonStrings.common_preparing),
-                        showCancelButton = true,
-                        onDismissRequest = onDismissClick,
-                    )
+                    if (sendActionState.total > 1) {
+                        // Bulk send, preparing phase (compress/transcode): "Preparing N/total", cancellable.
+                        ProgressDialog(
+                            type = ProgressDialogType.Determinate(sendActionState.fraction),
+                            text = stringResource(
+                                R.string.screen_attachments_preview_preparing_progress,
+                                sendActionState.index + 1,
+                                sendActionState.total,
+                            ),
+                            showCancelButton = true,
+                            onDismissRequest = onDismissClick,
+                        )
+                    } else {
+                        ProgressDialog(
+                            type = ProgressDialogType.Indeterminate,
+                            text = stringResource(CommonStrings.common_preparing),
+                            showCancelButton = true,
+                            onDismissRequest = onDismissClick,
+                        )
+                    }
                 }
             }
             is SendActionState.Sending.Uploading -> {
                 if (sendActionState.total > 1) {
-                    // Bulk send: show a determinate ring and the "N/total" batch position in the preview.
+                    // Bulk send, uploading phase: "Sending N/total", cancellable.
                     ProgressDialog(
                         type = ProgressDialogType.Determinate(sendActionState.fraction),
-                        text = "${stringResource(id = CommonStrings.common_sending)}  ${sendActionState.index + 1}/${sendActionState.total}",
+                        text = stringResource(
+                            R.string.screen_attachments_preview_sending_progress,
+                            sendActionState.index + 1,
+                            sendActionState.total,
+                        ),
                         showCancelButton = true,
                         onDismissRequest = onDismissClick,
                     )
