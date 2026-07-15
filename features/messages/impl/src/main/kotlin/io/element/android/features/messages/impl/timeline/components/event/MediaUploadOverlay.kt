@@ -69,13 +69,26 @@ fun MediaUploadOverlay(
                     .clickable(onClick = onCancel),
                 contentAlignment = Alignment.Center,
             ) {
-                CircularProgressIndicator(
-                    progress = { animatedFraction },
-                    modifier = Modifier.size(44.dp),
-                    color = Color.White,
-                    strokeWidth = 2.dp,
-                    trackColor = Color.White.copy(alpha = 0.3f),
-                )
+                if (fraction > 0f && fraction < 1f) {
+                    // Actively transferring bytes: real determinate progress, smoothed.
+                    CircularProgressIndicator(
+                        progress = { animatedFraction },
+                        modifier = Modifier.size(44.dp),
+                        color = Color.White,
+                        strokeWidth = 2.dp,
+                        trackColor = Color.White.copy(alpha = 0.3f),
+                    )
+                } else {
+                    // Queued (0%) or finalising after all bytes are uploaded (100%, the event is still
+                    // being sent to the server): an animated spinner, so it never sits as a static empty
+                    // or full ring that looks stuck / already done during a long finalisation.
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(44.dp),
+                        color = Color.White,
+                        strokeWidth = 2.dp,
+                        trackColor = Color.White.copy(alpha = 0.3f),
+                    )
+                }
                 Icon(
                     imageVector = CompoundIcons.Close(),
                     contentDescription = null,
@@ -85,12 +98,16 @@ fun MediaUploadOverlay(
                         .size(20.dp),
                 )
             }
-            Spacer(modifier = Modifier.height(6.dp))
-            Text(
-                text = "$percent%",
-                color = Color.White,
-                style = ElementTheme.typography.fontBodyXsMedium,
-            )
+            // Show the exact percentage only while bytes are actively transferring; at 0%/100% the
+            // spinner already conveys "queued" / "finalising" without a misleading number.
+            if (fraction > 0f && fraction < 1f) {
+                Spacer(modifier = Modifier.height(6.dp))
+                Text(
+                    text = "$percent%",
+                    color = Color.White,
+                    style = ElementTheme.typography.fontBodyXsMedium,
+                )
+            }
         }
     }
 }
