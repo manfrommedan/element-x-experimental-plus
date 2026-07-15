@@ -283,10 +283,11 @@ private fun AttachmentSendStateView(
             }
             is SendActionState.Sending.Uploading -> {
                 if (sendActionState.total > 1) {
-                    // Bulk send, uploading phase: "Sending N/total". The upload has no exposed progress
-                    // (unlike transcoding), so the ring stays indeterminate rather than faking a value.
+                    // Bulk send, uploading phase: "Sending N/total". No per-byte upload progress is
+                    // exposed, so the ring shows overall batch progress (it holds at the current item's
+                    // slice and advances as items complete) instead of a blank spinner.
                     ProgressDialog(
-                        type = ProgressDialogType.Indeterminate,
+                        type = ProgressDialogType.Determinate(sendActionState.fraction),
                         text = stringResource(
                             R.string.screen_attachments_preview_sending_progress,
                             sendActionState.index + 1,

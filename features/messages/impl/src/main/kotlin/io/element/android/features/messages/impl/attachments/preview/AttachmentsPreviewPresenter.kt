@@ -632,13 +632,13 @@ class AttachmentsPreviewPresenter(
         for ((index, attach) in items.withIndex()) {
             val media = attach as? Attachment.Media ?: continue
             runCatchingExceptions {
-                // Preparing phase (image compression / video transcoding): "Preparing N/total".
-                // The ring shows the current item's real transcoding progress (0f..1f), fed by onProgress.
+                // One continuous batch ring: this item occupies the [index/total, (index+1)/total] slice,
+                // and its real transcode progress fills that slice during the Preparing phase.
                 sendActionState.value = SendActionState.Sending.Processing(
                     displayProgress = true,
                     index = index,
                     total = total,
-                    fraction = 0f,
+                    fraction = index.toFloat() / total,
                 )
                 val mediaUploadInfo = mediaSender.preProcessMedia(
                     uri = media.localMedia.uri,
@@ -649,17 +649,19 @@ class AttachmentsPreviewPresenter(
                             displayProgress = true,
                             index = index,
                             total = total,
-                            fraction = progress,
+                            fraction = ((index + progress) / total).coerceIn(0f, 1f),
                         )
                     },
                 ).getOrThrow()
-                // Uploading phase: "Sending N/total". The single shared caption and reply target
-                // attach to the first item only (standard batched-share semantics).
-                // Uploading has no exposed progress, so the ring is indeterminate (fraction unused).
+                // Uploading phase: "Sending N/total". The single shared caption and reply target attach
+                // to the first item only. The SDK exposes no per-byte upload progress, so the ring holds
+                // at this item's filled slice ((index+1)/total) and steps forward as the batch advances —
+                // a real batch-progress ring rather than a blank spinner.
                 sendActionState.value = SendActionState.Sending.Uploading(
                     mediaInfos = listOf(mediaUploadInfo),
                     index = index,
                     total = total,
+                    fraction = ((index + 1f) / total).coerceIn(0f, 1f),
                 )
                 mediaSender.sendPreProcessedMedia(
                     mediaUploadInfo = mediaUploadInfo,
