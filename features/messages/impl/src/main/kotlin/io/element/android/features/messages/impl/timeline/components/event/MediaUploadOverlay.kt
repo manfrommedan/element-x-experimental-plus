@@ -69,8 +69,9 @@ fun MediaUploadOverlay(
                     .clickable(onClick = onCancel),
                 contentAlignment = Alignment.Center,
             ) {
-                if (fraction > 0f && fraction < 1f) {
-                    // Actively transferring bytes: real determinate progress, smoothed.
+                if (animatedFraction < 1f) {
+                    // Uploading: real determinate progress, smoothed with animateFloatAsState so even
+                    // coarse (0→100) byte updates render as a continuous fill.
                     CircularProgressIndicator(
                         progress = { animatedFraction },
                         modifier = Modifier.size(44.dp),
@@ -79,9 +80,9 @@ fun MediaUploadOverlay(
                         trackColor = Color.White.copy(alpha = 0.3f),
                     )
                 } else {
-                    // Queued (0%) or finalising after all bytes are uploaded (100%, the event is still
-                    // being sent to the server): an animated spinner, so it never sits as a static empty
-                    // or full ring that looks stuck / already done during a long finalisation.
+                    // Finalising: all bytes uploaded but the event is still being sent to the server, which
+                    // can take a while — an animated spinner so it never sits as a frozen full "100%" ring
+                    // that looks already done.
                     CircularProgressIndicator(
                         modifier = Modifier.size(44.dp),
                         color = Color.White,
@@ -98,16 +99,15 @@ fun MediaUploadOverlay(
                         .size(20.dp),
                 )
             }
-            // Show the exact percentage only while bytes are actively transferring; at 0%/100% the
-            // spinner already conveys "queued" / "finalising" without a misleading number.
-            if (fraction > 0f && fraction < 1f) {
-                Spacer(modifier = Modifier.height(6.dp))
-                Text(
-                    text = "$percent%",
-                    color = Color.White,
-                    style = ElementTheme.typography.fontBodyXsMedium,
-                )
-            }
+            // Always show the exact percentage (0% queued → N% uploading → 100% finalising). At the
+            // 0%/100% ends the ring is a spinner, so the number reads as "queued" / "finalising, working"
+            // rather than a frozen static ring.
+            Spacer(modifier = Modifier.height(6.dp))
+            Text(
+                text = "$percent%",
+                color = Color.White,
+                style = ElementTheme.typography.fontBodyXsMedium,
+            )
         }
     }
 }
