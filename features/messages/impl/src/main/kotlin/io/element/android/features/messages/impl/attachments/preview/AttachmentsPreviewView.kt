@@ -283,11 +283,11 @@ private fun AttachmentSendStateView(
             }
             is SendActionState.Sending.Uploading -> {
                 if (sendActionState.total > 1) {
-                    // Bulk send, uploading phase: "Sending N/total". No per-byte upload progress is
-                    // exposed, so the ring shows overall batch progress (it holds at the current item's
-                    // slice and advances as items complete) instead of a blank spinner.
+                    // Bulk send, uploading phase: "Sending N/total". The SDK exposes no per-byte upload
+                    // progress, so this is an animated (indeterminate) spinner — an honest "it's working"
+                    // cue that never falsely fills to 100% — while the N/total text advances.
                     ProgressDialog(
-                        type = ProgressDialogType.Determinate(sendActionState.fraction),
+                        type = ProgressDialogType.Indeterminate,
                         text = stringResource(
                             R.string.screen_attachments_preview_sending_progress,
                             sendActionState.index + 1,

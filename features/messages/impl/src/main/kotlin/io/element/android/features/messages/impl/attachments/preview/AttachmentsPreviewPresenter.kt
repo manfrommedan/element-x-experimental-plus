@@ -632,13 +632,15 @@ class AttachmentsPreviewPresenter(
         for ((index, attach) in items.withIndex()) {
             val media = attach as? Attachment.Media ?: continue
             runCatchingExceptions {
-                // One continuous batch ring: this item occupies the [index/total, (index+1)/total] slice,
-                // and its real transcode progress fills that slice during the Preparing phase.
+                // Preparing phase (image compression / video transcoding): "Preparing N/total".
+                // Start indeterminate (animated spinner); switch to a determinate ring only once REAL
+                // transcode progress (>0) arrives, so we never show a frozen determinate ring when the
+                // transcoder reports no usable progress (Media3 PROGRESS_STATE_UNAVAILABLE) or for images.
                 sendActionState.value = SendActionState.Sending.Processing(
                     displayProgress = true,
                     index = index,
                     total = total,
-                    fraction = index.toFloat() / total,
+                    fraction = 0f,
                 )
                 val mediaUploadInfo = mediaSender.preProcessMedia(
                     uri = media.localMedia.uri,
@@ -649,19 +651,18 @@ class AttachmentsPreviewPresenter(
                             displayProgress = true,
                             index = index,
                             total = total,
-                            fraction = ((index + progress) / total).coerceIn(0f, 1f),
+                            fraction = progress,
                         )
                     },
                 ).getOrThrow()
-                // Uploading phase: "Sending N/total". The single shared caption and reply target attach
-                // to the first item only. The SDK exposes no per-byte upload progress, so the ring holds
-                // at this item's filled slice ((index+1)/total) and steps forward as the batch advances —
-                // a real batch-progress ring rather than a blank spinner.
+                // Uploading phase: "Sending N/total". The single shared caption and reply target attach to
+                // the first item only. The SDK exposes no per-byte upload progress, so this stays an
+                // animated (indeterminate) spinner — the only honest "it's working" cue — while the N/total
+                // text advances as items complete.
                 sendActionState.value = SendActionState.Sending.Uploading(
                     mediaInfos = listOf(mediaUploadInfo),
                     index = index,
                     total = total,
-                    fraction = ((index + 1f) / total).coerceIn(0f, 1f),
                 )
                 mediaSender.sendPreProcessedMedia(
                     mediaUploadInfo = mediaUploadInfo,
