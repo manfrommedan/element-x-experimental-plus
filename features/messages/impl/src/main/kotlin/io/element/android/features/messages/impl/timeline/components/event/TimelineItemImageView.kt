@@ -116,7 +116,7 @@ fun TimelineItemImageView(
                     AsyncImage(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .then(if (onCancelUpload != null) Modifier.blur(12.dp) else Modifier)
+                            .then(if (onCancelUpload != null) Modifier.blur(6.dp) else Modifier)
                             .then(if (isLoaded) Modifier.background(Color.White) else Modifier)
                             .then(
                                 if (!isTalkbackActive() && onContentClick != null) {
