@@ -36,7 +36,6 @@ interface MediaSender {
         uri: Uri,
         mimeType: String,
         mediaOptimizationConfig: MediaOptimizationConfig,
-        onProgress: ((Float) -> Unit)? = null,
     ): Result<MediaUploadInfo>
 
     suspend fun sendPreProcessedMedia(

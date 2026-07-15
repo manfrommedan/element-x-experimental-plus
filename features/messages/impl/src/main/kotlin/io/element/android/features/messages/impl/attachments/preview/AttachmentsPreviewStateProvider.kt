@@ -44,6 +44,15 @@ open class AttachmentsPreviewStateProvider : PreviewParameterProvider<Attachment
             anAttachmentsPreviewState(sendActionState = SendActionState.Sending.Processing(displayProgress = true)),
             anAttachmentsPreviewState(sendActionState = SendActionState.Sending.ReadyToUpload(listOf(aMediaUploadInfo()))),
             anAttachmentsPreviewState(sendActionState = SendActionState.Sending.Uploading(listOf(aMediaUploadInfo()))),
+            // Bulk (multi-attachment) send phases: "Preparing 1/3" and "Sending 2/3".
+            anAttachmentsPreviewState(
+                totalCount = 3,
+                sendActionState = SendActionState.Sending.Processing(displayProgress = true, index = 0, total = 3),
+            ),
+            anAttachmentsPreviewState(
+                totalCount = 3,
+                sendActionState = SendActionState.Sending.Uploading(listOf(aMediaUploadInfo()), index = 1, total = 3),
+            ),
             anAttachmentsPreviewState(sendActionState = SendActionState.Failure(RuntimeException("error"), listOf(aMediaUploadInfo()))),
             anAttachmentsPreviewState(
                 imageEditorState = anAttachmentImageEditorState(),

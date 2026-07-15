@@ -52,7 +52,6 @@ class FakeMediaPreProcessor(
         mimeType: String,
         deleteOriginal: Boolean,
         mediaOptimizationConfig: MediaOptimizationConfig,
-        onProgress: ((Float) -> Unit)?,
     ): Result<MediaUploadInfo> = simulateLongTask {
         processLatch?.await()
         processCallCount++

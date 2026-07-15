@@ -50,6 +50,16 @@ import io.element.android.libraries.ui.strings.CommonStrings
  */
 private enum class UploadPhase { Queued, Uploading, Finalising }
 
+/** Fraction at/above which all bytes are considered uploaded and the send is finalising. */
+private const val FINALISING_THRESHOLD = 0.999f
+
+/** Duration used to smooth the coarse byte fraction into a continuous ring fill. */
+private const val PROGRESS_ANIMATION_MS = 500
+
+private const val SCRIM_ALPHA = 0.45f
+private const val BUTTON_BACKGROUND_ALPHA = 0.6f
+private const val TRACK_ALPHA = 0.3f
+
 /**
  * Translucent scrim + phase-aware progress indicator + X cancel button, overlaid on a media
  * event that is still being sent.
@@ -90,14 +100,14 @@ fun MediaUploadOverlay(
     // Smooth the (monotonic) fraction so a coarse 0 -> total jump renders as one continuous fill.
     val animatedFraction by animateFloatAsState(
         targetValue = maxFraction,
-        animationSpec = tween(durationMillis = 500, easing = FastOutSlowInEasing),
+        animationSpec = tween(durationMillis = PROGRESS_ANIMATION_MS, easing = FastOutSlowInEasing),
         label = "MediaUploadProgress",
     )
 
     val phase = when {
         progress == null -> UploadPhase.Queued
         total <= 0L -> UploadPhase.Queued
-        animatedFraction >= 0.999f -> UploadPhase.Finalising
+        animatedFraction >= FINALISING_THRESHOLD -> UploadPhase.Finalising
         // A held (current == 0) emit is still "waiting", not a real 0% upload: keep the spinner
         // rather than drawing a frozen, empty determinate ring.
         animatedFraction <= 0f -> UploadPhase.Queued
@@ -118,7 +128,7 @@ fun MediaUploadOverlay(
     Box(
         modifier = modifier
             .fillMaxSize()
-            .background(Color.Black.copy(alpha = 0.45f))
+            .background(Color.Black.copy(alpha = SCRIM_ALPHA))
     ) {
         Column(
             modifier = Modifier.align(Alignment.Center),
@@ -128,7 +138,7 @@ fun MediaUploadOverlay(
                 modifier = Modifier
                     .size(48.dp)
                     .clip(CircleShape)
-                    .background(Color.Black.copy(alpha = 0.6f))
+                    .background(Color.Black.copy(alpha = BUTTON_BACKGROUND_ALPHA))
                     .clickable(role = Role.Button, onClick = onCancel),
                 contentAlignment = Alignment.Center,
             ) {
@@ -139,7 +149,7 @@ fun MediaUploadOverlay(
                             modifier = Modifier.size(44.dp),
                             color = Color.White,
                             strokeWidth = 2.dp,
-                            trackColor = Color.White.copy(alpha = 0.3f),
+                            trackColor = Color.White.copy(alpha = TRACK_ALPHA),
                         )
                     UploadPhase.Queued,
                     UploadPhase.Finalising ->
@@ -147,7 +157,7 @@ fun MediaUploadOverlay(
                             modifier = Modifier.size(44.dp),
                             color = Color.White,
                             strokeWidth = 2.dp,
-                            trackColor = Color.White.copy(alpha = 0.3f),
+                            trackColor = Color.White.copy(alpha = TRACK_ALPHA),
                         )
                 }
                 Icon(

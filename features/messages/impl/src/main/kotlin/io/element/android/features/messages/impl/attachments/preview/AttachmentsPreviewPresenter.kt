@@ -373,7 +373,6 @@ class AttachmentsPreviewPresenter(
                                 displayProgress = true,
                                 index = 0,
                                 total = snapshot.size,
-                                fraction = 0f,
                             )
                             ongoingSendAttachmentJob.value = sessionCoroutineScope.launch(dispatchers.io) {
                                 try {
@@ -633,27 +632,18 @@ class AttachmentsPreviewPresenter(
             val media = attach as? Attachment.Media ?: continue
             runCatchingExceptions {
                 // Preparing phase (image compression / video transcoding): "Preparing N/total".
-                // Start indeterminate (animated spinner); switch to a determinate ring only once REAL
-                // transcode progress (>0) arrives, so we never show a frozen determinate ring when the
-                // transcoder reports no usable progress (Media3 PROGRESS_STATE_UNAVAILABLE) or for images.
+                // The transcoder exposes no usable per-file progress (coarse / Media3
+                // PROGRESS_STATE_UNAVAILABLE), so the dialog is an indeterminate spinner while the
+                // N/total text carries the batch position.
                 sendActionState.value = SendActionState.Sending.Processing(
                     displayProgress = true,
                     index = index,
                     total = total,
-                    fraction = 0f,
                 )
                 val mediaUploadInfo = mediaSender.preProcessMedia(
                     uri = media.localMedia.uri,
                     mimeType = media.localMedia.info.mimeType,
                     mediaOptimizationConfig = mediaOptimizationConfig,
-                    onProgress = { progress ->
-                        sendActionState.value = SendActionState.Sending.Processing(
-                            displayProgress = true,
-                            index = index,
-                            total = total,
-                            fraction = progress,
-                        )
-                    },
                 ).getOrThrow()
                 // Uploading phase: "Sending N/total". The single shared caption and reply target attach to
                 // the first item only. The SDK exposes no per-byte upload progress, so this stays an

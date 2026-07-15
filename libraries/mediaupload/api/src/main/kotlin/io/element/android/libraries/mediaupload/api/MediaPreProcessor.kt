@@ -14,7 +14,6 @@ interface MediaPreProcessor {
     /**
      * Given a [uri] and [mimeType], pre-processes the media before it's uploaded, resizing, transcoding, and removing sensitive info from its metadata.
      * If [deleteOriginal] is `true`, the file reference by the [uri] will be automatically deleted too when this process finishes.
-     * @param onProgress optional callback invoked with a 0f..1f progress fraction during long-running steps (currently video transcoding).
      * @return a [Result] with the [MediaUploadInfo] containing all the info needed to begin the upload.
      */
     suspend fun process(
@@ -22,7 +21,6 @@ interface MediaPreProcessor {
         mimeType: String,
         deleteOriginal: Boolean,
         mediaOptimizationConfig: MediaOptimizationConfig,
-        onProgress: ((Float) -> Unit)? = null,
     ): Result<MediaUploadInfo>
 
     /**

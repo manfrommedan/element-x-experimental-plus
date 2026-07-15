@@ -17,7 +17,7 @@ import io.element.android.libraries.textcomposer.model.TextEditorState
 import kotlinx.collections.immutable.ImmutableList
 
 data class AttachmentsPreviewState(
-    val attachments: kotlinx.collections.immutable.ImmutableList<Attachment>,
+    val attachments: ImmutableList<Attachment>,
     val currentIndex: Int,
     val imageEditorState: AttachmentImageEditorState?,
     val canEditImage: Boolean,
@@ -41,21 +41,18 @@ sealed interface SendActionState {
     sealed interface Sending : SendActionState {
         data class Processing(
             val displayProgress: Boolean,
-            // Batch progress for the bulk (multi-attachment) send while an item is being prepared
-            // (compressed/transcoded). A single-attachment send leaves the defaults (index 0 / total 1).
+            // Batch position for the bulk (multi-attachment) send: the item being prepared (0-based)
+            // out of [total]. A single-attachment send leaves the defaults (index 0 / total 1).
             val index: Int = 0,
             val total: Int = 1,
-            val fraction: Float = 0f,
         ) : Sending
         data class ReadyToUpload(val mediaInfos: List<MediaUploadInfo>) : Sending
         data class Uploading(
             val mediaInfos: List<MediaUploadInfo>,
-            // Batch progress for the bulk (multi-attachment) send: the item currently being sent
-            // (0-based) out of [total], and a 0f..1f fraction for a determinate progress ring.
-            // A single-attachment send leaves the defaults (index 0 / total 1).
+            // Batch position for the bulk (multi-attachment) send: the item currently being sent
+            // (0-based) out of [total]. A single-attachment send leaves the defaults (index 0 / total 1).
             val index: Int = 0,
             val total: Int = 1,
-            val fraction: Float = 0f,
         ) : Sending
     }
 
