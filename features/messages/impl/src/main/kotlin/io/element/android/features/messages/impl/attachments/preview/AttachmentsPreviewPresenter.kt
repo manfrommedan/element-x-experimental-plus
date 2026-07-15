@@ -296,6 +296,12 @@ class AttachmentsPreviewPresenter(
                     resetPreparedSendState()
                 }
                 is AttachmentsPreviewEvent.SendAttachment -> {
+                    // Ignore a second Send while one is already in flight (double-tap / re-entrancy),
+                    // so we never launch two overlapping sends or lose the tracked job handle. Gate on
+                    // the job handle, which is assigned synchronously below (unlike the Sending state,
+                    // which is set asynchronously inside the coroutine and whose ReadyToUpload/Processing
+                    // members are legitimate pre-send resting states the single-attachment path enters).
+                    if (ongoingSendAttachmentJob.value?.isActive == true) return
                     ongoingSendAttachmentJob.value = coroutineScope.launch {
                         val caption = markdownTextEditorState.getMessageMarkdown(permalinkBuilder)
                             .takeIf { it.isNotEmpty() }
@@ -355,19 +361,40 @@ class AttachmentsPreviewPresenter(
                                 compressImages = mediaOptimizationSelectorState.isImageOptimizationEnabled == true,
                                 videoCompressionPreset = mediaOptimizationSelectorState.selectedVideoPreset ?: VideoCompressionPreset.STANDARD,
                             )
-                            if (coroutineContext.isActive) {
-                                onDoneListener()
-                            }
                             val snapshot = attachmentList.toList()
                             val editedToDelete = editedTempFiles.toList()
                             editedTempFiles.indices.forEach { editedTempFiles[it] = null }
-                            sessionCoroutineScope.launch(dispatchers.io) {
+                            // Send inside the preview lifecycle: keep the preview open and drive the
+                            // Uploading dialog until the whole batch finishes, then dismiss. The job is
+                            // tracked in ongoingSendAttachmentJob so Cancel/Dismiss can cancel it, and it
+                            // can never leak onto the session scope to overlap a later send.
+                            sendActionState.value = SendActionState.Sending.Uploading(
+                                mediaInfos = emptyList(),
+                                index = 0,
+                                total = snapshot.size,
+                                fraction = 0f,
+                            )
+                            ongoingSendAttachmentJob.value = sessionCoroutineScope.launch(dispatchers.io) {
                                 try {
                                     sendAllSequentially(
                                         items = snapshot,
                                         mediaOptimizationConfig = config,
                                         batchCaption = caption,
+                                        sendActionState = sendActionState,
                                     )
+                                    sendActionState.value = SendActionState.Done
+                                    withContext(dispatchers.main) { onDoneListener() }
+                                } catch (cancellation: CancellationException) {
+                                    throw cancellation
+                                } catch (@Suppress("TooGenericExceptionCaught") throwable: Throwable) {
+                                    // Per-item upload failures are surfaced as retriable messages in the
+                                    // timeline by sendAllSequentially's continue-on-failure. This runs only on
+                                    // an unexpected error; a partially-sent batch cannot be safely re-sent from
+                                    // the preview (it would duplicate already-delivered items), so clean up and
+                                    // dismiss rather than offering a whole-batch retry.
+                                    Timber.e(throwable, "Bulk send failed")
+                                    mediaSender.cleanUp()
+                                    withContext(dispatchers.main) { onDoneListener() }
                                 } finally {
                                     editedToDelete.forEach { it?.safeDelete() }
                                 }
@@ -377,17 +404,24 @@ class AttachmentsPreviewPresenter(
                 }
                 AttachmentsPreviewEvent.CancelAndDismiss -> cancelAndDismiss()
                 AttachmentsPreviewEvent.CancelAndClearSendState -> {
-                    // Cancel media sending
+                    // Cancelling a bulk (multi-attachment) send in flight cannot return to an editable
+                    // preview: items already delivered are in the timeline, so re-sending the same list
+                    // would duplicate them. Stop the batch and dismiss. The single-attachment
+                    // pre-processing cancel keeps the existing "return to preview" behaviour.
+                    val wasBulkSend = (sendActionState.value as? SendActionState.Sending.Uploading)?.let { it.total > 1 } == true
                     ongoingSendAttachmentJob.value?.let {
                         it.cancel()
                         ongoingSendAttachmentJob.value = null
                     }
-
-                    val mediaUploadInfos = sendActionState.value.mediaUploadInfoList()
-                    sendActionState.value = if (mediaUploadInfos != null) {
-                        SendActionState.Sending.ReadyToUpload(mediaUploadInfos)
+                    if (wasBulkSend) {
+                        cancelAndDismiss()
                     } else {
-                        SendActionState.Idle
+                        val mediaUploadInfos = sendActionState.value.mediaUploadInfoList()
+                        sendActionState.value = if (mediaUploadInfos != null) {
+                            SendActionState.Sending.ReadyToUpload(mediaUploadInfos)
+                        } else {
+                            SendActionState.Idle
+                        }
                     }
                 }
                 AttachmentsPreviewEvent.OpenImageEditor -> {
@@ -587,9 +621,18 @@ class AttachmentsPreviewPresenter(
         items: List<Attachment>,
         mediaOptimizationConfig: MediaOptimizationConfig,
         batchCaption: String?,
+        sendActionState: MutableState<SendActionState>,
     ) {
+        val total = items.size
         for ((index, attach) in items.withIndex()) {
             val media = attach as? Attachment.Media ?: continue
+            // Drive the in-preview batch progress ("item N of total") before sending each item.
+            sendActionState.value = SendActionState.Sending.Uploading(
+                mediaInfos = emptyList(),
+                index = index,
+                total = total,
+                fraction = if (total == 0) 0f else index.toFloat() / total,
+            )
             runCatchingExceptions {
                 mediaSender.sendMedia(
                     uri = media.localMedia.uri,

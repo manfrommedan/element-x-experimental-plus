@@ -262,12 +262,22 @@ private fun AttachmentSendStateView(
                 }
             }
             is SendActionState.Sending.Uploading -> {
-                ProgressDialog(
-                    type = ProgressDialogType.Indeterminate,
-                    text = stringResource(id = CommonStrings.common_sending),
-                    showCancelButton = true,
-                    onDismissRequest = onDismissClick,
-                )
+                if (sendActionState.total > 1) {
+                    // Bulk send: show a determinate ring and the "N/total" batch position in the preview.
+                    ProgressDialog(
+                        type = ProgressDialogType.Determinate(sendActionState.fraction),
+                        text = "${stringResource(id = CommonStrings.common_sending)}  ${sendActionState.index + 1}/${sendActionState.total}",
+                        showCancelButton = true,
+                        onDismissRequest = onDismissClick,
+                    )
+                } else {
+                    ProgressDialog(
+                        type = ProgressDialogType.Indeterminate,
+                        text = stringResource(id = CommonStrings.common_sending),
+                        showCancelButton = true,
+                        onDismissRequest = onDismissClick,
+                    )
+                }
             }
             is SendActionState.Failure -> {
                 RetryDialog(
