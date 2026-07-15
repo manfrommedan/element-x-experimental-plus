@@ -121,7 +121,15 @@ class LiveLocationSharingService : Service() {
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         Timber.d("LiveLocationSharingService onStartCommand startId=$startId")
-        return START_STICKY
+        // START_NOT_STICKY: do NOT let the OS resurrect this foreground LOCATION service after the
+        // process is killed. The @SingleIn(AppScope) coordinator is re-created empty in the fresh
+        // process, so a resurrected service has no receivers: it can neither share nor self-heal on a
+        // permission error, yet onCreate already pinned isSharingLiveLocation=true (keeping the Matrix
+        // sync awake) and started a foreground service — a battery-draining zombie that never stops,
+        // even with location permission denied. Genuinely still-valid shares are re-registered on the
+        // next login via ActiveLiveLocationShareManager.recoverPersistedShares(), which starts the
+        // service properly with a receiver.
+        return START_NOT_STICKY
     }
 
     override fun onDestroy() {
