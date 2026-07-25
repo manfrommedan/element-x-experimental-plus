@@ -18,8 +18,8 @@ import io.element.android.features.share.api.OnSharedData
 import io.element.android.features.share.api.ShareIntentData
 import io.element.android.libraries.architecture.AsyncAction
 import io.element.android.libraries.architecture.Presenter
-import io.element.android.libraries.architecture.runCatchingUpdatingState
 import io.element.android.libraries.core.bool.orFalse
+import io.element.android.libraries.core.extensions.runCatchingExceptions
 import io.element.android.libraries.di.annotations.SessionCoroutineScope
 import io.element.android.libraries.matrix.api.MatrixClient
 import io.element.android.libraries.matrix.api.core.RoomId
@@ -29,6 +29,7 @@ import io.element.android.libraries.mediaupload.api.MediaSenderRoomFactory
 import io.element.android.services.appnavstate.api.ActiveRoomsHolder
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
+import timber.log.Timber
 import kotlin.coroutines.cancellation.CancellationException
 
 @AssistedInject
@@ -50,7 +51,12 @@ class SharePresenter(
     private val shareActionState: MutableState<AsyncAction<List<RoomId>>> = mutableStateOf(AsyncAction.Uninitialized)
 
     fun onRoomSelected(roomIds: List<RoomId>) {
+        // Upload on the session scope so it keeps running after the share sheet closes, then close
+        // the share immediately (fire-and-forget) instead of blocking the UI until every file has
+        // been compressed and sent. The app holds an explicit read grant on the shared uris
+        // (DefaultShareIntentHandler) that the background job revokes once done.
         sessionCoroutineScope.share(shareIntentData, roomIds)
+        shareActionState.value = AsyncAction.Success(roomIds)
     }
 
     @Composable
@@ -77,7 +83,7 @@ class SharePresenter(
         shareIntentData: ShareIntentData,
         roomIds: List<RoomId>,
     ) = launch {
-        suspend {
+        runCatchingExceptions {
             val result = when (shareIntentData) {
                 is ShareIntentData.PlainText -> {
                     roomIds
@@ -135,7 +141,9 @@ class SharePresenter(
             if (!result) {
                 error("Failed to handle incoming share intent")
             }
-            roomIds
-        }.runCatchingUpdatingState(shareActionState)
+        }.onFailure {
+            // The share sheet is already gone; failed media surfaces as a failed message in the room.
+            Timber.e(it, "Failed to handle incoming share intent")
+        }
     }
 }

@@ -34,6 +34,7 @@ import io.element.android.tests.testutils.WarmUpRule
 import io.element.android.tests.testutils.lambda.lambdaRecorder
 import io.element.android.tests.testutils.robolectric.RobolectricTest
 import kotlinx.coroutines.test.TestScope
+import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import org.junit.Rule
 import org.junit.Test
@@ -54,7 +55,9 @@ class SharePresenterTest : RobolectricTest() {
     }
 
     @Test
-    fun `present - on room selected error then clear error`() = runTest {
+    fun `present - on room selected dismisses immediately even when the background send fails`() = runTest {
+        // No room is configured, so the background send fails; the share still reports success
+        // immediately (fire-and-forget) so the sheet closes instead of blocking.
         val presenter = createSharePresenter()
         moleculeFlow(RecompositionMode.Immediate) {
             presenter.present()
@@ -62,11 +65,8 @@ class SharePresenterTest : RobolectricTest() {
             val initialState = awaitItem()
             assertThat(initialState.shareAction.isUninitialized()).isTrue()
             presenter.onRoomSelected(listOf(A_ROOM_ID))
-            assertThat(awaitItem().shareAction.isLoading()).isTrue()
-            val failure = awaitItem()
-            assertThat(failure.shareAction.isFailure()).isTrue()
-            failure.eventSink.invoke(ShareEvents.ClearError)
-            assertThat(awaitItem().shareAction.isUninitialized()).isTrue()
+            val success = awaitItem()
+            assertThat(success.shareAction).isEqualTo(AsyncAction.Success(listOf(A_ROOM_ID)))
         }
     }
 
@@ -90,7 +90,6 @@ class SharePresenterTest : RobolectricTest() {
             val initialState = awaitItem()
             assertThat(initialState.shareAction.isUninitialized()).isTrue()
             presenter.onRoomSelected(listOf(A_ROOM_ID))
-            assertThat(awaitItem().shareAction.isLoading()).isTrue()
             val success = awaitItem()
             assertThat(success.shareAction.isSuccess()).isTrue()
             assertThat(success.shareAction).isEqualTo(AsyncAction.Success(listOf(A_ROOM_ID)))
@@ -117,7 +116,6 @@ class SharePresenterTest : RobolectricTest() {
             val initialState = awaitItem()
             assertThat(initialState.shareAction.isUninitialized()).isTrue()
             presenter.onRoomSelected(listOf(A_ROOM_ID))
-            assertThat(awaitItem().shareAction.isLoading()).isTrue()
             val success = awaitItem()
             assertThat(success.shareAction.isSuccess()).isTrue()
             assertThat(success.shareAction).isEqualTo(AsyncAction.Success(listOf(A_ROOM_ID)))
@@ -155,12 +153,14 @@ class SharePresenterTest : RobolectricTest() {
             val initialState = awaitItem()
             assertThat(initialState.shareAction.isUninitialized()).isTrue()
             presenter.onRoomSelected(listOf(A_ROOM_ID))
-            assertThat(awaitItem().shareAction.isLoading()).isTrue()
             val success = awaitItem()
             assertThat(success.shareAction.isSuccess()).isTrue()
             assertThat(success.shareAction).isEqualTo(AsyncAction.Success(listOf(A_ROOM_ID)))
-            sendMediaResult.assertions().isCalledOnce()
+            cancelAndIgnoreRemainingEvents()
         }
+        // The send runs in the background; let it complete, then assert the media was sent.
+        advanceUntilIdle()
+        sendMediaResult.assertions().isCalledOnce()
     }
 }
 
