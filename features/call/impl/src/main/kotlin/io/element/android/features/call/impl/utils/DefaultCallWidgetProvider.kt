@@ -89,14 +89,17 @@ class DefaultCallWidgetProvider(
             isAudioCall = isAudioCall,
             hasActiveCall = roomInfo.hasRoomCall,
         )
+        val phoneStyleEnabled = featureFlagService.isFeatureEnabled(FeatureFlags.PhoneVoiceLayout)
+        // With our phone-voice layer the call follows the app theme (a light app theme -> white
+        // call); without it we keep upstream's forced-dark Element Call (#7162).
+        val effectiveTheme = if (phoneStyleEnabled) theme else "dark"
         val callUrl = room.generateWidgetWebViewUrl(
             widgetSettings = widgetSettings,
             clientId = clientId,
             languageTag = languageTag,
-            theme = theme,
+            theme = effectiveTheme,
         ).getOrThrow()
 
-        val phoneStyleEnabled = featureFlagService.isFeatureEnabled(FeatureFlags.PhoneVoiceLayout)
         val urlParams = buildList {
             addAll(phoneStyleUrlParams(phoneStyleEnabled, isAudioCall))
             if (startVideoMuted && !isAudioCall) {

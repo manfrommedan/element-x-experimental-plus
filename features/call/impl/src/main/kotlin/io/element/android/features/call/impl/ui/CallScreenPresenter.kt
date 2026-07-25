@@ -22,6 +22,7 @@ import dev.zacsweers.metro.Assisted
 import dev.zacsweers.metro.AssistedFactory
 import dev.zacsweers.metro.AssistedInject
 import im.vector.app.features.analytics.plan.MobileScreen
+import io.element.android.compound.theme.ElementTheme
 import io.element.android.features.call.api.CallData
 import io.element.android.features.call.api.CallSummary
 import io.element.android.features.call.api.CallSummaryStore
@@ -106,7 +107,9 @@ class CallScreenPresenter(
         // Hangup and Close can both fire; this guards against double persistence.
         var summarySaved by rememberSaveable { mutableStateOf(false) }
         val languageTag = languageTagProvider.provideLanguageTag()
-        val theme = "dark"
+        // Pass the app theme; DefaultCallWidgetProvider keeps it only with the phone-voice layer
+        // and otherwise forces upstream's dark Element Call (#7162).
+        val theme = if (ElementTheme.isLightTheme) "light" else "dark"
 
         DisposableEffect(Unit) {
             coroutineScope.launch {
