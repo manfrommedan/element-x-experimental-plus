@@ -32,10 +32,9 @@ import io.element.android.features.messages.impl.timeline.components.MessageShie
 import io.element.android.features.messages.impl.timeline.components.findDayDividerIndex
 import io.element.android.features.messages.impl.timeline.factories.TimelineItemsFactory
 import io.element.android.features.messages.impl.timeline.factories.TimelineItemsFactoryConfig
-import io.element.android.features.messages.impl.timeline.groups.computeGroupIdWith
 import io.element.android.features.messages.impl.timeline.model.NewEventState
 import io.element.android.features.messages.impl.timeline.model.TimelineItem
-import io.element.android.features.messages.impl.timeline.model.event.TimelineItemRedactedContent
+import io.element.android.features.messages.impl.timeline.model.virtual.TimelineItemReadMarkerModel
 import io.element.android.features.messages.impl.timeline.model.virtual.TimelineItemTypingNotificationModel
 import io.element.android.features.messages.impl.typing.TypingNotificationState
 import io.element.android.features.messages.impl.userEventPermissions
@@ -66,7 +65,6 @@ import io.element.android.services.analytics.api.finishLongRunningTransaction
 import io.element.android.services.analyticsproviders.api.AnalyticsUserData
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.persistentListOf
-import kotlinx.collections.immutable.toImmutableList
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.combine
@@ -101,6 +99,7 @@ class TimelinePresenter(
     private val featureFlagService: FeatureFlagService,
     private val analyticsService: AnalyticsService,
     private val liveLocationShareManager: ActiveLiveLocationShareManager,
+    private val markAsFullyRead: MarkAsFullyRead,
 ) : Presenter<TimelineState> {
     private val tag = "TimelinePresenter"
 
@@ -145,8 +144,14 @@ class TimelinePresenter(
 
         val prevMostRecentItemId = rememberSaveable { mutableStateOf<UniqueId?>(null) }
 
-        val newEventState = remember { mutableStateOf(NewEventState.None) }
+        val newEventState = remember { mutableStateOf<NewEventState>(NewEventState.None) }
         val messageShieldDialogData: MutableState<MessageShieldData?> = remember { mutableStateOf(null) }
+
+        // Forces [JumpToUnreadState.Hidden] until the next RoomInfo push. Set after a
+        // [TimelineEvent.MarkAllAsRead] await completes so the FAB hides without waiting for
+        // the SDK to push a refreshed fully-read marker; the after-await ordering means any
+        // RoomInfo update racing the mark-as-read call has already landed and can't undo this.
+        val suppressJumpToUnread = remember { mutableStateOf(false) }
 
         val resolveVerifiedUserSendFailureState = resolveVerifiedUserSendFailurePresenter.present()
         val isLive by remember {
@@ -155,6 +160,9 @@ class TimelinePresenter(
 
         val displayThreadSummaries by produceState(false) {
             value = featureFlagService.isFeatureEnabled(FeatureFlags.Threads)
+        }
+        val displayJumpToUnread by produceState(false) {
+            value = featureFlagService.isFeatureEnabled(FeatureFlags.JumpToUnread)
         }
 
         fun handleEvent(event: TimelineEvent) {
@@ -241,6 +249,14 @@ class TimelinePresenter(
                     scrollToDateIndex.value = null
                 }
                 TimelineEvent.HideShieldDialog -> messageShieldDialogData.value = null
+                TimelineEvent.MarkAllAsRead -> sessionCoroutineScope.launch {
+                    val latestEventId = room.liveTimeline.getLatestEventId().getOrElse {
+                        Timber.tag(tag).w(it, "Failed to get latest event id to mark as fully read")
+                        null
+                    } ?: return@launch
+                    markAsFullyRead(room.roomId, latestEventId)
+                    suppressJumpToUnread.value = true
+                }
                 is TimelineEvent.ShowShieldDialog -> messageShieldDialogData.value = event.messageShieldData
                 is TimelineEvent.ComputeVerifiedUserSendFailure -> {
                     resolveVerifiedUserSendFailureState.eventSink(ResolveVerifiedUserSendFailureEvent.ComputeForMessage(event.event))
@@ -276,7 +292,8 @@ class TimelinePresenter(
                 timelineController.timelineItems(),
                 room.membersStateFlow,
                 sessionPreferencesStore.isRenderReadReceiptsEnabled(),
-            ) { items, membersState, renderReadReceipts ->
+                appPreferencesStore.getHideRedactedEventsFlow(),
+            ) { items, membersState, renderReadReceipts, collapseRedactedEvents ->
                 val parent = analyticsService.getLongRunningTransaction(DisplayFirstTimelineItems)
                 val transaction = parent?.startChild("timelineItemsFactory.replaceWith", "Processing timeline items")
                 transaction?.putExtraData(AnalyticsUserData.TIMELINE_ITEM_COUNT, items.count().toString())
@@ -284,6 +301,7 @@ class TimelinePresenter(
                     timelineItems = items,
                     roomMembers = membersState.roomMembers().orEmpty(),
                     renderReadReceipts = renderReadReceipts,
+                    collapseRedactedEvents = collapseRedactedEvents,
                 )
                 transaction?.finish()
                 items
@@ -297,7 +315,67 @@ class TimelinePresenter(
             computeNewItemState(timelineItems, prevMostRecentItemId, newEventState)
         }
 
-        LaunchedEffect(timelineItems.size, focusRequestState.value) {
+        // Keyed on the full [timelineItems] reference (not just .size) so we re-scan when the
+        // read marker advances in place — the SDK swaps the marker virtual item to a new position
+        // without changing the list length, e.g. when [markRoomAsFullyRead] is sent while at the
+        // bottom of the room.
+        //
+        // The state has three shapes:
+        //  - InWindow: the SDK has materialised a virtual ReadMarker item in the loaded window;
+        //    tapping the FAB smoothly scrolls to its index.
+        //  - OutOfWindow: the marker event is older than the loaded window, so the SDK gives us
+        //    only the event id via RoomInfo.fullyReadEventId; tapping triggers a focused-event
+        //    load via the existing TimelineEvent.FocusOnEvent path.
+        //  - Hidden: feature flag off, no marker, caught-up (marker loaded but no virtual item),
+        //    or initial load (no items yet).
+        val jumpToUnread = remember { mutableStateOf<JumpToUnreadState>(JumpToUnreadState.Hidden) }
+        // The SDK is authoritative again once it pushes a new fully-read marker, so drop the
+        // post-mark-as-read suppression and let the recompute below pick up the new value.
+        LaunchedEffect(roomInfo.fullyReadEventId) {
+            suppressJumpToUnread.value = false
+        }
+        LaunchedEffect(
+            timelineItems.map { it.identifier() },
+            displayJumpToUnread,
+            roomInfo.fullyReadEventId,
+            roomInfo.numUnreadMessages,
+            suppressJumpToUnread.value,
+        ) {
+            if (!displayJumpToUnread || suppressJumpToUnread.value) {
+                jumpToUnread.value = JumpToUnreadState.Hidden
+                return@LaunchedEffect
+            }
+            val items = timelineItems
+            val fullyReadEventId = roomInfo.fullyReadEventId
+            val hasUnreadMessages = roomInfo.numUnreadMessages > 0
+            val markerIndex = withContext(dispatchers.computation) {
+                items.indexOfFirst {
+                    (it as? TimelineItem.Virtual)?.model is TimelineItemReadMarkerModel
+                }
+            }
+            jumpToUnread.value = when {
+                markerIndex >= 0 -> JumpToUnreadState.InWindow(markerIndex)
+                // Out-of-window only when there is genuinely unread *displayable* content
+                // (numUnreadMessages counts "interesting" messages, never state/hidden events) AND
+                // the marker event isn't merely an in-window item we don't render. isKnown is the
+                // cheap display-index check; isEventLoaded falls back to the SDK to tell
+                // "in window but not displayed" apart from "genuinely out of window".
+                fullyReadEventId != null &&
+                    hasUnreadMessages &&
+                    items.isNotEmpty() &&
+                    !timelineItemIndexer.isKnown(fullyReadEventId) &&
+                    !timelineController.activeTimelineFlow().value.isEventLoaded(fullyReadEventId) ->
+                    JumpToUnreadState.OutOfWindow(fullyReadEventId)
+                else -> JumpToUnreadState.Hidden
+            }
+        }
+
+        // Keyed on the full [timelineItems] reference (not just .size) so we re-resolve the index
+        // when a focused timeline loads with the same item count as the window it replaced — e.g.
+        // jumping to an out-of-window read marker in a busy room, where both windows fill to the
+        // same page size. With .size as the key the effect wouldn't re-run, the focused event's
+        // index would stay unresolved, and the scroll would never fire until a second tap.
+        LaunchedEffect(timelineItems.map { it.identifier() }, focusRequestState.value) {
             val currentFocusRequestState = focusRequestState.value
             if (currentFocusRequestState is FocusRequestState.Success && !currentFocusRequestState.rendered) {
                 val eventId = currentFocusRequestState.eventId
@@ -310,27 +388,15 @@ class TimelinePresenter(
             }
         }
 
-        val hideRedactedEvents by remember {
-            appPreferencesStore.getHideRedactedEventsFlow()
-        }.collectAsState(initial = false)
-        // When the user opts to hide deleted messages, collapse runs of 3+ consecutive redacted
-        // events into a single expandable group (element-web style) instead of removing them.
-        // Shorter runs stay as individual tiles. Day dividers are untouched, so a day is never
-        // emptied and the floating date pill / jump-to-date stay aligned with the rendered list.
-        val visibleTimelineItems = remember(timelineItems, hideRedactedEvents) {
-            if (hideRedactedEvents) {
-                timelineItems.collapseRedactedRuns().toImmutableList()
-            } else {
-                timelineItems
-            }
-        }
+        // Deleted-message runs are already collapsed upstream in TimelineItemGrouper (gated by the
+        // "Collapse deleted messages" advanced setting), so timelineItems is the rendered list.
 
         // Resolve the tapped day's divider to an index once it is loaded. Computed against the
         // rendered list so the index matches the LazyColumn even while redacted runs are collapsed.
         // Keyed on the item count so it re-runs as loadUntilDateDividerVisible pages older history in.
-        LaunchedEffect(visibleTimelineItems.size, pendingScrollToDate.value) {
+        LaunchedEffect(timelineItems.size, pendingScrollToDate.value) {
             val date = pendingScrollToDate.value ?: return@LaunchedEffect
-            val index = findDayDividerIndex(visibleTimelineItems, date)
+            val index = findDayDividerIndex(timelineItems, date)
             if (index >= 0) {
                 scrollToDateIndex.value = index
                 pendingScrollToDate.value = null
@@ -362,7 +428,7 @@ class TimelinePresenter(
         }
 
         return TimelineState(
-            timelineItems = visibleTimelineItems,
+            timelineItems = timelineItems,
             timelineMode = timelineMode,
             timelineRoomInfo = timelineRoomInfo,
             newEventState = newEventState.value,
@@ -372,6 +438,8 @@ class TimelinePresenter(
             resolveVerifiedUserSendFailureState = resolveVerifiedUserSendFailureState,
             displayThreadSummaries = displayThreadSummaries,
             scrollToDateIndex = scrollToDateIndex.value,
+            displayJumpToUnread = displayJumpToUnread,
+            jumpToUnread = jumpToUnread.value,
             eventSink = ::handleEvent,
         )
     }
@@ -447,7 +515,7 @@ class TimelinePresenter(
     private suspend fun computeNewItemState(
         timelineItems: ImmutableList<TimelineItem>,
         prevMostRecentItemId: MutableState<UniqueId?>,
-        newEventState: MutableState<NewEventState>
+        newEventState: MutableState<NewEventState>,
     ) = withContext(dispatchers.computation) {
         // FromMe is prioritized over FromOther, so skip if we already have a FromMe
         if (newEventState.value == NewEventState.FromMe) {
@@ -466,12 +534,7 @@ class TimelinePresenter(
 
         if (hasNewEvent) {
             // Scroll to bottom if the new event is from me, even if sent from another device
-            val fromMe = newMostRecentItem.isMine
-            newEventState.value = if (fromMe) {
-                NewEventState.FromMe
-            } else {
-                NewEventState.FromOther
-            }
+            newEventState.value = if (newMostRecentItem.isMine) NewEventState.FromMe else NewEventState.FromOther
         }
         prevMostRecentItemId.value = newMostRecentItemId
     }
@@ -515,48 +578,6 @@ private fun FocusRequestState.onFocusEventRender(): FocusRequestState {
         is FocusRequestState.Success -> copy(rendered = true)
         else -> this
     }
-}
-
-// Runs shorter than this are left as individual "message deleted" tiles, like element-web.
-internal const val MIN_REDACTED_RUN_SIZE = 3
-
-/**
- * Collapse runs of [MIN_REDACTED_RUN_SIZE] or more consecutive redacted events into a single
- * [TimelineItem.GroupedEvents], so they render as one expandable "N deleted messages" block the way
- * element-web does. Shorter runs and every non-redacted item are passed through untouched, day
- * dividers included. The grouped events are stored oldest-first to match the existing grouper, and
- * the group id is derived from the newest event of the run (its first element in this newest-first
- * list) so it stays stable as older history pages in and the run grows at its older end.
- */
-internal fun List<TimelineItem>.collapseRedactedRuns(): List<TimelineItem> {
-    val result = mutableListOf<TimelineItem>()
-    val run = mutableListOf<TimelineItem.Event>()
-
-    fun flushRun() {
-        when {
-            run.isEmpty() -> Unit
-            run.size < MIN_REDACTED_RUN_SIZE -> result.addAll(run)
-            else -> result.add(
-                TimelineItem.GroupedEvents(
-                    id = computeGroupIdWith(run.first()),
-                    events = run.reversed().toImmutableList(),
-                    aggregatedReadReceipts = run.flatMap { it.readReceiptState.receipts }.toImmutableList(),
-                )
-            )
-        }
-        run.clear()
-    }
-
-    for (item in this) {
-        if (item is TimelineItem.Event && item.content is TimelineItemRedactedContent) {
-            run.add(item)
-        } else {
-            flushRun()
-            result.add(item)
-        }
-    }
-    flushRun()
-    return result
 }
 
 // Workaround for not having the server names available, get possible server names from the user ids of the room members

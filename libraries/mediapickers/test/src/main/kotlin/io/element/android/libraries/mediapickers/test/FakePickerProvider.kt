@@ -19,7 +19,7 @@ import io.element.android.libraries.mediapickers.api.PickerProvider
 class FakePickerProvider : PickerProvider {
     private var mimeType = MimeTypes.Any
     private var result: Uri? = null
-    private var multipleResult: List<Uri> = emptyList()
+    private var multipleResults: List<Uri>? = null
 
     @Composable
     override fun registerGalleryPicker(onResult: (uri: Uri?, mimeType: String?) -> Unit): PickerLauncher<PickVisualMediaRequest, Uri?> {
@@ -31,7 +31,7 @@ class FakePickerProvider : PickerProvider {
         maxItems: Int,
         onResult: (List<Pair<Uri, String?>>) -> Unit,
     ): PickerLauncher<PickVisualMediaRequest, List<Uri>> {
-        return NoOpPickerLauncher { onResult(multipleResult.map { it to this.mimeType }) }
+        return NoOpPickerLauncher { onResult((multipleResults ?: emptyList()).map { it to this.mimeType }) }
     }
 
     @Composable
@@ -41,7 +41,7 @@ class FakePickerProvider : PickerProvider {
 
     @Composable
     override fun registerGalleryMultiPicker(onResult: (uris: List<Uri>) -> Unit): PickerLauncher<PickVisualMediaRequest, List<Uri>> {
-        return NoOpPickerLauncher { onResult(result?.let { listOf(it) } ?: emptyList()) }
+        return NoOpPickerLauncher { onResult(multipleResults ?: result?.let { listOf(it) } ?: emptyList()) }
     }
 
     @Composable
@@ -51,7 +51,7 @@ class FakePickerProvider : PickerProvider {
 
     @Composable
     override fun registerFileMultiPicker(mimeType: String, onResult: (uris: List<Uri>) -> Unit): PickerLauncher<Array<String>, List<Uri>> {
-        return NoOpPickerLauncher { onResult(result?.let { listOf(it) } ?: emptyList()) }
+        return NoOpPickerLauncher { onResult(multipleResults ?: result?.let { listOf(it) } ?: emptyList()) }
     }
 
     @Composable
@@ -68,8 +68,8 @@ class FakePickerProvider : PickerProvider {
         this.result = value
     }
 
-    fun givenMultipleResult(values: List<Uri>) {
-        this.multipleResult = values
+    fun givenMultipleResults(uris: List<Uri>) {
+        this.multipleResults = uris
     }
 
     fun givenMimeType(mimeType: String) {

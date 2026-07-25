@@ -210,6 +210,8 @@ class PinnedMessagesListPresenter(
                             timelineItems = items,
                             roomMembers = membersState.roomMembers().orEmpty(),
                             renderReadReceipts = false,
+                            // Pinned messages are shown individually; never collapse redacted runs here.
+                            collapseRedactedEvents = false,
                         )
                     }.launchIn(this)
 

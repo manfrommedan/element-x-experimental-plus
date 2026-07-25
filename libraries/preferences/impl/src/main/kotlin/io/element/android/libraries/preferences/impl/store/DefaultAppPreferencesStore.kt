@@ -148,7 +148,8 @@ class DefaultAppPreferencesStore(
     }
 
     override fun getHideRedactedEventsFlow(): Flow<Boolean> {
-        return store.data.map { prefs -> prefs[hideRedactedEventsKey] ?: false }
+        // Default on, like upstream: runs of deleted messages collapse unless the user turns it off.
+        return store.data.map { prefs -> prefs[hideRedactedEventsKey] ?: true }
     }
 
     override suspend fun setMediaAutoDownloadOnWifiOnly(value: Boolean) {

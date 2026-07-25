@@ -22,8 +22,6 @@ import dev.zacsweers.metro.Assisted
 import dev.zacsweers.metro.AssistedFactory
 import dev.zacsweers.metro.AssistedInject
 import im.vector.app.features.analytics.plan.MobileScreen
-import io.element.android.libraries.core.extensions.runCatchingExceptions
-import io.element.android.compound.theme.ElementTheme
 import io.element.android.features.call.api.CallData
 import io.element.android.features.call.api.CallSummary
 import io.element.android.features.call.api.CallSummaryStore
@@ -36,6 +34,7 @@ import io.element.android.libraries.architecture.AsyncData
 import io.element.android.libraries.architecture.Presenter
 import io.element.android.libraries.architecture.runCatchingUpdatingState
 import io.element.android.libraries.core.coroutine.CoroutineDispatchers
+import io.element.android.libraries.core.extensions.runCatchingExceptions
 import io.element.android.libraries.di.annotations.AppCoroutineScope
 import io.element.android.libraries.matrix.api.MatrixClientProvider
 import io.element.android.libraries.matrix.api.core.EventId
@@ -107,7 +106,7 @@ class CallScreenPresenter(
         // Hangup and Close can both fire; this guards against double persistence.
         var summarySaved by rememberSaveable { mutableStateOf(false) }
         val languageTag = languageTagProvider.provideLanguageTag()
-        val theme = if (ElementTheme.isLightTheme) "light" else "dark"
+        val theme = "dark"
 
         DisposableEffect(Unit) {
             coroutineScope.launch {
