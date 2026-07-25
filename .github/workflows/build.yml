@@ -71,15 +71,15 @@ jobs:
           ELEMENT_CALL_POSTHOG_API_HOST: ${{ secrets.ELEMENT_CALL_POSTHOG_API_HOST }}
           ELEMENT_CALL_POSTHOG_API_KEY: ${{ secrets.ELEMENT_CALL_POSTHOG_API_KEY }}
           ELEMENT_CALL_RAGESHAKE_URL: ${{ secrets.ELEMENT_CALL_RAGESHAKE_URL }}
-        run: ./gradlew :app:assembleGplayDebug app:assembleFDroidDebug -PallWarningsAsErrors=true $CI_GRADLE_ARG_PROPERTIES
+        run: ./gradlew :app:assembleGplayPlusDebug :app:assembleFDroidPlusDebug -PallWarningsAsErrors=true $CI_GRADLE_ARG_PROPERTIES
       - name: Upload debug APKs
         if: ${{ matrix.variant == 'debug' }}
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: elementx-debug
           path: |
-            app/build/outputs/apk/gplay/debug/*-universal-debug.apk
-            app/build/outputs/apk/fdroid/debug/*-universal-debug.apk
+            app/build/outputs/apk/gplayPlus/debug/*-universal-debug.apk
+            app/build/outputs/apk/fdroidPlus/debug/*-universal-debug.apk
       - uses: rnkdsh/action-upload-diawi@76778fcd1f9f589efaaa62f63d5f03430bbb1306 # v1.5.13
         id: diawi
         # Do not fail the whole build if Diawi upload fails
@@ -89,7 +89,7 @@ jobs:
         if: ${{ matrix.variant == 'debug' && github.event_name == 'pull_request' && env.token != '' }}
         with:
           token: ${{ env.token }}
-          file: app/build/outputs/apk/gplay/debug/app-gplay-arm64-v8a-debug.apk
+          file: app/build/outputs/apk/gplayPlus/debug/app-gplay-plus-arm64-v8a-debug.apk
       - name: Add or update PR comment with QR Code to download APK.
         if: ${{ matrix.variant == 'debug' && github.event_name == 'pull_request' && steps.diawi.conclusion == 'success' }}
         uses: NejcZdovc/comment-pr@a423635d183a8259308e80593c96fecf31539c26 # v2.1.0
@@ -104,7 +104,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Compile release sources
         if: ${{ matrix.variant == 'release' }}
-        run: ./gradlew bundleGplayRelease -PallWarningsAsErrors=true $CI_GRADLE_ARG_PROPERTIES
+        run: ./gradlew bundleGplayPlusRelease -PallWarningsAsErrors=true $CI_GRADLE_ARG_PROPERTIES
       - name: Compile nightly sources
         if: ${{ matrix.variant == 'nightly' }}
-        run: ./gradlew compileGplayNightlySources -PallWarningsAsErrors=true $CI_GRADLE_ARG_PROPERTIES
+        run: ./gradlew compileGplayPlusNightlySources -PallWarningsAsErrors=true $CI_GRADLE_ARG_PROPERTIES
