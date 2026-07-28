@@ -51,6 +51,26 @@ class MediaAlbumsTest {
     }
 
     @Test
+    fun `a long run is cut into albums of at most three`() {
+        val items = (5 downTo 1).map { picture("\$p$it", sentTimeMillis = it * 1_000L) }
+
+        val result = items.groupMediaAlbums(mutableMapOf())
+
+        val albums = result.filterIsInstance<TimelineItem.GroupedEvents>()
+        assertThat(albums.map { it.events.size }).containsExactly(3, 2).inOrder()
+    }
+
+    @Test
+    fun `a run of four is balanced rather than leaving a single tile`() {
+        val items = (4 downTo 1).map { picture("\$p$it", sentTimeMillis = it * 1_000L) }
+
+        val result = items.groupMediaAlbums(mutableMapOf())
+
+        val albums = result.filterIsInstance<TimelineItem.GroupedEvents>()
+        assertThat(albums.map { it.events.size }).containsExactly(2, 2).inOrder()
+    }
+
+    @Test
     fun `a single picture is left on its own`() {
         val items = listOf(picture("\$p1"), text("\$t1"))
 

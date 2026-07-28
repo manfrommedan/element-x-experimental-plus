@@ -18,6 +18,12 @@ import kotlin.time.Duration.Companion.seconds
 internal const val MIN_ALBUM_SIZE = 2
 
 /**
+ * A longer run is cut into several albums of this size. A wider block makes each picture too small
+ * to recognise, and every tile still has to be big enough to aim a long press at.
+ */
+internal const val MAX_ALBUM_SIZE = 3
+
+/**
  * How far apart two pictures can be sent and still count as one batch.
  *
  * Telegram marks an album at send time with a shared id; Matrix has no field for that, and the one
@@ -49,15 +55,18 @@ internal fun List<TimelineItem>.groupMediaAlbums(groupIds: MutableMap<String, St
         when {
             run.isEmpty() -> Unit
             run.size < MIN_ALBUM_SIZE -> result.addAll(run)
-            else -> {
-                val events = run.reversed()
-                result.add(
-                    TimelineItem.GroupedEvents(
-                        id = UniqueId(groupIds.getOrPutGroupId(events)),
-                        events = events.toImmutableList(),
-                        aggregatedReadReceipts = events.flatMap { it.readReceiptState.receipts }.toImmutableList(),
+            else -> run.reversed().splitIntoAlbums().forEach { events ->
+                if (events.size < MIN_ALBUM_SIZE) {
+                    result.addAll(events)
+                } else {
+                    result.add(
+                        TimelineItem.GroupedEvents(
+                            id = UniqueId(groupIds.getOrPutGroupId(events)),
+                            events = events.toImmutableList(),
+                            aggregatedReadReceipts = events.flatMap { it.readReceiptState.receipts }.toImmutableList(),
+                        )
                     )
-                )
+                }
             }
         }
         run.clear()
@@ -85,6 +94,21 @@ internal fun List<TimelineItem>.groupMediaAlbums(groupIds: MutableMap<String, St
  */
 internal fun TimelineItem.GroupedEvents.isMediaAlbum(): Boolean =
     events.size >= MIN_ALBUM_SIZE && events.all { it.canStartAnAlbum() }
+
+/**
+ * Cut a run into albums of at most [MAX_ALBUM_SIZE], moving one over when the tail would otherwise be
+ * a single tile: four pictures read better as two and two than as three and a stray one.
+ */
+private fun List<TimelineItem.Event>.splitIntoAlbums(): List<List<TimelineItem.Event>> {
+    val albums = chunked(MAX_ALBUM_SIZE).toMutableList()
+    val last = albums.lastOrNull()
+    if (albums.size > 1 && last != null && last.size == 1) {
+        val previous = albums[albums.size - 2]
+        albums[albums.size - 2] = previous.dropLast(1)
+        albums[albums.size - 1] = listOf(previous.last()) + last
+    }
+    return albums
+}
 
 private fun TimelineItem.Event.canStartAnAlbum(): Boolean =
     content is TimelineItemImageContent || content is TimelineItemVideoContent
