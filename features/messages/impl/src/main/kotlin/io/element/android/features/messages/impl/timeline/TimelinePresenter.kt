@@ -293,8 +293,7 @@ class TimelinePresenter(
                 room.membersStateFlow,
                 sessionPreferencesStore.isRenderReadReceiptsEnabled(),
                 appPreferencesStore.getHideRedactedEventsFlow(),
-                featureFlagService.isFeatureEnabledFlow(FeatureFlags.MediaAlbums),
-            ) { items, membersState, renderReadReceipts, collapseRedactedEvents, groupMediaAlbums ->
+            ) { items, membersState, renderReadReceipts, collapseRedactedEvents ->
                 val parent = analyticsService.getLongRunningTransaction(DisplayFirstTimelineItems)
                 val transaction = parent?.startChild("timelineItemsFactory.replaceWith", "Processing timeline items")
                 transaction?.putExtraData(AnalyticsUserData.TIMELINE_ITEM_COUNT, items.count().toString())
@@ -303,7 +302,6 @@ class TimelinePresenter(
                     roomMembers = membersState.roomMembers().orEmpty(),
                     renderReadReceipts = renderReadReceipts,
                     collapseRedactedEvents = collapseRedactedEvents,
-                    groupMediaAlbums = groupMediaAlbums,
                 )
                 transaction?.finish()
                 items

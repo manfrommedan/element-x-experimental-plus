@@ -33,7 +33,7 @@ class TimelineItemGrouper {
      * deleted messages are folded into a single expandable group. The fork's "Collapse deleted
      * messages" advanced setting toggles this off.
      */
-    fun group(from: List<TimelineItem>, collapseRedactedRuns: Boolean = true, groupMediaAlbums: Boolean = false): List<TimelineItem> {
+    fun group(from: List<TimelineItem>, collapseRedactedRuns: Boolean = true): List<TimelineItem> {
         val result = mutableListOf<TimelineItem>()
         val currentGroup = mutableListOf<TimelineItem.Event>()
         from.forEach { timelineItem ->
@@ -52,10 +52,9 @@ class TimelineItemGrouper {
         if (currentGroup.isNotEmpty()) {
             result.addGroup(groupIds, currentGroup)
         }
-        // Fold runs of consecutive deleted messages into a single group (element-web style), unless
-        // the user has turned the collapse off, then draw runs of pictures from one sender as albums.
-        val collapsed = if (collapseRedactedRuns) result.collapseRedactedRuns(groupIds) else result
-        return if (groupMediaAlbums) collapsed.groupMediaAlbums(groupIds) else collapsed
+        // Finally, fold runs of consecutive deleted messages into a single group (element-web style),
+        // unless the user has turned the collapse off.
+        return if (collapseRedactedRuns) result.collapseRedactedRuns(groupIds) else result
     }
 }
 
@@ -81,7 +80,7 @@ private fun MutableList<TimelineItem>.addGroup(
     }
 }
 
-internal fun MutableMap<String, String>.getOrPutGroupId(timelineItems: List<TimelineItem>): String {
+private fun MutableMap<String, String>.getOrPutGroupId(timelineItems: List<TimelineItem>): String {
     assert(timelineItems.isNotEmpty())
     for (item in timelineItems) {
         val itemIdentifier = item.identifier()

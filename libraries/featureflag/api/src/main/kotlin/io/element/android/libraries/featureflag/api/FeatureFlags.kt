@@ -164,15 +164,6 @@ enum class FeatureFlags(
         isFinished = false,
         isInLabs = true,
     ),
-    MediaAlbums(
-        key = "feature.media_albums",
-        title = "Group pictures into albums",
-        description = "Draw pictures and videos sent together as one album in the timeline, like Telegram. " +
-            "Each picture stays its own message, so it can still be deleted, forwarded or reacted to on its own.",
-        defaultValue = { false },
-        isFinished = false,
-        isInLabs = true,
-    ),
     MessageMultiSelect(
         key = "feature.message_multi_select",
         title = "Multi-select messages",

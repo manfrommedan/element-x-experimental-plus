@@ -27,7 +27,6 @@ import io.element.android.features.messages.impl.timeline.components.group.Group
 import io.element.android.features.messages.impl.timeline.components.layout.ContentAvoidingLayoutData
 import io.element.android.features.messages.impl.timeline.components.receipt.ReadReceiptViewState
 import io.element.android.features.messages.impl.timeline.components.receipt.TimelineItemReadReceiptView
-import io.element.android.features.messages.impl.timeline.groups.isMediaAlbum
 import io.element.android.features.messages.impl.timeline.groups.isRedactedMessagesGroup
 import io.element.android.features.messages.impl.timeline.groups.redactedSendersSummary
 import io.element.android.features.messages.impl.timeline.model.TimelineItem
@@ -89,15 +88,6 @@ fun TimelineItemGroupedEventsRow(
             )
         },
 ) {
-    if (timelineItem.isMediaAlbum()) {
-        TimelineItemMediaAlbumView(
-            events = timelineItem.events,
-            onClick = onClick,
-            onLongClick = onLongClick,
-            modifier = modifier,
-        )
-        return
-    }
     val isExpanded = rememberSaveable { mutableStateOf(false) }
 
     fun onExpandGroupClick() {
