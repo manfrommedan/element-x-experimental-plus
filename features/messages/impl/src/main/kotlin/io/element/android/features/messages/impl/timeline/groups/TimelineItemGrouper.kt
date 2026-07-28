@@ -52,9 +52,10 @@ class TimelineItemGrouper {
         if (currentGroup.isNotEmpty()) {
             result.addGroup(groupIds, currentGroup)
         }
-        // Finally, fold runs of consecutive deleted messages into a single group (element-web style),
-        // unless the user has turned the collapse off.
-        return if (collapseRedactedRuns) result.collapseRedactedRuns(groupIds) else result
+        // Fold runs of consecutive deleted messages into a single group (element-web style), unless
+        // the user has turned the collapse off, then draw runs of pictures from one sender as albums.
+        val collapsed = if (collapseRedactedRuns) result.collapseRedactedRuns(groupIds) else result
+        return collapsed.groupMediaAlbums(groupIds)
     }
 }
 
@@ -80,7 +81,7 @@ private fun MutableList<TimelineItem>.addGroup(
     }
 }
 
-private fun MutableMap<String, String>.getOrPutGroupId(timelineItems: List<TimelineItem>): String {
+internal fun MutableMap<String, String>.getOrPutGroupId(timelineItems: List<TimelineItem>): String {
     assert(timelineItems.isNotEmpty())
     for (item in timelineItems) {
         val itemIdentifier = item.identifier()

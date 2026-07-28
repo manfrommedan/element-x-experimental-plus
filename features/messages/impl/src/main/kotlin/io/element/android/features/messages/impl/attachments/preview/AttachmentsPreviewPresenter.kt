@@ -640,9 +640,8 @@ class AttachmentsPreviewPresenter(
      * preserves selection order. The single shared [batchCaption] and [inReplyToEventId] attach
      * to the gallery, or to the first attachment when the items go out separately.
      *
-     * Every item is prepared on its own so compression progress stays per file. Pictures and videos
-     * then leave as one gallery event; anything else falls back to separate messages. Failures are
-     * logged per item and drop that item, they never abort the batch.
+     * Every item is prepared on its own so compression progress stays per file, and then leaves as its
+     * own message. Failures are logged per item and drop that item, they never abort the batch.
      */
     private suspend fun sendBatch(
         items: List<Attachment>,
@@ -675,48 +674,27 @@ class AttachmentsPreviewPresenter(
                 if (cause is CancellationException) throw cause
             }
         }
-        val mediaUploadInfos = prepared.map { it.second }
-        when {
-            mediaUploadInfos.isEmpty() -> Unit
-            mediaUploadInfos.size > 1 && mediaUploadInfos.all { it is MediaUploadInfo.Image || it is MediaUploadInfo.Video } -> {
-                // A single gallery event, so the batch lands in the timeline as one collage.
-                sendActionState.value = SendActionState.Sending.Uploading(mediaInfos = mediaUploadInfos)
-                runCatchingExceptions {
-                    mediaSender.sendGallery(
-                        mediaUploadInfos = mediaUploadInfos,
-                        caption = batchCaption,
-                        formattedCaption = null,
-                        inReplyToEventId = inReplyToEventId,
-                    ).getOrThrow()
-                }.onFailure { cause ->
-                    Timber.e(cause, "Failed to send a gallery of ${mediaUploadInfos.size} items")
-                    if (cause is CancellationException) throw cause
-                }
-            }
-            else -> {
-                // Files and audio keep the separate-messages behaviour, one bubble and one retry
-                // each. The shared caption and the reply target attach to the first item.
-                mediaUploadInfos.forEachIndexed { index, mediaUploadInfo ->
-                    runCatchingExceptions {
-                        sendActionState.value = SendActionState.Sending.Uploading(
-                            mediaInfos = listOf(mediaUploadInfo),
-                            index = index,
-                            total = mediaUploadInfos.size,
-                        )
-                        mediaSender.sendPreProcessedMedia(
-                            mediaUploadInfo = mediaUploadInfo,
-                            caption = if (index == 0) batchCaption else null,
-                            formattedCaption = null,
-                            inReplyToEventId = if (index == 0) inReplyToEventId else null,
-                        ).getOrThrow()
-                    }.onFailure { cause ->
-                        Timber.e(cause, "Failed to send bulk attachment ${index + 1}/${mediaUploadInfos.size}")
-                        if (cause is CancellationException) throw cause
-                    }
-                }
+        // Every item stays its own message, so a picture can be deleted, forwarded or reacted to on
+        // its own. The timeline draws a run of them as one album, see TimelineItemGrouper.
+        prepared.forEachIndexed { index, (_, mediaUploadInfo) ->
+            runCatchingExceptions {
+                sendActionState.value = SendActionState.Sending.Uploading(
+                    mediaInfos = listOf(mediaUploadInfo),
+                    index = index,
+                    total = prepared.size,
+                )
+                mediaSender.sendPreProcessedMedia(
+                    mediaUploadInfo = mediaUploadInfo,
+                    caption = if (index == 0) batchCaption else null,
+                    formattedCaption = null,
+                    inReplyToEventId = if (index == 0) inReplyToEventId else null,
+                ).getOrThrow()
+            }.onFailure { cause ->
+                Timber.e(cause, "Failed to send bulk attachment ${index + 1}/${prepared.size}")
+                if (cause is CancellationException) throw cause
             }
         }
-        // Only once the batch has left: a gallery upload still needs its files while in flight.
+        // Only once the batch has left, so nothing reclaims a file that is still in flight.
         prepared.forEach { (media, mediaUploadInfo) ->
             cleanUp(mediaUploadInfo)
             temporaryUriDeleter.delete(media.localMedia.uri)
