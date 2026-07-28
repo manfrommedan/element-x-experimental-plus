@@ -42,6 +42,7 @@ import io.element.android.libraries.di.annotations.SessionCoroutineScope
 import io.element.android.libraries.matrix.api.core.EventId
 import io.element.android.libraries.matrix.api.permalink.PermalinkBuilder
 import io.element.android.libraries.matrix.api.timeline.Timeline
+import io.element.android.libraries.mediapickers.api.DEFAULT_MAX_PICK_ITEMS
 import io.element.android.libraries.mediaupload.api.MediaOptimizationConfig
 import io.element.android.libraries.mediaupload.api.MediaOptimizationConfigProvider
 import io.element.android.libraries.mediaupload.api.MediaSenderFactory
@@ -289,7 +290,15 @@ class AttachmentsPreviewPresenter(
                 }
                 is AttachmentsPreviewEvent.AddMore -> {
                     if (event.picked.isEmpty()) return
+                    // The picker hands back everything the user has ticked, including what is
+                    // already in the batch. Skip those, and keep the same ceiling the composer
+                    // applies on the first pick so adding more cannot grow the batch past it.
+                    val alreadyAttached = attachmentList.mapNotNullTo(mutableSetOf()) {
+                        (it as? Attachment.Media)?.localMedia?.uri
+                    }
                     event.picked.forEach { (uri, mimeType) ->
+                        if (attachmentList.size >= DEFAULT_MAX_PICK_ITEMS) return@forEach
+                        if (!alreadyAttached.add(uri)) return@forEach
                         val localMedia = localMediaFactory.createFromUri(
                             uri = uri,
                             mimeType = mimeType,
