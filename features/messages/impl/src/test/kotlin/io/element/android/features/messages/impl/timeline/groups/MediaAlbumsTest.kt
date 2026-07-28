@@ -90,9 +90,9 @@ class MediaAlbumsTest {
     }
 
     @Test
-    fun `pictures sent far apart do not share an album`() {
+    fun `pictures sent in two separate batches do not share an album`() {
         val items = listOf(
-            picture("\$p2", sentTimeMillis = 10.minutesInMillis()),
+            picture("\$p2", sentTimeMillis = 30_000),
             picture("\$p1", sentTimeMillis = 0),
         )
 
@@ -101,6 +101,4 @@ class MediaAlbumsTest {
         assertThat(result).hasSize(2)
         assertThat(result.none { it is TimelineItem.GroupedEvents }).isTrue()
     }
-
-    private fun Int.minutesInMillis() = this * 60_000L
 }

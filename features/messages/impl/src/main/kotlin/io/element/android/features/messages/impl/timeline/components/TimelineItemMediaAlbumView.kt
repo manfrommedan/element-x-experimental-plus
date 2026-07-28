@@ -13,9 +13,10 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
@@ -33,17 +34,16 @@ import io.element.android.features.messages.impl.timeline.model.TimelineItem
 import io.element.android.features.messages.impl.timeline.model.event.TimelineItemImageContent
 import io.element.android.features.messages.impl.timeline.model.event.TimelineItemVideoContent
 import io.element.android.libraries.designsystem.theme.components.Icon
-import io.element.android.libraries.designsystem.theme.components.Text
 import io.element.android.libraries.matrix.ui.media.MAX_THUMBNAIL_HEIGHT
 import io.element.android.libraries.matrix.ui.media.MAX_THUMBNAIL_WIDTH
 import io.element.android.libraries.matrix.ui.media.MediaRequestData
 import io.element.android.libraries.ui.strings.CommonStrings
 import kotlinx.collections.immutable.ImmutableList
 
-/** Beyond this the album shows a "+N" tile on the last visible one. */
-private const val MAX_VISIBLE_TILES = 6
-
 private const val TILE_SPACING_DP = 2
+
+/** Every row is this tall, so a short last row widens its tiles instead of leaving a hole. */
+private val TILE_ROW_HEIGHT = 108.dp
 
 /**
  * Draw a run of pictures and videos from one sender as a single album, the way Telegram does.
@@ -58,30 +58,29 @@ fun TimelineItemMediaAlbumView(
     onLongClick: (TimelineItem.Event) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val visible = events.take(MAX_VISIBLE_TILES)
-    val hidden = events.size - visible.size
-    val columns = if (visible.size <= 4) 2 else 3
+    val columns = if (events.size <= 4) 2 else 3
     Column(
         modifier = modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(12.dp)),
         verticalArrangement = Arrangement.spacedBy(TILE_SPACING_DP.dp),
     ) {
-        visible.chunked(columns).forEach { rowEvents ->
-            Row(horizontalArrangement = Arrangement.spacedBy(TILE_SPACING_DP.dp)) {
+        events.chunked(columns).forEach { rowEvents ->
+            Row(
+                modifier = Modifier.height(TILE_ROW_HEIGHT),
+                horizontalArrangement = Arrangement.spacedBy(TILE_SPACING_DP.dp),
+            ) {
+                // No filler for a short last row: its tiles take the free width instead, which is
+                // what keeps the block rectangular rather than leaving a hole in the corner.
                 rowEvents.forEach { event ->
-                    val isLastVisible = hidden > 0 && event === visible.last()
                     AlbumTile(
                         event = event,
-                        remaining = if (isLastVisible) hidden else 0,
                         onClick = { onClick(event) },
                         onLongClick = { onLongClick(event) },
-                        modifier = Modifier.weight(1f),
+                        modifier = Modifier
+                            .weight(1f)
+                            .fillMaxHeight(),
                     )
-                }
-                // Keep the last row aligned with the ones above it when it is not full.
-                repeat(columns - rowEvents.size) {
-                    Box(modifier = Modifier.weight(1f))
                 }
             }
         }
@@ -91,14 +90,12 @@ fun TimelineItemMediaAlbumView(
 @Composable
 private fun AlbumTile(
     event: TimelineItem.Event,
-    remaining: Int,
     onClick: () -> Unit,
     onLongClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Box(
         modifier = modifier
-            .aspectRatio(1f)
             .background(ElementTheme.colors.bgSubtlePrimary)
             .combinedClickable(onClick = onClick, onLongClick = onLongClick),
     ) {
@@ -117,20 +114,6 @@ private fun AlbumTile(
                 contentDescription = null,
                 tint = Color.White,
             )
-        }
-        if (remaining > 0) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(Color.Black.copy(alpha = 0.55f)),
-                contentAlignment = Alignment.Center,
-            ) {
-                Text(
-                    text = "+$remaining",
-                    style = ElementTheme.typography.fontHeadingSmRegular,
-                    color = Color.White,
-                )
-            }
         }
     }
 }

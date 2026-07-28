@@ -12,13 +12,21 @@ import io.element.android.features.messages.impl.timeline.model.event.TimelineIt
 import io.element.android.features.messages.impl.timeline.model.event.TimelineItemVideoContent
 import io.element.android.libraries.matrix.api.core.UniqueId
 import kotlinx.collections.immutable.toImmutableList
-import kotlin.time.Duration.Companion.minutes
+import kotlin.time.Duration.Companion.seconds
 
 /** A run shorter than this stays as ordinary separate bubbles. */
 internal const val MIN_ALBUM_SIZE = 2
 
-/** How far apart two pictures can be sent and still belong to the same album. */
-private val ALBUM_MAX_GAP = 1.minutes
+/**
+ * How far apart two pictures can be sent and still count as one batch.
+ *
+ * Telegram marks an album at send time with a shared id; Matrix has no field for that, and the one
+ * standard way to say "these belong together" is a gallery event, which would make the whole batch a
+ * single message and take away deleting or forwarding a single picture. So the run is inferred, and
+ * the window is deliberately short: our own sender fires the items back to back, while two separate
+ * batches are always split by the trip to the picker.
+ */
+private val ALBUM_MAX_GAP = 3.seconds
 
 /**
  * Fold a run of consecutive pictures and videos from the same sender into a single
