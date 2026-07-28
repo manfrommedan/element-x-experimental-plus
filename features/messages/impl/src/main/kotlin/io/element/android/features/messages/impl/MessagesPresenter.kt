@@ -39,6 +39,7 @@ import io.element.android.features.messages.impl.messagecomposer.MessageComposer
 import io.element.android.features.messages.impl.messagecomposer.MessageComposerState
 import io.element.android.features.messages.impl.pinned.banner.PinnedMessagesBannerState
 import io.element.android.features.messages.impl.selection.TimelineSelectionState
+import io.element.android.features.messages.impl.selection.allEvents
 import io.element.android.features.messages.impl.timeline.MarkAsFullyRead
 import io.element.android.features.messages.impl.timeline.TimelineController
 import io.element.android.features.messages.impl.timeline.TimelineEvent
@@ -346,8 +347,7 @@ class MessagesPresenter(
                     // Assemble + write here (not in the View) so we get the standard copied
                     // snackbar. Ordered by sentTime so the pasted block reads chronologically.
                     val text = timelineState.timelineItems
-                        .asSequence()
-                        .filterIsInstance<TimelineItem.Event>()
+                        .allEvents()
                         .filter { it.eventId != null && it.eventId in selectionState.selectedIds }
                         .sortedBy { it.sentTimeMillis }
                         .mapNotNull { (it.content as? TimelineItemTextBasedContent)?.body }
@@ -364,8 +364,7 @@ class MessagesPresenter(
                     // Order by sentTime where the event is in the loaded window, then append any
                     // selected ids scrolled out of the window so nothing is silently dropped.
                     val sentTimeById = timelineState.timelineItems
-                        .asSequence()
-                        .filterIsInstance<TimelineItem.Event>()
+                        .allEvents()
                         .filter { it.eventId != null && it.eventId in selected }
                         .mapNotNull { event -> event.eventId?.let { it to event.sentTimeMillis } }
                         .toMap()
