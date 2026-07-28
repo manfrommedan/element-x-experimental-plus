@@ -140,11 +140,12 @@ class AttachmentsPreviewPresenter(
         var preprocessMediaJob by remember { mutableStateOf<Job?>(null) }
 
         val mediaAttachment = current as Attachment.Media
-        // One selector per attachment, keyed by uri, so a quality choice stays on the item it was
-        // made on and survives swiping away and back.
+        // One selector per attachment, so a quality choice stays on the item it was made on and
+        // survives swiping away and back. Keyed by position and uri: the same picture can be in the
+        // batch twice, so the uri alone is not unique.
         val mediaOptimizationSelectorStates = attachmentList.mapIndexed { index, attachment ->
             val media = attachment as Attachment.Media
-            key(media.localMedia.uri) {
+            key(index, media.localMedia.uri) {
                 val presenter = remember(media.localMedia.uri) {
                     mediaOptimizationSelectorPresenterFactory.create(
                         index = index,

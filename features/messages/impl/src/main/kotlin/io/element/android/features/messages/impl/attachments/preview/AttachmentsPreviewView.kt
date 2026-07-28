@@ -436,8 +436,9 @@ private fun AttachmentsThumbnailStrip(
     ) {
         itemsIndexed(
             items = state.attachments,
-            // Identity by uri, so removing an item does not recycle a thumbnail onto its neighbour.
-            key = { index, attachment -> (attachment as? Attachment.Media)?.localMedia?.uri?.toString() ?: index },
+            // Position and uri together: the same picture can legitimately be in the batch twice,
+            // so the uri alone is not unique, and Compose throws on a duplicate key.
+            key = { index, attachment -> "$index:${(attachment as? Attachment.Media)?.localMedia?.uri}" },
         ) { index, attachment ->
             val isCurrent = index == state.currentIndex
             val size = if (isCurrent) 64.dp else 56.dp
