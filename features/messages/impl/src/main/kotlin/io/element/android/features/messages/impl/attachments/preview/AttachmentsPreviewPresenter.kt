@@ -12,6 +12,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
@@ -139,14 +140,22 @@ class AttachmentsPreviewPresenter(
         var preprocessMediaJob by remember { mutableStateOf<Job?>(null) }
 
         val mediaAttachment = current as Attachment.Media
-        val mediaOptimizationSelectorPresenter = remember(currentIndex) {
-            mediaOptimizationSelectorPresenterFactory.create(
-                index = currentIndex,
-                localMedia = mediaAttachment.localMedia,
-                sendAsFile = mediaAttachment.sendAsFile,
-            )
+        // One selector per attachment, keyed by uri, so a quality choice stays on the item it was
+        // made on and survives swiping away and back.
+        val mediaOptimizationSelectorStates = attachmentList.mapIndexed { index, attachment ->
+            val media = attachment as Attachment.Media
+            key(media.localMedia.uri) {
+                val presenter = remember(media.localMedia.uri) {
+                    mediaOptimizationSelectorPresenterFactory.create(
+                        index = index,
+                        localMedia = media.localMedia,
+                        sendAsFile = media.sendAsFile,
+                    )
+                }
+                presenter.present()
+            }
         }
-        val mediaOptimizationSelectorState by rememberUpdatedState(mediaOptimizationSelectorPresenter.present())
+        val mediaOptimizationSelectorState by rememberUpdatedState(mediaOptimizationSelectorStates[currentIndex])
 
         val observableSendState = snapshotFlow { sendActionState.value }
 
@@ -356,11 +365,14 @@ class AttachmentsPreviewPresenter(
                         } else {
                             // Multi-attachment (bulk) flow: WhatsApp-style single caption attached to the
                             // FIRST attachment of the batch. Reply target also lands on the first attachment.
-                            // Items are sent in their original selection order (see sendAllSequentially).
-                            val config = MediaOptimizationConfig(
-                                compressImages = mediaOptimizationSelectorState.isImageOptimizationEnabled == true,
-                                videoCompressionPreset = mediaOptimizationSelectorState.selectedVideoPreset ?: VideoCompressionPreset.STANDARD,
-                            )
+                            // Items keep their original selection order (see sendBatch).
+                            val defaults = mediaOptimizationConfigProvider.get()
+                            val configs = mediaOptimizationSelectorStates.map { selectorState ->
+                                MediaOptimizationConfig(
+                                    compressImages = selectorState.isImageOptimizationEnabled ?: defaults.compressImages,
+                                    videoCompressionPreset = selectorState.selectedVideoPreset ?: defaults.videoCompressionPreset,
+                                )
+                            }
                             val snapshot = attachmentList.toList()
                             val editedToDelete = editedTempFiles.toList()
                             editedTempFiles.indices.forEach { editedTempFiles[it] = null }
@@ -376,9 +388,9 @@ class AttachmentsPreviewPresenter(
                             )
                             ongoingSendAttachmentJob.value = sessionCoroutineScope.launch(dispatchers.io) {
                                 try {
-                                    sendAllSequentially(
+                                    sendBatch(
                                         items = snapshot,
-                                        mediaOptimizationConfig = config,
+                                        mediaOptimizationConfigs = configs,
                                         batchCaption = caption,
                                         sendActionState = sendActionState,
                                     )
@@ -388,7 +400,7 @@ class AttachmentsPreviewPresenter(
                                     throw cancellation
                                 } catch (@Suppress("TooGenericExceptionCaught") throwable: Throwable) {
                                     // Per-item upload failures are surfaced as retriable messages in the
-                                    // timeline by sendAllSequentially's continue-on-failure. This runs only on
+                                    // timeline by sendBatch's continue-on-failure. This runs only on
                                     // an unexpected error; a partially-sent batch cannot be safely re-sent from
                                     // the preview (it would duplicate already-delivered items), so clean up and
                                     // dismiss rather than offering a whole-batch retry.
@@ -616,18 +628,20 @@ class AttachmentsPreviewPresenter(
     /**
      * Bulk-pick send. Iterates attachments in their original 0..N-1 order so the room timeline
      * preserves selection order. The single shared [batchCaption] and [inReplyToEventId] attach
-     * to the first attachment only - standard batched-share semantics.
+     * to the gallery, or to the first attachment when the items go out separately.
      *
-     * Throttle between sends is provided by mediaSender's internal send pipeline; we add no extra
-     * delay here. Failures are logged per-item but do not abort the batch.
+     * Every item is prepared on its own so compression progress stays per file. Pictures and videos
+     * then leave as one gallery event; anything else falls back to separate messages. Failures are
+     * logged per item and drop that item, they never abort the batch.
      */
-    private suspend fun sendAllSequentially(
+    private suspend fun sendBatch(
         items: List<Attachment>,
-        mediaOptimizationConfig: MediaOptimizationConfig,
+        mediaOptimizationConfigs: List<MediaOptimizationConfig>,
         batchCaption: String?,
         sendActionState: MutableState<SendActionState>,
     ) {
         val total = items.size
+        val prepared = mutableListOf<Pair<Attachment.Media, MediaUploadInfo>>()
         for ((index, attach) in items.withIndex()) {
             val media = attach as? Attachment.Media ?: continue
             runCatchingExceptions {
@@ -643,30 +657,58 @@ class AttachmentsPreviewPresenter(
                 val mediaUploadInfo = mediaSender.preProcessMedia(
                     uri = media.localMedia.uri,
                     mimeType = media.localMedia.info.mimeType,
-                    mediaOptimizationConfig = mediaOptimizationConfig,
+                    mediaOptimizationConfig = mediaOptimizationConfigs[index],
                 ).getOrThrow()
-                // Uploading phase: "Sending N/total". The single shared caption and reply target attach to
-                // the first item only. The SDK exposes no per-byte upload progress, so this stays an
-                // animated (indeterminate) spinner — the only honest "it's working" cue — while the N/total
-                // text advances as items complete.
-                sendActionState.value = SendActionState.Sending.Uploading(
-                    mediaInfos = listOf(mediaUploadInfo),
-                    index = index,
-                    total = total,
-                )
-                mediaSender.sendPreProcessedMedia(
-                    mediaUploadInfo = mediaUploadInfo,
-                    caption = if (index == 0) batchCaption else null,
-                    formattedCaption = null,
-                    inReplyToEventId = if (index == 0) inReplyToEventId else null,
-                ).getOrThrow()
-                // Reclaim the transcoded temp file now the item is sent (a failed item's file is
-                // reclaimed by the batch-end mediaSender.cleanUp() below).
-                cleanUp(mediaUploadInfo)
+                prepared += media to mediaUploadInfo
             }.onFailure { cause ->
-                Timber.e(cause, "Failed to send bulk attachment ${index + 1}/$total")
+                Timber.e(cause, "Failed to prepare bulk attachment ${index + 1}/$total")
                 if (cause is CancellationException) throw cause
             }
+        }
+        val mediaUploadInfos = prepared.map { it.second }
+        when {
+            mediaUploadInfos.isEmpty() -> Unit
+            mediaUploadInfos.size > 1 && mediaUploadInfos.all { it is MediaUploadInfo.Image || it is MediaUploadInfo.Video } -> {
+                // A single gallery event, so the batch lands in the timeline as one collage.
+                sendActionState.value = SendActionState.Sending.Uploading(mediaInfos = mediaUploadInfos)
+                runCatchingExceptions {
+                    mediaSender.sendGallery(
+                        mediaUploadInfos = mediaUploadInfos,
+                        caption = batchCaption,
+                        formattedCaption = null,
+                        inReplyToEventId = inReplyToEventId,
+                    ).getOrThrow()
+                }.onFailure { cause ->
+                    Timber.e(cause, "Failed to send a gallery of ${mediaUploadInfos.size} items")
+                    if (cause is CancellationException) throw cause
+                }
+            }
+            else -> {
+                // Files and audio keep the separate-messages behaviour, one bubble and one retry
+                // each. The shared caption and the reply target attach to the first item.
+                mediaUploadInfos.forEachIndexed { index, mediaUploadInfo ->
+                    runCatchingExceptions {
+                        sendActionState.value = SendActionState.Sending.Uploading(
+                            mediaInfos = listOf(mediaUploadInfo),
+                            index = index,
+                            total = mediaUploadInfos.size,
+                        )
+                        mediaSender.sendPreProcessedMedia(
+                            mediaUploadInfo = mediaUploadInfo,
+                            caption = if (index == 0) batchCaption else null,
+                            formattedCaption = null,
+                            inReplyToEventId = if (index == 0) inReplyToEventId else null,
+                        ).getOrThrow()
+                    }.onFailure { cause ->
+                        Timber.e(cause, "Failed to send bulk attachment ${index + 1}/${mediaUploadInfos.size}")
+                        if (cause is CancellationException) throw cause
+                    }
+                }
+            }
+        }
+        // Only once the batch has left: a gallery upload still needs its files while in flight.
+        prepared.forEach { (media, mediaUploadInfo) ->
+            cleanUp(mediaUploadInfo)
             temporaryUriDeleter.delete(media.localMedia.uri)
         }
         mediaSender.cleanUp()

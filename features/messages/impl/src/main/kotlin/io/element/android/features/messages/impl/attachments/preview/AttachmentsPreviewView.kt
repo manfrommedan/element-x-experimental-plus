@@ -24,10 +24,12 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
@@ -78,9 +80,11 @@ import io.element.android.libraries.designsystem.theme.components.Icon
 import io.element.android.libraries.designsystem.theme.components.IconButton
 import io.element.android.libraries.designsystem.theme.components.ListItem
 import io.element.android.libraries.designsystem.theme.components.Scaffold
+import io.element.android.libraries.designsystem.theme.components.Surface
 import io.element.android.libraries.designsystem.theme.components.Switch
 import io.element.android.libraries.designsystem.theme.components.Text
 import io.element.android.libraries.designsystem.theme.components.TopAppBar
+import io.element.android.libraries.designsystem.theme.floatingDateBadgeBackground
 import io.element.android.libraries.designsystem.utils.CommonDrawables
 import io.element.android.libraries.mediaviewer.api.local.LocalMedia
 import io.element.android.libraries.mediaviewer.api.local.LocalMediaRenderer
@@ -342,16 +346,29 @@ private fun AttachmentPreviewContent(
                     pagerState.animateScrollToPage(state.currentIndex)
                 }
             }
-            HorizontalPager(
-                state = pagerState,
-                modifier = Modifier.weight(1f),
-            ) { pageIndex ->
-                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    val attachment = state.attachments[pageIndex]
-                    if (attachment is Attachment.Media) {
-                        localMediaRenderer.Render(attachment.localMedia)
+            Box(modifier = Modifier.weight(1f)) {
+                HorizontalPager(
+                    state = pagerState,
+                    modifier = Modifier.fillMaxSize(),
+                    // Let the neighbours peek in so the batch reads as a carousel.
+                    contentPadding = PaddingValues(horizontal = 20.dp),
+                    pageSpacing = 10.dp,
+                    beyondViewportPageCount = 1,
+                ) { pageIndex ->
+                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        val attachment = state.attachments[pageIndex]
+                        if (attachment is Attachment.Media) {
+                            localMediaRenderer.Render(attachment.localMedia)
+                        }
                     }
                 }
+                GalleryCounterPill(
+                    currentIndex = state.currentIndex + 1,
+                    totalCount = state.totalCount,
+                    modifier = Modifier
+                        .align(Alignment.TopCenter)
+                        .padding(top = 12.dp),
+                )
             }
             AttachmentsThumbnailStrip(state = state, onAddMoreClick = onAddMoreClick)
         } else {
@@ -368,9 +385,9 @@ private fun AttachmentPreviewContent(
         }
         val mediaInfo = (state.attachment as? Attachment.Media)?.localMedia?.info
         if (mediaInfo?.isImageAttachment() == true) {
-            ImageOptimizationSelector(state.mediaOptimizationSelectorState)
+            ImageOptimizationSelector(state.mediaOptimizationSelectorState, isBatch = state.totalCount > 1)
         } else if (mediaInfo?.mimeType?.isMimeTypeVideo() == true) {
-            VideoPresetSelector(state = state.mediaOptimizationSelectorState)
+            VideoPresetSelector(state = state.mediaOptimizationSelectorState, isBatch = state.totalCount > 1)
         }
 
         val sizeFormatter = rememberFileSizeFormatter()
@@ -403,23 +420,32 @@ private fun AttachmentsThumbnailStrip(
     state: AttachmentsPreviewState,
     onAddMoreClick: () -> Unit,
 ) {
+    val listState = rememberLazyListState()
+    // Keep the highlighted thumbnail on screen once the batch is longer than a screenful.
+    LaunchedEffect(state.currentIndex) {
+        listState.animateScrollToItem(state.currentIndex)
+    }
     LazyRow(
+        state = listState,
         modifier = Modifier
             .fillMaxWidth()
             .padding(vertical = 8.dp),
         contentPadding = PaddingValues(horizontal = 12.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalAlignment = Alignment.CenterVertically,
     ) {
-        itemsIndexed(state.attachments) { index, attachment ->
+        itemsIndexed(
+            items = state.attachments,
+            // Identity by uri, so removing an item does not recycle a thumbnail onto its neighbour.
+            key = { index, attachment -> (attachment as? Attachment.Media)?.localMedia?.uri?.toString() ?: index },
+        ) { index, attachment ->
             val isCurrent = index == state.currentIndex
+            val size = if (isCurrent) 64.dp else 56.dp
             val borderColor = if (isCurrent) ElementTheme.colors.iconAccentPrimary else ElementTheme.colors.borderDisabled
-            Box(
-                modifier = Modifier
-                    .size(56.dp)
-            ) {
+            Box {
                 Box(
                     modifier = Modifier
-                        .fillMaxSize()
+                        .size(size)
                         .clip(RoundedCornerShape(6.dp))
                         .border(width = if (isCurrent) 2.dp else 1.dp, color = borderColor, shape = RoundedCornerShape(6.dp))
                         .clickable { state.eventSink(AttachmentsPreviewEvent.NavigateToPage(index)) }
@@ -433,28 +459,37 @@ private fun AttachmentsThumbnailStrip(
                         )
                     }
                 }
-                // X badge for removing this item from the batch.
-                Box(
-                    modifier = Modifier
-                        .size(18.dp)
-                        .align(Alignment.TopEnd)
-                        .clip(CircleShape)
-                        .background(ElementTheme.colors.bgCanvasDefault)
-                        .border(1.dp, ElementTheme.colors.borderInteractivePrimary, CircleShape)
-                        .clickable { state.eventSink(AttachmentsPreviewEvent.RemoveAttachment(index)) },
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Icon(
-                        imageVector = CompoundIcons.Close(),
-                        contentDescription = stringResource(CommonStrings.action_remove),
-                        modifier = Modifier.size(12.dp),
-                        tint = ElementTheme.colors.iconPrimary,
-                    )
+                if (isCurrent) {
+                    // Only the selected tile: a single button can be given a real 48dp target,
+                    // a row of them cannot.
+                    IconButton(
+                        onClick = { state.eventSink(AttachmentsPreviewEvent.RemoveAttachment(index)) },
+                        modifier = Modifier
+                            .align(Alignment.TopEnd)
+                            .offset(x = 14.dp, y = (-14).dp)
+                            .size(48.dp),
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(24.dp)
+                                .clip(CircleShape)
+                                .background(ElementTheme.colors.bgCanvasDefault)
+                                .border(1.dp, ElementTheme.colors.borderInteractivePrimary, CircleShape),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Icon(
+                                imageVector = CompoundIcons.Close(),
+                                contentDescription = stringResource(CommonStrings.action_remove),
+                                modifier = Modifier.size(14.dp),
+                                tint = ElementTheme.colors.iconPrimary,
+                            )
+                        }
+                    }
                 }
             }
         }
         // Trailing "add more" tile so the user can extend the batch without leaving the preview.
-        item {
+        item(key = "add-more") {
             Box(
                 modifier = Modifier
                     .size(56.dp)
@@ -465,7 +500,7 @@ private fun AttachmentsThumbnailStrip(
             ) {
                 Icon(
                     imageVector = CompoundIcons.Plus(),
-                    contentDescription = "Add more",
+                    contentDescription = stringResource(R.string.screen_attachments_preview_add_more),
                     tint = ElementTheme.colors.iconSecondary,
                 )
             }
@@ -474,7 +509,28 @@ private fun AttachmentsThumbnailStrip(
 }
 
 @Composable
-private fun ImageOptimizationSelector(state: MediaOptimizationSelectorState) {
+private fun GalleryCounterPill(
+    currentIndex: Int,
+    totalCount: Int,
+    modifier: Modifier = Modifier,
+) {
+    Surface(
+        modifier = modifier,
+        shape = RoundedCornerShape(16.dp),
+        color = ElementTheme.colors.floatingDateBadgeBackground,
+        shadowElevation = 4.dp,
+    ) {
+        Text(
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+            text = stringResource(R.string.screen_media_upload_preview_item_count, currentIndex, totalCount),
+            style = ElementTheme.typography.fontBodyMdMedium,
+            color = ElementTheme.colors.textPrimary,
+        )
+    }
+}
+
+@Composable
+private fun ImageOptimizationSelector(state: MediaOptimizationSelectorState, isBatch: Boolean) {
     if (state.displayMediaSelectorViews == true) {
         Row(
             modifier = Modifier
@@ -486,13 +542,23 @@ private fun ImageOptimizationSelector(state: MediaOptimizationSelectorState) {
                 }
                 .padding(horizontal = 16.dp, vertical = 16.dp)
         ) {
-            Text(
+            Column(
                 modifier = Modifier
                     .weight(1f)
-                    .align(Alignment.CenterVertically),
-                text = stringResource(R.string.screen_media_upload_preview_optimize_image_quality_title),
-                style = ElementTheme.typography.fontBodyLgRegular,
-            )
+                    .align(Alignment.CenterVertically)
+            ) {
+                Text(
+                    text = stringResource(R.string.screen_media_upload_preview_optimize_image_quality_title),
+                    style = ElementTheme.typography.fontBodyLgRegular,
+                )
+                if (isBatch) {
+                    Text(
+                        text = stringResource(R.string.screen_attachments_preview_applies_to_current),
+                        style = ElementTheme.typography.fontBodySmRegular,
+                        color = ElementTheme.colors.textSecondary,
+                    )
+                }
+            }
             Switch(
                 modifier = Modifier.height(32.dp),
                 checked = state.isImageOptimizationEnabled.orFalse(),
@@ -505,6 +571,7 @@ private fun ImageOptimizationSelector(state: MediaOptimizationSelectorState) {
 @Composable
 private fun VideoPresetSelector(
     state: MediaOptimizationSelectorState,
+    isBatch: Boolean,
 ) {
     val videoPresets = state.videoSizeEstimations.dataOrNull()
     var selectedPreset by remember(state.selectedVideoPreset) { mutableStateOf(state.selectedVideoPreset) }
@@ -534,6 +601,13 @@ private fun VideoPresetSelector(
                 style = ElementTheme.typography.fontBodyLgMedium,
                 color = ElementTheme.colors.textSecondary,
             )
+            if (isBatch) {
+                Text(
+                    text = stringResource(R.string.screen_attachments_preview_applies_to_current),
+                    style = ElementTheme.typography.fontBodySmRegular,
+                    color = ElementTheme.colors.textSecondary,
+                )
+            }
         }
     }
 

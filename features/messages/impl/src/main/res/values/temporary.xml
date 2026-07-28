@@ -20,4 +20,6 @@
     <string name="screen_room_timeline_redacted_messages_others_suffix">"and others"</string>
     <string name="screen_attachments_preview_preparing_progress">"Preparing %1$d/%2$d"</string>
     <string name="screen_attachments_preview_sending_progress">"Sending %1$d/%2$d"</string>
+    <string name="screen_attachments_preview_add_more">"Add more"</string>
+    <string name="screen_attachments_preview_applies_to_current">"Applies to this item only"</string>
 </resources>

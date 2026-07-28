@@ -22,8 +22,6 @@ import io.element.android.features.messages.impl.attachments.video.VideoCompress
 import io.element.android.features.messages.impl.fixtures.aMediaAttachment
 import io.element.android.features.messages.test.attachments.video.FakeMediaOptimizationSelectorPresenterFactory
 import io.element.android.libraries.architecture.AsyncData
-import io.element.android.libraries.matrix.api.core.EventId
-import io.element.android.libraries.matrix.api.media.ImageInfo
 import io.element.android.libraries.matrix.api.room.JoinedRoom
 import io.element.android.libraries.matrix.api.timeline.Timeline
 import io.element.android.libraries.matrix.test.media.FakeMediaUploadHandler
@@ -54,15 +52,14 @@ import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
-import java.io.File
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
 /**
- * Multi-attachment send carries ONE shared caption attached to the FIRST attachment,
- * matching WhatsApp/Telegram batched-share semantics. The earlier per-slide caption
- * attempt had real-device timing bugs (caption swap across slides) that the unit
- * test layer couldn't reproduce.
+ * Multi-attachment send carries ONE shared caption. Pictures and videos leave as a single gallery
+ * event and the caption goes on the gallery; anything else falls back to separate messages, where
+ * the caption goes on the first one. The earlier per-slide caption attempt had real-device timing
+ * bugs (caption swap across slides) that the unit test layer couldn't reproduce.
  */
 @RunWith(RobolectricTestRunner::class)
 class AttachmentsPreviewCaptionTest {
@@ -70,19 +67,18 @@ class AttachmentsPreviewCaptionTest {
     val warmUpRule = WarmUpRule()
 
     @Test
-    fun `multi-send with caption - caption attaches to the first attachment only`() = runTest {
-        val captionsInOrder = mutableListOf<String?>()
-        val presenter = createMultiAttachmentPresenter(
-            attachmentCount = 5,
-            sendImage = recordCaptions(captionsInOrder),
-        )
+    fun `pictures leave as one gallery and the caption goes on the gallery`() = runTest {
+        val recorder = GalleryRecorder()
+        val presenter = createMultiAttachmentPresenter(attachmentCount = 5, recorder = recorder)
         presenter.test {
             val initial = awaitItem()
             initial.textEditorState.setMarkdown("shared caption")
             initial.eventSink(AttachmentsPreviewEvent.SendAttachment)
             consumeItemsUntilTimeout(2.seconds)
             advanceUntilIdle()
-            assertThat(captionsInOrder).containsExactly("shared caption", null, null, null, null).inOrder()
+            assertThat(recorder.galleryCaptions).containsExactly("shared caption")
+            assertThat(recorder.galleryItemCounts).containsExactly(5)
+            assertThat(recorder.imageCaptions).isEmpty()
             cancelAndIgnoreRemainingEvents()
         }
     }
@@ -92,11 +88,8 @@ class AttachmentsPreviewCaptionTest {
         // After removing per-slide drafts, the editor is one shared field for the
         // whole batch - swiping between slides must NOT reload or clear the text.
         // Asserted by: type, navigate, type more, then read back; expected concat.
-        val captionsInOrder = mutableListOf<String?>()
-        val presenter = createMultiAttachmentPresenter(
-            attachmentCount = 5,
-            sendImage = recordCaptions(captionsInOrder),
-        )
+        val recorder = GalleryRecorder()
+        val presenter = createMultiAttachmentPresenter(attachmentCount = 5, recorder = recorder)
         presenter.test {
             val initial = awaitItem()
             initial.textEditorState.setMarkdown("hel")
@@ -110,42 +103,59 @@ class AttachmentsPreviewCaptionTest {
             onSlide3.eventSink(AttachmentsPreviewEvent.SendAttachment)
             consumeItemsUntilTimeout(2.seconds)
             advanceUntilIdle()
-            // Caption attaches to FIRST attachment, regardless of which slide the user
-            // was on at send time.
-            assertThat(captionsInOrder).containsExactly("hello", null, null, null, null).inOrder()
+            // Caption travels with the batch, regardless of which slide the user was on at send time.
+            assertThat(recorder.galleryCaptions).containsExactly("hello")
             cancelAndIgnoreRemainingEvents()
         }
     }
 
     @Test
-    fun `multi-send without caption - no attachment gets a caption`() = runTest {
-        val captionsInOrder = mutableListOf<String?>()
-        val presenter = createMultiAttachmentPresenter(
-            attachmentCount = 3,
-            sendImage = recordCaptions(captionsInOrder),
-        )
+    fun `multi-send without caption - the gallery gets no caption`() = runTest {
+        val recorder = GalleryRecorder()
+        val presenter = createMultiAttachmentPresenter(attachmentCount = 3, recorder = recorder)
         presenter.test {
             val initial = awaitItem()
             initial.eventSink(AttachmentsPreviewEvent.SendAttachment)
             consumeItemsUntilTimeout(2.seconds)
             advanceUntilIdle()
-            assertThat(captionsInOrder).containsExactly(null, null, null).inOrder()
+            assertThat(recorder.galleryCaptions).containsExactly(null)
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `content that cannot be a gallery falls back to separate messages`() = runTest {
+        val recorder = GalleryRecorder()
+        val presenter = createMultiAttachmentPresenter(
+            attachmentCount = 3,
+            recorder = recorder,
+            preProcessorSetup = { givenAudioResult() },
+        )
+        presenter.test {
+            val initial = awaitItem()
+            initial.textEditorState.setMarkdown("shared caption")
+            initial.eventSink(AttachmentsPreviewEvent.SendAttachment)
+            consumeItemsUntilTimeout(2.seconds)
+            advanceUntilIdle()
+            assertThat(recorder.galleryCaptions).isEmpty()
+            assertThat(recorder.audioCaptions).containsExactly("shared caption", null, null).inOrder()
             cancelAndIgnoreRemainingEvents()
         }
     }
 
     // --- helpers ---
 
-    private fun recordCaptions(
-        captions: MutableList<String?>,
-    ): (File, File?, ImageInfo, String?, String?, EventId?) -> Result<FakeMediaUploadHandler> = { _, _, _, caption, _, _ ->
-        captions += caption
-        Result.success(FakeMediaUploadHandler())
+    private class GalleryRecorder {
+        val galleryCaptions = mutableListOf<String?>()
+        val galleryItemCounts = mutableListOf<Int>()
+        val imageCaptions = mutableListOf<String?>()
+        val audioCaptions = mutableListOf<String?>()
     }
 
     private fun TestScope.createMultiAttachmentPresenter(
         attachmentCount: Int,
-        sendImage: (File, File?, ImageInfo, String?, String?, EventId?) -> Result<FakeMediaUploadHandler>,
+        recorder: GalleryRecorder,
+        preProcessorSetup: FakeMediaPreProcessor.() -> Unit = { givenImageResult() },
     ): AttachmentsPreviewPresenter {
         val attachments = (0 until attachmentCount).map { idx ->
             val uri: Uri = mockk("uri-$idx") {
@@ -155,12 +165,22 @@ class AttachmentsPreviewCaptionTest {
         }
         val room: JoinedRoom = FakeJoinedRoom(
             liveTimeline = FakeTimeline().apply {
-                sendImageLambda = sendImage
+                sendGalleryLambda = { items, caption, _, _ ->
+                    recorder.galleryCaptions += caption
+                    recorder.galleryItemCounts += items.size
+                    Result.success(FakeMediaUploadHandler())
+                }
+                sendImageLambda = { _, _, _, caption, _, _ ->
+                    recorder.imageCaptions += caption
+                    Result.success(FakeMediaUploadHandler())
+                }
+                sendAudioLambda = { _, _, caption, _, _ ->
+                    recorder.audioCaptions += caption
+                    Result.success(FakeMediaUploadHandler())
+                }
             },
         )
-        val mediaPreProcessor: MediaPreProcessor = FakeMediaPreProcessor().apply {
-            givenImageResult()
-        }
+        val mediaPreProcessor: MediaPreProcessor = FakeMediaPreProcessor().apply(preProcessorSetup)
         return AttachmentsPreviewPresenter(
             attachments = attachments,
             onDoneListener = OnDoneListener { /* multi-flow dismisses immediately - no-op is fine */ },
