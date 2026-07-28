@@ -66,10 +66,11 @@ class TimelineItemsFactory(
         roomMembers: List<RoomMember>,
         renderReadReceipts: Boolean,
         collapseRedactedEvents: Boolean = true,
+        groupMediaAlbums: Boolean = false,
     ) = withContext(dispatchers.computation) {
         lock.withLock {
             diffCacheUpdater.updateWith(timelineItems)
-            buildAndEmitTimelineItemStates(timelineItems, roomMembers, renderReadReceipts, collapseRedactedEvents)
+            buildAndEmitTimelineItemStates(timelineItems, roomMembers, renderReadReceipts, collapseRedactedEvents, groupMediaAlbums)
         }
     }
 
@@ -78,6 +79,7 @@ class TimelineItemsFactory(
         roomMembers: List<RoomMember>,
         renderReadReceipts: Boolean,
         collapseRedactedEvents: Boolean,
+        groupMediaAlbums: Boolean,
     ) {
         val newTimelineItemStates = ArrayList<TimelineItem>()
         for (index in diffCache.indices().reversed()) {
@@ -100,7 +102,7 @@ class TimelineItemsFactory(
                 newTimelineItemStates.add(updatedItem)
             }
         }
-        val result = timelineItemGrouper.group(newTimelineItemStates, collapseRedactedEvents).toImmutableList()
+        val result = timelineItemGrouper.group(newTimelineItemStates, collapseRedactedEvents, groupMediaAlbums).toImmutableList()
         this._timelineItems.emit(result)
     }
 
