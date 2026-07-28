@@ -12,6 +12,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import io.element.android.compound.theme.ElementTheme
 import io.element.android.compound.tokens.generated.CompoundIcons
@@ -53,7 +54,7 @@ fun MessagesSelectionTopBar(
                 text = if (state.isAtCap) {
                     stringResource(R.string.screen_messages_selection_cap_reached)
                 } else {
-                    stringResource(R.string.screen_messages_selection_count_short, state.count)
+                    pluralStringResource(R.plurals.screen_messages_selection_count, state.count, state.count)
                 },
                 style = ElementTheme.typography.fontHeadingMdRegular,
                 color = if (state.isAtCap) ElementTheme.colors.textCriticalPrimary else ElementTheme.colors.textPrimary,

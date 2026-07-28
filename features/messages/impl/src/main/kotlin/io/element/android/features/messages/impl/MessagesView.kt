@@ -171,7 +171,11 @@ fun MessagesView(
     if (showBulkDeleteConfirm) {
         io.element.android.libraries.designsystem.components.dialogs.ConfirmationDialog(
             title = androidx.compose.ui.res.stringResource(io.element.android.libraries.ui.strings.CommonStrings.action_remove),
-            content = androidx.compose.ui.res.stringResource(R.string.screen_messages_selection_delete_confirm, state.selectionState.count),
+            content = androidx.compose.ui.res.pluralStringResource(
+                R.plurals.screen_messages_selection_delete_confirm,
+                state.selectionState.count,
+                state.selectionState.count,
+            ),
             submitText = androidx.compose.ui.res.stringResource(io.element.android.libraries.ui.strings.CommonStrings.action_remove),
             destructiveSubmit = true,
             onSubmitClick = {

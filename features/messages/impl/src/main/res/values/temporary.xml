@@ -8,8 +8,14 @@
 <resources>
     <string name="action_select_messages">"Select"</string>
     <string name="action_select_all">"Select all"</string>
-    <string name="screen_messages_selection_count_short">"%1$d"</string>
-    <string name="screen_messages_selection_delete_confirm">"Delete %1$d messages?"</string>
+    <plurals name="screen_messages_selection_count">
+        <item quantity="one">"%1$d message selected"</item>
+        <item quantity="other">"%1$d messages selected"</item>
+    </plurals>
+    <plurals name="screen_messages_selection_delete_confirm">
+        <item quantity="one">"Delete %1$d message?"</item>
+        <item quantity="other">"Delete %1$d messages?"</item>
+    </plurals>
     <string name="screen_messages_selection_cap_reached">"Maximum messages selected"</string>
     <string name="screen_composer_attachments_cap_reached">"You can share up to 30 items at a time"</string>
     <string name="screen_messages_forwarded">"Forwarded"</string>

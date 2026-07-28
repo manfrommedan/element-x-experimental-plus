@@ -102,8 +102,19 @@ fun TimelineItemEventContent.opensMediaViewer(): Boolean =
         is TimelineItemVideoContent,
         is TimelineItemFileContent,
         is TimelineItemAudioContent,
-        is TimelineItemLocationContent -> true
-        else -> false
+        is TimelineItemLocationContent,
+        is TimelineItemGalleryContent,
+        is TimelineItemAttachmentsContent -> true
+        is TimelineItemTextBasedContent,
+        is TimelineItemEncryptedContent,
+        is TimelineItemStickerContent,
+        is TimelineItemPollContent,
+        is TimelineItemVoiceContent,
+        is TimelineItemStateContent,
+        is TimelineItemRedactedContent,
+        is TimelineItemLegacyCallInviteContent,
+        is TimelineItemRtcNotificationContent,
+        TimelineItemUnknownContent -> false
     }
 
 /**
@@ -113,12 +124,23 @@ fun TimelineItemEventContent.opensMediaViewer(): Boolean =
  */
 fun TimelineItemEventContent.isBulkSelectable(): Boolean =
     when (this) {
+        is TimelineItemTextBasedContent,
+        is TimelineItemAudioContent,
+        is TimelineItemEncryptedContent,
+        is TimelineItemFileContent,
+        is TimelineItemImageContent,
+        is TimelineItemStickerContent,
+        is TimelineItemLocationContent,
+        is TimelineItemPollContent,
+        is TimelineItemVoiceContent,
+        is TimelineItemVideoContent,
+        is TimelineItemGalleryContent,
+        is TimelineItemAttachmentsContent -> true
         is TimelineItemStateContent,
         is TimelineItemRedactedContent,
         is TimelineItemLegacyCallInviteContent,
         is TimelineItemRtcNotificationContent,
         TimelineItemUnknownContent -> false
-        else -> true
     }
 
 /**
