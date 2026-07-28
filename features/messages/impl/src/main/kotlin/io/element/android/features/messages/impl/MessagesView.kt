@@ -92,8 +92,6 @@ import io.element.android.features.messages.impl.timeline.model.TimelineItem
 import io.element.android.features.messages.impl.timeline.model.TimelineItemGroupPosition
 import io.element.android.features.messages.impl.timeline.model.event.aTimelineItemStateEventContent
 import io.element.android.features.messages.impl.timeline.model.event.aTimelineItemTextContent
-import io.element.android.features.messages.impl.timeline.model.event.isBulkSelectable
-import io.element.android.features.messages.impl.timeline.model.event.opensMediaViewer
 import io.element.android.features.messages.impl.topbars.MessagesViewTopBar
 import io.element.android.features.messages.impl.topbars.ThreadTopBar
 import io.element.android.features.messages.impl.voicemessages.composer.VoiceMessagePermissionRationaleDialog
@@ -208,26 +206,6 @@ fun MessagesView(
             state.eventSink(MessagesEvent.ToggleSelection(event))
             return
         }
-        if (state.isMultiSelectEnabled) {
-            // Tap/long-press split (long-press enters selection, see onMessageLongClick).
-            // A single tap opens the content when it has its own viewer (image/video/file/
-            // audio/location -> onEventContentClick returns true). When there is nothing to
-            // open (text and friends -> false) it falls back to the context menu instead.
-            val opened = onEventContentClick(state.timelineState.isLive, event)
-            if (opened) {
-                localView.hideKeyboard()
-            } else {
-                hidingKeyboard {
-                    state.actionListState.eventSink(
-                        ActionListEvent.ComputeForMessage(
-                            event = event,
-                            userEventPermissions = state.userEventPermissions,
-                        )
-                    )
-                }
-            }
-            return
-        }
         val hideKeyboard = onEventContentClick(state.timelineState.isLive, event)
         if (hideKeyboard) {
             localView.hideKeyboard()
@@ -238,24 +216,6 @@ fun MessagesView(
         Timber.v("OnMessageLongClicked= ${event.id}")
         if (selectionActive) {
             state.eventSink(MessagesEvent.ToggleSelection(event))
-            return
-        }
-        if (state.isMultiSelectEnabled && event.content.isBulkSelectable()) {
-            if (event.content.opensMediaViewer()) {
-                // Media: tap already opens the viewer, so long-press surfaces the context menu
-                // (details, edit caption, forward, react, and "Select" to start mass-selection).
-                hidingKeyboard {
-                    state.actionListState.eventSink(
-                        ActionListEvent.ComputeForMessage(
-                            event = event,
-                            userEventPermissions = state.userEventPermissions,
-                        )
-                    )
-                }
-            } else {
-                // Text & friends: long-press enters selection directly.
-                state.eventSink(MessagesEvent.EnterSelection(event))
-            }
             return
         }
         hidingKeyboard {

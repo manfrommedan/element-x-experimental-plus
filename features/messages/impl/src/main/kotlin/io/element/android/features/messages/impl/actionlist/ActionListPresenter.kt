@@ -40,6 +40,7 @@ import io.element.android.features.messages.impl.timeline.model.event.canBeCopie
 import io.element.android.features.messages.impl.timeline.model.event.canBeForwarded
 import io.element.android.features.messages.impl.timeline.model.event.canReact
 import io.element.android.features.messages.impl.timeline.model.event.captionOrNull
+import io.element.android.features.messages.impl.timeline.model.event.isBulkSelectable
 import io.element.android.libraries.architecture.Presenter
 import io.element.android.libraries.dateformatter.api.DateFormatter
 import io.element.android.libraries.dateformatter.api.DateFormatterMode
@@ -202,7 +203,7 @@ class DefaultActionListPresenter(
                     }
                 }
             }
-            if (isMultiSelectEnabled && timelineItem.isRemote) {
+            if (isMultiSelectEnabled && timelineItem.isRemote && timelineItem.content.isBulkSelectable()) {
                 add(TimelineItemAction.Select)
             }
             if (timelineItem.isRemote && timelineItem.content.canBeForwarded()) {
