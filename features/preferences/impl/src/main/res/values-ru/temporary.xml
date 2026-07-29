@@ -13,6 +13,9 @@
     <!-- Labs-тумблер: голосовой звонок один на один в стиле телефона. -->
     <string name="screen_labs_enable_phone_voice_layout">"Классический стиль голосовых звонков"</string>
     <string name="screen_labs_enable_phone_voice_layout_description">"Телефонный стиль для голосовых звонков 1:1."</string>
+    <!-- Labs-тумблер: отправлять батч вложений по сообщению на файл. -->
+    <string name="screen_labs_enable_send_media_as_separate_messages">"Сообщение на каждую картинку"</string>
+    <string name="screen_labs_enable_send_media_as_separate_messages_description">"Пачка картинок уходит по сообщению на картинку: так её видит любой клиент, и каждую можно удалить или переслать отдельно. Выключи это и включи «Send gallery messages» в режиме разработчика, чтобы пачка ушла одним коллажем: у нас красивее, но клиент без поддержки MSC4274, включая element-web, покажет текст вместо картинок."</string>
     <!-- Labs-тумблер: кнопка копирования Matrix ID в шапке настроек. -->
     <string name="screen_labs_enable_share_mxid_shortcut">"Копировать Matrix ID из настроек"</string>
     <string name="screen_labs_enable_share_mxid_shortcut_description">"Кнопка копирования рядом с твоим Matrix ID в шапке настроек, поделиться в одно касание."</string>

@@ -53,13 +53,16 @@ official Element X.
   to 30, the way WhatsApp and Telegram do it, is always available; it is a fork
   feature. The preview screen is ours: a thumbnail strip, adding more on the fly
   with duplicates skipped, compression chosen per item, one caption for the whole
-  block. The upstream Labs toggle "Send gallery messages" (off by default) only
-  decides how the batch leaves. Off, it becomes ordinary messages, one per file,
-  which every client renders. On, it becomes a single gallery event and a collage
-  in the timeline, but the msgtype is still unstable (`dm.filament.gallery`,
-  MSC4274 is not in the spec yet), so a client without support shows text instead
-  of pictures; element-web has none. It is also one message, so a single picture
-  out of the set cannot be deleted or forwarded on its own.
+  block. Two toggles decide how the batch leaves. Labs → "A message per picture"
+  (on by default) sends one message per file, which every client renders and
+  which lets each picture be deleted or forwarded on its own. Turn it off and
+  turn on "Send gallery messages" in the developer options (Settings, eight taps
+  on the version line, Developer options, Feature flags) and the batch leaves as
+  a single gallery event, a collage. The collage msgtype is still unstable
+  (`dm.filament.gallery`, MSC4274 is not in the spec yet), so a client without
+  support shows text instead of pictures; element-web has none. It is also one
+  message, so a single picture out of the set cannot be deleted or forwarded on
+  its own.
 
 * **Pin favourites at the top** (Labs → "Pin favourites at the top", on by
   default). Your favourite rooms get their own section at the top of the chat

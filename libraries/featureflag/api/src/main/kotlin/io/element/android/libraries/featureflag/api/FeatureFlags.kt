@@ -147,6 +147,16 @@ enum class FeatureFlags(
         isFinished = false,
         isInLabs = true,
     ),
+    SendMediaAsSeparateMessages(
+        key = "feature.send_media_as_separate_messages",
+        title = "Send each picture as its own message",
+        description = "A batch of attachments leaves as one message per file, which every client can render. " +
+            "Takes precedence over the developer \"Send gallery messages\" flag, which packs the batch into a single " +
+            "collage that clients without MSC4274 show as plain text.",
+        defaultValue = { true },
+        isFinished = false,
+        isInLabs = true,
+    ),
     ShareMxidShortcut(
         key = "feature.share_mxid_shortcut",
         title = "Copy Matrix ID from settings",

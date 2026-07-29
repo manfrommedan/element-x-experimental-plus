@@ -169,6 +169,32 @@ class AttachmentsPreviewCaptionTest {
         }
     }
 
+    @Test
+    fun `the Labs toggle wins over the developer gallery flag`() = runTest {
+        val recorder = GalleryRecorder()
+        val presenter = createMultiAttachmentPresenter(
+            attachmentCount = 3,
+            recorder = recorder,
+            featureFlagService = FakeFeatureFlagService(
+                initialState = mapOf(
+                    // Gallery turned on in the developer options, but the Labs toggle asks for a
+                    // message per picture, which is the mode every client can render.
+                    FeatureFlags.SendGalleryMessages.key to true,
+                    FeatureFlags.SendMediaAsSeparateMessages.key to true,
+                ),
+            ),
+        )
+        presenter.test {
+            val initial = awaitItem()
+            initial.eventSink(AttachmentsPreviewEvent.SendAttachment)
+            consumeItemsUntilTimeout(2.seconds)
+            advanceUntilIdle()
+            assertThat(recorder.galleryCaptions).isEmpty()
+            assertThat(recorder.imageCaptions).hasSize(3)
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
     // --- helpers ---
 
     private class GalleryRecorder {
@@ -183,6 +209,12 @@ class AttachmentsPreviewCaptionTest {
         recorder: GalleryRecorder,
         preProcessorSetup: FakeMediaPreProcessor.() -> Unit = { givenImageResult() },
         sendAsGallery: Boolean = true,
+        featureFlagService: FakeFeatureFlagService = FakeFeatureFlagService(
+            initialState = mapOf(
+                FeatureFlags.SendGalleryMessages.key to sendAsGallery,
+                FeatureFlags.SendMediaAsSeparateMessages.key to !sendAsGallery,
+            ),
+        ),
     ): AttachmentsPreviewPresenter {
         val attachments = (0 until attachmentCount).map { idx ->
             val uri: Uri = mockk("uri-$idx") {
@@ -251,9 +283,7 @@ class AttachmentsPreviewCaptionTest {
             localMediaFactory = io.element.android.libraries.mediaviewer.test.FakeLocalMediaFactory(
                 localMediaUri = mockk("emptyUri") { every { path } returns "/empty" },
             ),
-            featureFlagService = FakeFeatureFlagService(
-                initialState = mapOf(FeatureFlags.SendGalleryMessages.key to sendAsGallery),
-            ),
+            featureFlagService = featureFlagService,
         )
     }
 }

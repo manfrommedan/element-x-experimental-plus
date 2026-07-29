@@ -680,8 +680,13 @@ class AttachmentsPreviewPresenter(
         val mediaUploadInfos = prepared.map { it.second }
         // The gallery event still rides an unstable msgtype (dm.filament.gallery), so a client that
         // has not implemented MSC4274 renders the body text and never looks inside the item list.
-        // Picking several files is ours and always on; this flag only decides how they leave.
-        val asGallery = mediaUploadInfos.size > 1 && featureFlagService.isFeatureEnabled(FeatureFlags.SendGalleryMessages)
+        // Picking several files is ours and always on; only the way they leave is a choice, and the
+        // Labs toggle wins over the developer one so the compatible mode can be restored without
+        // going back into the developer options.
+        val separateMessages = featureFlagService.isFeatureEnabled(FeatureFlags.SendMediaAsSeparateMessages)
+        val asGallery = mediaUploadInfos.size > 1 &&
+            !separateMessages &&
+            featureFlagService.isFeatureEnabled(FeatureFlags.SendGalleryMessages)
         if (asGallery) {
             // A single gallery event, so the batch lands in the timeline as one collage. The event
             // carries files and audio as well, so the whole batch goes this way whatever is in it.

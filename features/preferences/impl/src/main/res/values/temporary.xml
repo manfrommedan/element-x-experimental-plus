@@ -10,6 +10,9 @@
     <!-- Labs toggle: phone-style 1:1 voice call layout. -->
     <string name="screen_labs_enable_phone_voice_layout">"Phone-style voice calls"</string>
     <string name="screen_labs_enable_phone_voice_layout_description">"Use a classic phone-style layout for 1:1 voice calls."</string>
+    <!-- Labs toggle: send a batch of attachments as one message per file. -->
+    <string name="screen_labs_enable_send_media_as_separate_messages">"A message per picture"</string>
+    <string name="screen_labs_enable_send_media_as_separate_messages_description">"A batch of pictures leaves as one message per picture, which every client can render, and each one can be deleted or forwarded on its own. Turn this off, and turn on \"Send gallery messages\" in the developer options, to send the batch as a single collage instead: prettier here, but a client without MSC4274 support (element-web among them) shows text instead of the pictures."</string>
     <!-- Labs toggle: copy Matrix ID shortcut in settings header. -->
     <string name="screen_labs_enable_share_mxid_shortcut">"Copy Matrix ID from settings"</string>
     <string name="screen_labs_enable_share_mxid_shortcut_description">"Adds a copy button next to your Matrix ID in the settings header so you can share it in one tap."</string>

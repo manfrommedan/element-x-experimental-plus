@@ -952,7 +952,10 @@ class AttachmentsPreviewPresenterTest : RobolectricTest() {
             mediaOptimizationConfigProvider = mediaOptimizationConfigProvider,
             localMediaFactory = io.element.android.libraries.mediaviewer.test.FakeLocalMediaFactory(localMediaUri = android.net.Uri.EMPTY),
             featureFlagService = FakeFeatureFlagService(
-                initialState = mapOf(FeatureFlags.SendGalleryMessages.key to true),
+                initialState = mapOf(
+                    FeatureFlags.SendGalleryMessages.key to true,
+                    FeatureFlags.SendMediaAsSeparateMessages.key to false,
+                ),
             ),
         )
     }
