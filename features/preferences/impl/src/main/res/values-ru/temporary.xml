@@ -13,9 +13,6 @@
     <!-- Labs-тумблер: голосовой звонок один на один в стиле телефона. -->
     <string name="screen_labs_enable_phone_voice_layout">"Классический стиль голосовых звонков"</string>
     <string name="screen_labs_enable_phone_voice_layout_description">"Телефонный стиль для голосовых звонков 1:1."</string>
-    <!-- Labs-тумблер: пакетный выбор фото и видео в композере. -->
-    <string name="screen_labs_enable_bulk_attachments_picker">"Отправка нескольких фото/видео"</string>
-    <string name="screen_labs_enable_bulk_attachments_picker_description">"Выбирай до 30 фото или видео за раз, как в WhatsApp и Telegram. Подпись прикрепляется к сообщению той картинки, на которой ты её ввёл; остальные уходят в порядке выбора."</string>
     <!-- Labs-тумблер: кнопка копирования Matrix ID в шапке настроек. -->
     <string name="screen_labs_enable_share_mxid_shortcut">"Копировать Matrix ID из настроек"</string>
     <string name="screen_labs_enable_share_mxid_shortcut_description">"Кнопка копирования рядом с твоим Matrix ID в шапке настроек, поделиться в одно касание."</string>

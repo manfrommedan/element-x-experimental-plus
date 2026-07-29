@@ -97,7 +97,6 @@ class LabsPresenter(
             FeatureFlags.AnswerCallOnLockScreen.key,
         )
         val ourImprovementsKeys = setOf(
-            FeatureFlags.BulkAttachmentsPicker.key,
             FeatureFlags.ShareMxidShortcut.key,
             FeatureFlags.MessageMultiSelect.key,
             FeatureFlags.FavoritesPinnedToTop.key,
@@ -130,8 +129,6 @@ class LabsPresenter(
                     FeatureFlags.Threads -> stringProvider.getString(R.string.screen_labs_enable_threads)
                     FeatureFlags.PhoneVoiceLayout ->
                         stringProvider.getString(R.string.screen_labs_enable_phone_voice_layout)
-                    FeatureFlags.BulkAttachmentsPicker ->
-                        stringProvider.getString(R.string.screen_labs_enable_bulk_attachments_picker)
                     FeatureFlags.ShareMxidShortcut ->
                         stringProvider.getString(R.string.screen_labs_enable_share_mxid_shortcut)
                     FeatureFlags.MessageMultiSelect ->
@@ -150,8 +147,6 @@ class LabsPresenter(
                     FeatureFlags.Threads -> stringProvider.getString(R.string.screen_labs_enable_threads_description)
                     FeatureFlags.PhoneVoiceLayout ->
                         stringProvider.getString(R.string.screen_labs_enable_phone_voice_layout_description)
-                    FeatureFlags.BulkAttachmentsPicker ->
-                        stringProvider.getString(R.string.screen_labs_enable_bulk_attachments_picker_description)
                     FeatureFlags.ShareMxidShortcut ->
                         stringProvider.getString(R.string.screen_labs_enable_share_mxid_shortcut_description)
                     FeatureFlags.MessageMultiSelect ->
@@ -169,7 +164,6 @@ class LabsPresenter(
                 val icon = when (enabledFeature.feature) {
                     FeatureFlags.Threads -> CompoundIcons.Threads()
                     FeatureFlags.PhoneVoiceLayout -> CompoundIcons.VoiceCall()
-                    FeatureFlags.BulkAttachmentsPicker -> CompoundIcons.Image()
                     FeatureFlags.ShareMxidShortcut -> CompoundIcons.Copy()
                     FeatureFlags.MessageMultiSelect -> CompoundIcons.CheckCircle()
                     FeatureFlags.FavoritesPinnedToTop -> CompoundIcons.Favourite()

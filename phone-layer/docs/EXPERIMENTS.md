@@ -49,14 +49,17 @@ official Element X.
   survives a rotation (upstream issue #6737). Sweeping a range by dragging was
   there and got dropped: it fired far too easily during ordinary scrolling.
 
-* **Send a batch of photos and videos** (Labs → "Send gallery messages", the
-  upstream flag, off by default). Attach several photos or videos in one trip, up
-  to 30, the way WhatsApp and Telegram do it. The batch leaves as a single gallery
-  event per MSC4274, so other clients that support it show the collage too. The
-  preview screen is ours: a thumbnail strip, adding more on the fly with duplicates
-  skipped, compression chosen per item, one caption for the whole block. It carries
-  the price any gallery does, being one message: a single picture out of the set
-  cannot be deleted or forwarded on its own.
+* **Send a batch of photos and videos.** Attaching several files in one trip, up
+  to 30, the way WhatsApp and Telegram do it, is always available; it is a fork
+  feature. The preview screen is ours: a thumbnail strip, adding more on the fly
+  with duplicates skipped, compression chosen per item, one caption for the whole
+  block. The upstream Labs toggle "Send gallery messages" (off by default) only
+  decides how the batch leaves. Off, it becomes ordinary messages, one per file,
+  which every client renders. On, it becomes a single gallery event and a collage
+  in the timeline, but the msgtype is still unstable (`dm.filament.gallery`,
+  MSC4274 is not in the spec yet), so a client without support shows text instead
+  of pictures; element-web has none. It is also one message, so a single picture
+  out of the set cannot be deleted or forwarded on its own.
 
 * **Pin favourites at the top** (Labs → "Pin favourites at the top", on by
   default). Your favourite rooms get their own section at the top of the chat

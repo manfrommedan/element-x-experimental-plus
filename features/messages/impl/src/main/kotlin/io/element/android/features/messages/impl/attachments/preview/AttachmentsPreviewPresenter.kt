@@ -39,6 +39,8 @@ import io.element.android.libraries.core.coroutine.CoroutineDispatchers
 import io.element.android.libraries.core.extensions.runCatchingExceptions
 import io.element.android.libraries.core.mimetype.MimeTypes.isMimeTypeVideo
 import io.element.android.libraries.di.annotations.SessionCoroutineScope
+import io.element.android.libraries.featureflag.api.FeatureFlagService
+import io.element.android.libraries.featureflag.api.FeatureFlags
 import io.element.android.libraries.matrix.api.core.EventId
 import io.element.android.libraries.matrix.api.permalink.PermalinkBuilder
 import io.element.android.libraries.matrix.api.timeline.Timeline
@@ -80,6 +82,7 @@ class AttachmentsPreviewPresenter(
     private val dispatchers: CoroutineDispatchers,
     private val mediaOptimizationConfigProvider: MediaOptimizationConfigProvider,
     private val localMediaFactory: LocalMediaFactory,
+    private val featureFlagService: FeatureFlagService,
 ) : Presenter<AttachmentsPreviewState> {
     @AssistedFactory
     interface Factory {
@@ -101,7 +104,7 @@ class AttachmentsPreviewPresenter(
             mutableStateOf<SendActionState>(SendActionState.Idle)
         }
 
-        // Bulk picker (fork feature, behind the BulkAttachmentsPicker Labs flag at the picker entry):
+        // Bulk picker (fork feature, always available at the picker entry):
         // a live mutable list so Remove/AddMore events from the preview UI can rebuild the carousel.
         // When only one attachment is present this behaves exactly like the upstream single-attachment flow.
         val attachmentList = remember { mutableStateListOf<Attachment>().apply { addAll(attachments) } }
@@ -675,7 +678,11 @@ class AttachmentsPreviewPresenter(
             }
         }
         val mediaUploadInfos = prepared.map { it.second }
-        if (mediaUploadInfos.size > 1) {
+        // The gallery event still rides an unstable msgtype (dm.filament.gallery), so a client that
+        // has not implemented MSC4274 renders the body text and never looks inside the item list.
+        // Picking several files is ours and always on; this flag only decides how they leave.
+        val asGallery = mediaUploadInfos.size > 1 && featureFlagService.isFeatureEnabled(FeatureFlags.SendGalleryMessages)
+        if (asGallery) {
             // A single gallery event, so the batch lands in the timeline as one collage. The event
             // carries files and audio as well, so the whole batch goes this way whatever is in it.
             sendActionState.value = SendActionState.Sending.Uploading(mediaInfos = mediaUploadInfos)
@@ -691,8 +698,8 @@ class AttachmentsPreviewPresenter(
                 if (cause is CancellationException) throw cause
             }
         } else {
-            // A batch that ended up with a single usable item, either because that is all that was
-            // picked or because the rest failed to prepare, goes out as a plain message.
+            // A message per item: what every client can render, and what a single picked item gets
+            // anyway. The caption and the reply target ride the first one.
             prepared.forEachIndexed { index, (_, mediaUploadInfo) ->
             runCatchingExceptions {
                 sendActionState.value = SendActionState.Sending.Uploading(

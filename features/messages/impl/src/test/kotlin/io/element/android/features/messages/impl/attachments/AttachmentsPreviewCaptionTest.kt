@@ -22,6 +22,8 @@ import io.element.android.features.messages.impl.attachments.video.VideoCompress
 import io.element.android.features.messages.impl.fixtures.aMediaAttachment
 import io.element.android.features.messages.test.attachments.video.FakeMediaOptimizationSelectorPresenterFactory
 import io.element.android.libraries.architecture.AsyncData
+import io.element.android.libraries.featureflag.api.FeatureFlags
+import io.element.android.libraries.featureflag.test.FakeFeatureFlagService
 import io.element.android.libraries.matrix.api.room.JoinedRoom
 import io.element.android.libraries.matrix.api.timeline.Timeline
 import io.element.android.libraries.matrix.test.media.FakeMediaUploadHandler
@@ -56,10 +58,10 @@ import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
 /**
- * Multi-attachment send carries ONE shared caption. Pictures and videos leave as a single gallery
- * event and the caption goes on the gallery; anything else falls back to separate messages, where
- * the caption goes on the first one. The earlier per-slide caption attempt had real-device timing
- * bugs (caption swap across slides) that the unit test layer couldn't reproduce.
+ * Multi-attachment send carries ONE shared caption. With the gallery flag on the batch leaves as a
+ * single gallery event and the caption goes on the gallery; with it off the batch becomes a message
+ * per item and the caption goes on the first one. The earlier per-slide caption attempt had
+ * real-device timing bugs (caption swap across slides) that the unit test layer couldn't reproduce.
  */
 @RunWith(RobolectricTestRunner::class)
 class AttachmentsPreviewCaptionTest {
@@ -145,6 +147,28 @@ class AttachmentsPreviewCaptionTest {
         }
     }
 
+    @Test
+    fun `with the gallery flag off the batch becomes a message per item`() = runTest {
+        // Picking several items does not depend on the flag; only the way they leave does. This is
+        // the path for talking to clients that do not implement the unstable gallery msgtype.
+        val recorder = GalleryRecorder()
+        val presenter = createMultiAttachmentPresenter(
+            attachmentCount = 3,
+            recorder = recorder,
+            sendAsGallery = false,
+        )
+        presenter.test {
+            val initial = awaitItem()
+            initial.textEditorState.setMarkdown("shared caption")
+            initial.eventSink(AttachmentsPreviewEvent.SendAttachment)
+            consumeItemsUntilTimeout(2.seconds)
+            advanceUntilIdle()
+            assertThat(recorder.galleryCaptions).isEmpty()
+            assertThat(recorder.imageCaptions).containsExactly("shared caption", null, null).inOrder()
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
     // --- helpers ---
 
     private class GalleryRecorder {
@@ -158,6 +182,7 @@ class AttachmentsPreviewCaptionTest {
         attachmentCount: Int,
         recorder: GalleryRecorder,
         preProcessorSetup: FakeMediaPreProcessor.() -> Unit = { givenImageResult() },
+        sendAsGallery: Boolean = true,
     ): AttachmentsPreviewPresenter {
         val attachments = (0 until attachmentCount).map { idx ->
             val uri: Uri = mockk("uri-$idx") {
@@ -225,6 +250,9 @@ class AttachmentsPreviewCaptionTest {
             mediaOptimizationConfigProvider = FakeMediaOptimizationConfigProvider(),
             localMediaFactory = io.element.android.libraries.mediaviewer.test.FakeLocalMediaFactory(
                 localMediaUri = mockk("emptyUri") { every { path } returns "/empty" },
+            ),
+            featureFlagService = FakeFeatureFlagService(
+                initialState = mapOf(FeatureFlags.SendGalleryMessages.key to sendAsGallery),
             ),
         )
     }

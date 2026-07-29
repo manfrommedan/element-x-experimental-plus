@@ -31,7 +31,12 @@ class FakePickerProvider : PickerProvider {
         maxItems: Int,
         onResult: (List<Pair<Uri, String?>>) -> Unit,
     ): PickerLauncher<PickVisualMediaRequest, List<Uri>> {
-        return NoOpPickerLauncher { onResult((multipleResults ?: emptyList()).map { it to this.mimeType }) }
+        // A test that only set a single result is picking one item, which is what the multi picker
+        // returns for a one-item selection, so fall back to it rather than to nothing.
+        return NoOpPickerLauncher {
+            val uris = multipleResults ?: listOfNotNull(result)
+            onResult(uris.map { it to this.mimeType })
+        }
     }
 
     @Composable

@@ -147,15 +147,6 @@ enum class FeatureFlags(
         isFinished = false,
         isInLabs = true,
     ),
-    BulkAttachmentsPicker(
-        key = "feature.bulk_attachments_picker",
-        title = "Bulk image / video picker",
-        description = "Attach several photos or videos in one go from the composer, like WhatsApp or Telegram." +
-            " Caption attaches to the first message; the rest are sent in selection order. Disable to fall back to the upstream single-pick behaviour.",
-        defaultValue = { true },
-        isFinished = false,
-        isInLabs = false,
-    ),
     ShareMxidShortcut(
         key = "feature.share_mxid_shortcut",
         title = "Copy Matrix ID from settings",

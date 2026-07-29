@@ -30,6 +30,8 @@ import io.element.android.features.messages.test.attachments.video.FakeMediaOpti
 import io.element.android.libraries.androidutils.file.TemporaryUriDeleter
 import io.element.android.libraries.architecture.AsyncData
 import io.element.android.libraries.core.mimetype.MimeTypes
+import io.element.android.libraries.featureflag.api.FeatureFlags
+import io.element.android.libraries.featureflag.test.FakeFeatureFlagService
 import io.element.android.libraries.matrix.api.core.EventId
 import io.element.android.libraries.matrix.api.media.AudioInfo
 import io.element.android.libraries.matrix.api.media.FileInfo
@@ -949,6 +951,9 @@ class AttachmentsPreviewPresenterTest : RobolectricTest() {
             inReplyToEventId = null,
             mediaOptimizationConfigProvider = mediaOptimizationConfigProvider,
             localMediaFactory = io.element.android.libraries.mediaviewer.test.FakeLocalMediaFactory(localMediaUri = android.net.Uri.EMPTY),
+            featureFlagService = FakeFeatureFlagService(
+                initialState = mapOf(FeatureFlags.SendGalleryMessages.key to true),
+            ),
         )
     }
 

@@ -10,9 +10,6 @@
     <!-- Labs toggle: phone-style 1:1 voice call layout. -->
     <string name="screen_labs_enable_phone_voice_layout">"Phone-style voice calls"</string>
     <string name="screen_labs_enable_phone_voice_layout_description">"Use a classic phone-style layout for 1:1 voice calls."</string>
-    <!-- Labs toggle: bulk image/video picker in the composer. -->
-    <string name="screen_labs_enable_bulk_attachments_picker">"Bulk image / video picker"</string>
-    <string name="screen_labs_enable_bulk_attachments_picker_description">"Attach up to 30 photos or videos in one go, like WhatsApp and Telegram. Caption attaches to the first message; the rest are sent in selection order."</string>
     <!-- Labs toggle: copy Matrix ID shortcut in settings header. -->
     <string name="screen_labs_enable_share_mxid_shortcut">"Copy Matrix ID from settings"</string>
     <string name="screen_labs_enable_share_mxid_shortcut_description">"Adds a copy button next to your Matrix ID in the settings header so you can share it in one tap."</string>

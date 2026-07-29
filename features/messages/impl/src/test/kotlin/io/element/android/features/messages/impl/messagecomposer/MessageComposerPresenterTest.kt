@@ -34,9 +34,6 @@ import io.element.android.features.messages.impl.utils.TextPillificationHelper
 import io.element.android.libraries.architecture.AsyncAction
 import io.element.android.libraries.core.mimetype.MimeTypes
 import io.element.android.libraries.designsystem.utils.snackbar.SnackbarDispatcher
-import io.element.android.libraries.featureflag.api.FeatureFlagService
-import io.element.android.libraries.featureflag.api.FeatureFlags
-import io.element.android.libraries.featureflag.test.FakeFeatureFlagService
 import io.element.android.libraries.matrix.api.core.EventId
 import io.element.android.libraries.matrix.api.core.RoomId
 import io.element.android.libraries.matrix.api.core.ThreadId
@@ -729,7 +726,6 @@ class MessageComposerPresenterTest : RobolectricTest() {
         )
         val presenter = createPresenter(
             navigator = navigator,
-            bulkAttachmentsPicker = true,
         )
         with(pickerProvider) {
             givenMultipleResults(listOf(mockMediaUrl))
@@ -760,7 +756,6 @@ class MessageComposerPresenterTest : RobolectricTest() {
         )
         val presenter = createPresenter(
             navigator = navigator,
-            bulkAttachmentsPicker = true,
         )
         with(pickerProvider) {
             givenMultipleResults(listOf(mockMediaUrl))
@@ -915,17 +910,10 @@ class MessageComposerPresenterTest : RobolectricTest() {
         )
         val presenter = createPresenter(
             navigator = navigator,
-            featureFlagService = FakeFeatureFlagService(
-                initialState = mapOf(
-                    FeatureFlags.SendGalleryMessages.key to true,
-                    // The fork routes multi-pick through handlePickedMediaList, gated by this flag.
-                    FeatureFlags.BulkAttachmentsPicker.key to true,
-                )
-            ),
         )
         pickerProvider.givenMimeType(MimeTypes.Images)
         // Two Uris take the multi-item branch (handlePickedMediaList) instead of delegating to the
-        // single-item path, so the edit is preserved for gallery messages too.
+        // single-item path, so the edit is preserved for a batch too.
         pickerProvider.givenMultipleResults(listOf(mockk(), mockk()))
         presenter.test {
             var state = awaitFirstItem()
@@ -1717,10 +1705,6 @@ class MessageComposerPresenterTest : RobolectricTest() {
         mediaOptimizationConfigProvider: FakeMediaOptimizationConfigProvider = FakeMediaOptimizationConfigProvider(),
         threadRoot: ThreadId? = null,
         slashCommandService: SlashCommandService = FakeSlashCommandService(),
-        bulkAttachmentsPicker: Boolean = false,
-        featureFlagService: FeatureFlagService = FakeFeatureFlagService(
-            initialState = mapOf(FeatureFlags.BulkAttachmentsPicker.key to bulkAttachmentsPicker),
-        ),
     ) = MessageComposerPresenter(
         navigator = navigator,
         sessionCoroutineScope = this,
@@ -1759,7 +1743,6 @@ class MessageComposerPresenterTest : RobolectricTest() {
         mediaOptimizationConfigProvider = mediaOptimizationConfigProvider,
         notificationConversationService = notificationConversationService,
         slashCommandService = slashCommandService,
-        featureFlagService = featureFlagService,
     ).apply {
         isTesting = true
         showTextFormatting = isRichTextEditorEnabled

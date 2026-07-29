@@ -47,8 +47,6 @@ import io.element.android.libraries.core.mimetype.MimeTypes
 import io.element.android.libraries.designsystem.utils.snackbar.SnackbarDispatcher
 import io.element.android.libraries.designsystem.utils.snackbar.SnackbarMessage
 import io.element.android.libraries.di.annotations.SessionCoroutineScope
-import io.element.android.libraries.featureflag.api.FeatureFlagService
-import io.element.android.libraries.featureflag.api.FeatureFlags
 import io.element.android.libraries.matrix.api.core.EventId
 import io.element.android.libraries.matrix.api.core.ThreadId
 import io.element.android.libraries.matrix.api.core.UserId
@@ -134,7 +132,6 @@ class MessageComposerPresenter(
     private val mediaOptimizationConfigProvider: MediaOptimizationConfigProvider,
     private val notificationConversationService: NotificationConversationService,
     private val slashCommandService: SlashCommandService,
-    private val featureFlagService: FeatureFlagService,
 ) : Presenter<MessageComposerState> {
     @AssistedFactory
     interface Factory {
@@ -179,19 +176,11 @@ class MessageComposerPresenter(
             canShareLocation.value = locationService.isServiceAvailable()
         }
 
-        // Picking several pictures at once is the upstream gallery feature now, so follow the flag
-        // as a flow: toggling it in the settings reaches a composer that is already on screen.
-        // Starting from false keeps a tap landing before the first emission on the single picker.
-        val galleryMessagesEnabled by featureFlagService.isFeatureEnabledFlow(FeatureFlags.SendGalleryMessages)
-            .collectAsState(initial = false)
-        val galleryMediaSinglePicker = mediaPickerProvider.registerGalleryPicker { uri, mimeType ->
-            handlePickedMedia(uri, mimeType)
-        }
+        // Picking several items at once is always available: it is ours, and it does not depend on
+        // how the batch is later sent. The SendGalleryMessages flag is read at send time instead,
+        // where it decides between one gallery event and a message per item.
         val galleryMediaMultiPicker = mediaPickerProvider.registerMultipleGalleryPicker { pickedMedia ->
             handlePickedMediaList(pickedMedia)
-        }
-        val filesPicker = mediaPickerProvider.registerFilePicker(AnyMimeTypes) { uri, mimeType ->
-            handlePickedMedia(uri, mimeType ?: MimeTypes.OctetStream, sendAsFile = true)
         }
         // The document picker hands back bare uris, so the mime type is left to the factory to resolve.
         val filesMultiPicker = mediaPickerProvider.registerFileMultiPicker(AnyMimeTypes) { uris ->
@@ -302,19 +291,11 @@ class MessageComposerPresenter(
                 MessageComposerEvent.DismissAttachmentMenu -> showAttachmentSourcePicker = false
                 MessageComposerEvent.PickAttachmentSource.FromGallery -> localCoroutineScope.launch {
                     showAttachmentSourcePicker = false
-                    if (galleryMessagesEnabled) {
-                        galleryMediaMultiPicker.launch()
-                    } else {
-                        galleryMediaSinglePicker.launch()
-                    }
+                    galleryMediaMultiPicker.launch()
                 }
                 MessageComposerEvent.PickAttachmentSource.FromFiles -> localCoroutineScope.launch {
                     showAttachmentSourcePicker = false
-                    if (galleryMessagesEnabled) {
-                        filesMultiPicker.launch()
-                    } else {
-                        filesPicker.launch()
-                    }
+                    filesMultiPicker.launch()
                 }
                 MessageComposerEvent.PickAttachmentSource.PhotoFromCamera -> localCoroutineScope.launch {
                     showAttachmentSourcePicker = false
