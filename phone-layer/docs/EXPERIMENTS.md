@@ -22,9 +22,9 @@ exactly like the official Element X release until the switch is flipped.
   bothering upstream maintainers, so please don't open issues against
   `element-hq/element-x-android` for changes that originated here.
 
-## What's in this build (Element X v26.05.2 base)
+## What's in this build (Element X v26.07.1 base)
 
-This fork tracks upstream Element X (currently **v26.05.2**) and adds the
+This fork tracks upstream Element X (currently **v26.07.1**) and adds the
 features below. Each one is optional: where it changes existing UI it sits
 behind a Labs toggle, so with the toggles off the app behaves exactly like
 official Element X.
@@ -43,14 +43,20 @@ official Element X.
   direct connection when off. Settings in English and Russian.
 
 * **Multi-select messages** (Labs → "Multi-select messages", off by default).
-  Long-press a message, then drag up or down to sweep a whole range; the list
-  scrolls itself at the edges. Bulk copy, forward or delete up to 30 at once.
-  System events and deleted messages stay out of the selection, and it survives a
-  rotation (upstream issue #6737).
+  Long-press a message to start selecting, then bulk copy, forward or delete up to
+  30 at once. Long-press media for its usual menu, where "Select" also starts a
+  selection. System events and deleted messages stay out of the selection, and it
+  survives a rotation (upstream issue #6737). Sweeping a range by dragging was
+  there and got dropped: it fired far too easily during ordinary scrolling.
 
-* **Bulk image / video picker** (Labs → "Bulk image / video picker", on by
-  default). Attach several photos or videos in one trip to the gallery, up to 30,
-  the way WhatsApp and Telegram do it. The caption goes on the first one.
+* **Send a batch of photos and videos** (Labs → "Send gallery messages", the
+  upstream flag, off by default). Attach several photos or videos in one trip, up
+  to 30, the way WhatsApp and Telegram do it. The batch leaves as a single gallery
+  event per MSC4274, so other clients that support it show the collage too. The
+  preview screen is ours: a thumbnail strip, adding more on the fly with duplicates
+  skipped, compression chosen per item, one caption for the whole block. It carries
+  the price any gallery does, being one message: a single picture out of the set
+  cannot be deleted or forwarded on its own.
 
 * **Pin favourites at the top** (Labs → "Pin favourites at the top", on by
   default). Your favourite rooms get their own section at the top of the chat
@@ -69,10 +75,10 @@ official Element X.
   title, description and image) fetched through your homeserver, with a setting to
   show previews never, only in unencrypted rooms, or always. Encrypted rooms never
   fetch a preview unless you pick "always", and only homeserver-proxied images are
-  loaded so a preview does not leak your IP to the linked site. YouTube links get a
-  thumbnail card with a play button; tapping it opens the video in the YouTube app
-  for now. Inline playback in the timeline (WhatsApp/Telegram style) is a
-  work in progress and temporarily disabled while the embedded player is fixed.
+  loaded so a preview does not leak your IP to the linked site. Matrix permalinks
+  and mentions are never previewed. An embedded YouTube player was tried and
+  dropped: keeping a WebView alive per message in the timeline cost more than it
+  was worth, so a link opens in the YouTube app.
 
 ## How this fork differs from upstream
 
