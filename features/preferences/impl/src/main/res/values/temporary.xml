@@ -41,9 +41,6 @@
     <string name="screen_advanced_settings_geoapify_api_key_title">"Geoapify API key (Location)"</string>
     <string name="screen_advanced_settings_geoapify_api_key_description">"Paste a free Geoapify API key (geoapify.com, 3000 requests/day) to enable the Location attachment and render maps in chat. The key is stored locally on this device and overrides the bundled one. Leave empty to use the bundled key."</string>
     <string name="screen_advanced_settings_geoapify_api_key_set">"Personal API key in use. Location attachment is enabled."</string>
-    <!-- Selection mode top bar. -->
-    <string name="screen_messages_selection_count">"%1$d selected"</string>
-    <string name="screen_messages_selection_delete_confirm">"Delete %1$d messages?"</string>
     <!-- Labs section headers. -->
     <string name="screen_labs_section_make_element_better">"Like ElementX, but better"</string>
     <string name="screen_labs_section_calls">"Calls"</string>

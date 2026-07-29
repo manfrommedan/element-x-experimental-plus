@@ -7,7 +7,6 @@
 
 <resources>
     <string name="action_select_messages">"Select"</string>
-    <string name="action_select_all">"Select all"</string>
     <plurals name="screen_messages_selection_count">
         <item quantity="one">"%1$d message selected"</item>
         <item quantity="other">"%1$d messages selected"</item>

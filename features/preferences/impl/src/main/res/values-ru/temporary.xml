@@ -6,6 +6,25 @@
   -->
 
 <resources>
+    <!-- Заголовки разделов Labs. -->
+    <string name="screen_labs_section_make_element_better">"Как ElementX, но лучше"</string>
+    <string name="screen_labs_section_calls">"Звонки"</string>
+    <string name="screen_labs_section_upstream">"Element Labs"</string>
+    <!-- Labs-тумблер: голосовой звонок один на один в стиле телефона. -->
+    <string name="screen_labs_enable_phone_voice_layout">"Классический стиль голосовых звонков"</string>
+    <string name="screen_labs_enable_phone_voice_layout_description">"Телефонный стиль для голосовых звонков 1:1."</string>
+    <!-- Labs-тумблер: пакетный выбор фото и видео в композере. -->
+    <string name="screen_labs_enable_bulk_attachments_picker">"Отправка нескольких фото/видео"</string>
+    <string name="screen_labs_enable_bulk_attachments_picker_description">"Выбирай до 30 фото или видео за раз, как в WhatsApp и Telegram. Подпись прикрепляется к сообщению той картинки, на которой ты её ввёл; остальные уходят в порядке выбора."</string>
+    <!-- Labs-тумблер: кнопка копирования Matrix ID в шапке настроек. -->
+    <string name="screen_labs_enable_share_mxid_shortcut">"Копировать Matrix ID из настроек"</string>
+    <string name="screen_labs_enable_share_mxid_shortcut_description">"Кнопка копирования рядом с твоим Matrix ID в шапке настроек, поделиться в одно касание."</string>
+    <!-- Labs-тумблер: выбор нескольких сообщений и групповые действия. -->
+    <string name="screen_labs_enable_message_multi_select">"Множественный выбор сообщений"</string>
+    <string name="screen_labs_enable_message_multi_select_description">"Долгое нажатие на текстовое сообщение начинает выбор, потяните вверх или вниз, чтобы выделить целый диапазон (у краёв список прокручивается сам). Долгое нажатие на медиа открывает меню, где «Выбрать» тоже запускает выбор. Массовое копирование, пересылка и удаление до 30 за раз."</string>
+    <!-- Labs-тумблер: избранные комнаты закреплены наверху списка чатов. -->
+    <string name="screen_labs_enable_favorites_pinned_to_top">"Избранные чаты наверху"</string>
+    <string name="screen_labs_enable_favorites_pinned_to_top_description">"Избранные чаты показываются отдельным разделом над остальным списком, как в SchildiChat или закреплённых чатах Telegram."</string>
     <!-- Labs-тумблер: экран входящего звонка в стиле телефона. -->
     <string name="screen_labs_enable_phone_incoming_call">"Входящие звонки как на телефоне"</string>
     <string name="screen_labs_enable_phone_incoming_call_description">"Показывать полноэкранный входящий звонок с рингтоном, на который можно ответить с экрана блокировки - вместо тихого уведомления. Аудио- и видеозвонки помечаются по-разному."</string>
@@ -66,4 +85,26 @@
     <string name="screen_advanced_settings_show_link_previews_off">"Не показывать"</string>
     <string name="screen_advanced_settings_show_link_previews_unencrypted_only">"Только в незашифрованных комнатах"</string>
     <string name="screen_advanced_settings_show_link_previews_all">"Всегда показывать"</string>
+
+    <!-- Дополнительные настройки: свернуть подряд идущие удалённые события. -->
+    <string name="screen_advanced_settings_hide_redacted_events_toggle_title">"Сворачивать удалённые сообщения"</string>
+    <string name="screen_advanced_settings_hide_redacted_events_toggle_subtitle">"Три и более удалённых подряд сворачиваются в один блок. Нажми, чтобы раскрыть."</string>
+    <!-- Дополнительные настройки: не качать превью на мобильном интернете. -->
+    <string name="screen_advanced_settings_media_wifi_only_title">"Подгружать медиа только по Wi-Fi"</string>
+    <string name="screen_advanced_settings_media_wifi_only_subtitle">"На мобильной сети превью картинок, видео и карт не качаются автоматом. Тапни по каждому чтобы догрузить."</string>
+    <!-- Дополнительные настройки: свой ключ Geoapify для вложения с геопозицией. -->
+    <string name="screen_advanced_settings_geoapify_api_key_title">"Geoapify API ключ (Локация)"</string>
+    <string name="screen_advanced_settings_geoapify_api_key_description">"Свой API ключ с geoapify.com (бесплатно, 3000 запросов в день), вставь сюда чтобы перекрыть встроенный. Оставь пустым чтобы использовать встроенный. Ключ хранится локально на устройстве."</string>
+    <string name="screen_advanced_settings_geoapify_api_key_set">"Используется личный ключ. Локация работает."</string>
+
+    <!-- Статус пользователя (апстрим v26.07.1). -->
+    <string name="common_user_status_in_a_meeting">"На встрече"</string>
+    <string name="common_user_status_focus_time">"Не отвлекать"</string>
+    <string name="common_user_status_on_the_road">"В дороге"</string>
+    <string name="common_user_status_be_right_back">"Скоро вернусь"</string>
+    <string name="common_user_status_away">"Отошёл"</string>
+    <string name="common_user_status_on_a_call">"На звонке"</string>
+    <string name="common_user_status_custom">"Свой…"</string>
+    <string name="screen_preferences_user_status_placeholder">"Какой у вас статус?"</string>
+    <string name="screen_preferences_user_status_custom_hint">"Свой статус…"</string>
 </resources>

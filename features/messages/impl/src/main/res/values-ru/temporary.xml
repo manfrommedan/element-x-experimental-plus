@@ -7,11 +7,30 @@
 
 <resources>
     <string name="action_select_messages">"Выбрать"</string>
-    <string name="screen_messages_selection_count_short">"Выбрано: %1$d"</string>
-    <string name="screen_messages_selection_delete_confirm">"Удалить %1$d сообщений?"</string>
+    <plurals name="screen_messages_selection_count">
+        <item quantity="one">"Выбрано %1$d сообщение"</item>
+        <item quantity="few">"Выбрано %1$d сообщения"</item>
+        <item quantity="many">"Выбрано %1$d сообщений"</item>
+        <item quantity="other">"Выбрано %1$d сообщения"</item>
+    </plurals>
+    <plurals name="screen_messages_selection_delete_confirm">
+        <item quantity="one">"Удалить %1$d сообщение?"</item>
+        <item quantity="few">"Удалить %1$d сообщения?"</item>
+        <item quantity="many">"Удалить %1$d сообщений?"</item>
+        <item quantity="other">"Удалить %1$d сообщения?"</item>
+    </plurals>
     <string name="screen_messages_selection_cap_reached">"Выбран максимум сообщений"</string>
     <string name="screen_composer_attachments_cap_reached">"Можно отправить до 30 файлов за раз"</string>
     <string name="screen_messages_forwarded">"Переслано"</string>
+    <plurals name="screen_room_timeline_redacted_messages_from">
+        <item quantity="one">"Удалено %1$d сообщение от %2$s"</item>
+        <item quantity="few">"Удалено %1$d сообщения от %2$s"</item>
+        <item quantity="many">"Удалено %1$d сообщений от %2$s"</item>
+        <item quantity="other">"Удалено %1$d сообщения от %2$s"</item>
+    </plurals>
+    <string name="screen_room_timeline_redacted_messages_others_suffix">"и другие"</string>
     <string name="screen_attachments_preview_preparing_progress">"Подготовка %1$d/%2$d"</string>
     <string name="screen_attachments_preview_sending_progress">"Отправка %1$d/%2$d"</string>
+    <string name="screen_attachments_preview_add_more">"Добавить ещё"</string>
+    <string name="screen_attachments_preview_applies_to_current">"Только для этого вложения"</string>
 </resources>
