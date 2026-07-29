@@ -180,8 +180,11 @@ class MessageComposerPresenter(
             canShareLocation.value = locationService.isServiceAvailable()
         }
 
-        val bulkPickerEnabled by produceState(initialValue = true) {
-            value = featureFlagService.isFeatureEnabled(FeatureFlags.BulkAttachmentsPicker)
+        // Picking several pictures at once is the upstream gallery feature now. Start from false so
+        // a tap landing before the flag has been read opens the single picker rather than the wrong
+        // one, and the fork's own picker flag is no longer consulted.
+        val galleryMessagesEnabled by produceState(initialValue = false) {
+            value = featureFlagService.isFeatureEnabled(FeatureFlags.SendGalleryMessages)
         }
         val galleryMediaSinglePicker = mediaPickerProvider.registerGalleryPicker { uri, mimeType ->
             handlePickedMedia(uri, mimeType)
@@ -297,7 +300,7 @@ class MessageComposerPresenter(
                 MessageComposerEvent.DismissAttachmentMenu -> showAttachmentSourcePicker = false
                 MessageComposerEvent.PickAttachmentSource.FromGallery -> localCoroutineScope.launch {
                     showAttachmentSourcePicker = false
-                    if (bulkPickerEnabled) {
+                    if (galleryMessagesEnabled) {
                         galleryMediaMultiPicker.launch()
                     } else {
                         galleryMediaSinglePicker.launch()

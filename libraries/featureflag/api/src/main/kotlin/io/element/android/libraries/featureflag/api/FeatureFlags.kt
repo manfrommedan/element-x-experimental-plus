@@ -154,7 +154,7 @@ enum class FeatureFlags(
             " Caption attaches to the first message; the rest are sent in selection order. Disable to fall back to the upstream single-pick behaviour.",
         defaultValue = { true },
         isFinished = false,
-        isInLabs = true,
+        isInLabs = false,
     ),
     ShareMxidShortcut(
         key = "feature.share_mxid_shortcut",

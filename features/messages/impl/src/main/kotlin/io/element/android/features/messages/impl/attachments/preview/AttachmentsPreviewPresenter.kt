@@ -674,9 +674,25 @@ class AttachmentsPreviewPresenter(
                 if (cause is CancellationException) throw cause
             }
         }
-        // Every item stays its own message, so a picture can be deleted, forwarded or reacted to on
-        // its own. The timeline draws a run of them as one album, see TimelineItemGrouper.
-        prepared.forEachIndexed { index, (_, mediaUploadInfo) ->
+        val mediaUploadInfos = prepared.map { it.second }
+        if (mediaUploadInfos.size > 1 && mediaUploadInfos.all { it is MediaUploadInfo.Image || it is MediaUploadInfo.Video }) {
+            // A single gallery event, so the batch lands in the timeline as one collage.
+            sendActionState.value = SendActionState.Sending.Uploading(mediaInfos = mediaUploadInfos)
+            runCatchingExceptions {
+                mediaSender.sendGallery(
+                    mediaUploadInfos = mediaUploadInfos,
+                    caption = batchCaption,
+                    formattedCaption = null,
+                    inReplyToEventId = inReplyToEventId,
+                ).getOrThrow()
+            }.onFailure { cause ->
+                Timber.e(cause, "Failed to send a gallery of ${mediaUploadInfos.size} items")
+                if (cause is CancellationException) throw cause
+            }
+        } else {
+            // Anything else keeps a message per item, so a file or an audio clip still gets its own
+            // bubble and its own retry.
+            prepared.forEachIndexed { index, (_, mediaUploadInfo) ->
             runCatchingExceptions {
                 sendActionState.value = SendActionState.Sending.Uploading(
                     mediaInfos = listOf(mediaUploadInfo),
@@ -689,9 +705,10 @@ class AttachmentsPreviewPresenter(
                     formattedCaption = null,
                     inReplyToEventId = if (index == 0) inReplyToEventId else null,
                 ).getOrThrow()
-            }.onFailure { cause ->
-                Timber.e(cause, "Failed to send bulk attachment ${index + 1}/${prepared.size}")
-                if (cause is CancellationException) throw cause
+                }.onFailure { cause ->
+                    Timber.e(cause, "Failed to send bulk attachment ${index + 1}/${prepared.size}")
+                    if (cause is CancellationException) throw cause
+                }
             }
         }
         // Only once the batch has left, so nothing reclaims a file that is still in flight.

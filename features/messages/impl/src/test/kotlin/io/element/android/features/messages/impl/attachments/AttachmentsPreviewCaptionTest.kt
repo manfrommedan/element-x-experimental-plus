@@ -56,10 +56,10 @@ import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
 /**
- * Multi-attachment send carries ONE shared caption attached to the FIRST attachment. Every item is
- * sent as its own message so it keeps its own delete, reply and reactions; the timeline draws a run
- * of them as one album. The earlier per-slide caption attempt had real-device timing bugs (caption
- * swap across slides) that the unit test layer couldn't reproduce.
+ * Multi-attachment send carries ONE shared caption. Pictures and videos leave as a single gallery
+ * event and the caption goes on the gallery; anything else falls back to separate messages, where
+ * the caption goes on the first one. The earlier per-slide caption attempt had real-device timing
+ * bugs (caption swap across slides) that the unit test layer couldn't reproduce.
  */
 @RunWith(RobolectricTestRunner::class)
 class AttachmentsPreviewCaptionTest {
@@ -67,7 +67,7 @@ class AttachmentsPreviewCaptionTest {
     val warmUpRule = WarmUpRule()
 
     @Test
-    fun `multi-send with caption - caption attaches to the first attachment only`() = runTest {
+    fun `pictures leave as one gallery and the caption goes on the gallery`() = runTest {
         val recorder = GalleryRecorder()
         val presenter = createMultiAttachmentPresenter(attachmentCount = 5, recorder = recorder)
         presenter.test {
@@ -76,8 +76,9 @@ class AttachmentsPreviewCaptionTest {
             initial.eventSink(AttachmentsPreviewEvent.SendAttachment)
             consumeItemsUntilTimeout(2.seconds)
             advanceUntilIdle()
-            assertThat(recorder.imageCaptions).containsExactly("shared caption", null, null, null, null).inOrder()
-            assertThat(recorder.galleryCaptions).isEmpty()
+            assertThat(recorder.galleryCaptions).containsExactly("shared caption")
+            assertThat(recorder.galleryItemCounts).containsExactly(5)
+            assertThat(recorder.imageCaptions).isEmpty()
             cancelAndIgnoreRemainingEvents()
         }
     }
@@ -102,14 +103,14 @@ class AttachmentsPreviewCaptionTest {
             onSlide3.eventSink(AttachmentsPreviewEvent.SendAttachment)
             consumeItemsUntilTimeout(2.seconds)
             advanceUntilIdle()
-            // Caption attaches to the FIRST attachment, regardless of which slide the user was on.
-            assertThat(recorder.imageCaptions).containsExactly("hello", null, null, null, null).inOrder()
+            // Caption travels with the batch, regardless of which slide the user was on at send time.
+            assertThat(recorder.galleryCaptions).containsExactly("hello")
             cancelAndIgnoreRemainingEvents()
         }
     }
 
     @Test
-    fun `multi-send without caption - no attachment gets a caption`() = runTest {
+    fun `multi-send without caption - the gallery gets no caption`() = runTest {
         val recorder = GalleryRecorder()
         val presenter = createMultiAttachmentPresenter(attachmentCount = 3, recorder = recorder)
         presenter.test {
@@ -117,13 +118,13 @@ class AttachmentsPreviewCaptionTest {
             initial.eventSink(AttachmentsPreviewEvent.SendAttachment)
             consumeItemsUntilTimeout(2.seconds)
             advanceUntilIdle()
-            assertThat(recorder.imageCaptions).containsExactly(null, null, null).inOrder()
+            assertThat(recorder.galleryCaptions).containsExactly(null)
             cancelAndIgnoreRemainingEvents()
         }
     }
 
     @Test
-    fun `every item is sent as its own message whatever the content is`() = runTest {
+    fun `content that cannot be a gallery falls back to separate messages`() = runTest {
         val recorder = GalleryRecorder()
         val presenter = createMultiAttachmentPresenter(
             attachmentCount = 3,
