@@ -94,10 +94,16 @@ class VideoCompressor(
             metadataEntries.removeAll { true }
         }
         val inputMediaItem = MediaItem.fromUri(uri)
-        val outputMediaItem = EditedMediaItem.Builder(inputMediaItem)
-            .setFrameRate(newFrameRate)
-            .setEffects(Effects(emptyList(), listOf(videoResizeEffect)))
-            .build()
+        val outputMediaItem = if (videoCompressorConfig.canRemux) {
+            // No effects and no frame rate override, so the transformer copies the streams across
+            // instead of decoding and encoding them.
+            EditedMediaItem.Builder(inputMediaItem).build()
+        } else {
+            EditedMediaItem.Builder(inputMediaItem)
+                .setFrameRate(newFrameRate)
+                .setEffects(Effects(emptyList(), listOf(videoResizeEffect)))
+                .build()
+        }
 
         val encoderFactory = DefaultEncoderFactory.Builder(context)
             .setRequestedVideoEncoderSettings(
@@ -110,11 +116,18 @@ class VideoCompressor(
             .build()
 
         val videoTransformer = Transformer.Builder(context)
-            .setVideoMimeType(MimeTypes.VIDEO_H264)
-            .setAudioMimeType(MimeTypes.AUDIO_AAC)
             .setPortraitEncodingEnabled(false)
-            .setEncoderFactory(encoderFactory)
             .setMuxerFactory(removeMetadataMuxer)
+            .apply {
+                // Pinning the output codecs forces a re-encode even when the streams could be
+                // copied, so only ask for them on the path that re-encodes anyway. If the muxer
+                // cannot take the source streams the transformer falls back to encoding on its own.
+                if (!videoCompressorConfig.canRemux) {
+                    setVideoMimeType(MimeTypes.VIDEO_H264)
+                    setAudioMimeType(MimeTypes.AUDIO_AAC)
+                    setEncoderFactory(encoderFactory)
+                }
+            }
             .addListener(object : Transformer.Listener {
                 override fun onCompleted(composition: Composition, exportResult: ExportResult) {
                     trySend(VideoTranscodingEvent.Completed(tmpFile))

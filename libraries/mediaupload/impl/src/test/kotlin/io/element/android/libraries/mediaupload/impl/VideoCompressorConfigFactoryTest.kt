@@ -97,6 +97,71 @@ class VideoCompressorConfigFactoryTest : RobolectricTest() {
         assertIsNotResized(videoCompressorConfig, 1920)
     }
 
+    @Test
+    fun `the bitrate never goes above what the source already carries`() {
+        // Given a 720p clip at 1.5Mbps, well under the 2.76Mbps the STANDARD preset would ask for
+        val metadata = VideoFileMetadata(width = 1280, height = 720, bitrate = 1_500_000, frameRate = 30, rotation = 0)
+
+        // When
+        val videoCompressorConfig = VideoCompressorConfigFactory.create(
+            metadata = metadata,
+            preset = VideoCompressionPreset.STANDARD,
+        )
+
+        // Then re-encoding it at the preset bitrate would have grown the file, so it is capped
+        assertThat(videoCompressorConfig.newBitRate).isEqualTo(1_500_000)
+    }
+
+    @Test
+    fun `a source that already fits the preset is remuxed instead of re-encoded`() {
+        // Given
+        val metadata = VideoFileMetadata(width = 1280, height = 720, bitrate = 1_500_000, frameRate = 30, rotation = 0)
+
+        // When
+        val videoCompressorConfig = VideoCompressorConfigFactory.create(
+            metadata = metadata,
+            preset = VideoCompressionPreset.STANDARD,
+        )
+
+        // Then
+        assertThat(videoCompressorConfig.canRemux).isTrue()
+    }
+
+    @Test
+    fun `a source that is too big or too rich is still re-encoded`() {
+        // Too many pixels for the preset
+        assertThat(
+            VideoCompressorConfigFactory.create(
+                metadata = VideoFileMetadata(width = 1920, height = 1080, bitrate = 1_500_000, frameRate = 30, rotation = 0),
+                preset = VideoCompressionPreset.STANDARD,
+            ).canRemux
+        ).isFalse()
+
+        // Right size, but far more bitrate than the preset would spend
+        assertThat(
+            VideoCompressorConfigFactory.create(
+                metadata = VideoFileMetadata(width = 1280, height = 720, bitrate = 12_000_000, frameRate = 30, rotation = 0),
+                preset = VideoCompressionPreset.STANDARD,
+            ).canRemux
+        ).isFalse()
+    }
+
+    @Test
+    fun `an unreadable bitrate falls back to re-encoding at the preset`() {
+        // Given metadata without a usable bitrate, as MediaMetadataRetriever reports for some files
+        val metadata = VideoFileMetadata(width = 1280, height = 720, bitrate = -1, frameRate = 30, rotation = 0)
+
+        // When
+        val videoCompressorConfig = VideoCompressorConfigFactory.create(
+            metadata = metadata,
+            preset = VideoCompressionPreset.STANDARD,
+        )
+
+        // Then
+        assertThat(videoCompressorConfig.canRemux).isFalse()
+        assertThat(videoCompressorConfig.newBitRate).isEqualTo(2_764_800)
+    }
+
     private inline fun assertIsResized(videoCompressorConfig: VideoCompressorConfig, referenceSize: Int) {
         assertThat(videoCompressorConfig.videoCompressorHelper.maxSize).isNotEqualTo(referenceSize)
     }
