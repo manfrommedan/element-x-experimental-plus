@@ -20,7 +20,6 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
@@ -180,12 +179,11 @@ class MessageComposerPresenter(
             canShareLocation.value = locationService.isServiceAvailable()
         }
 
-        // Picking several pictures at once is the upstream gallery feature now. Start from false so
-        // a tap landing before the flag has been read opens the single picker rather than the wrong
-        // one, and the fork's own picker flag is no longer consulted.
-        val galleryMessagesEnabled by produceState(initialValue = false) {
-            value = featureFlagService.isFeatureEnabled(FeatureFlags.SendGalleryMessages)
-        }
+        // Picking several pictures at once is the upstream gallery feature now, so follow the flag
+        // as a flow: toggling it in the settings reaches a composer that is already on screen.
+        // Starting from false keeps a tap landing before the first emission on the single picker.
+        val galleryMessagesEnabled by featureFlagService.isFeatureEnabledFlow(FeatureFlags.SendGalleryMessages)
+            .collectAsState(initial = false)
         val galleryMediaSinglePicker = mediaPickerProvider.registerGalleryPicker { uri, mimeType ->
             handlePickedMedia(uri, mimeType)
         }
@@ -194,6 +192,10 @@ class MessageComposerPresenter(
         }
         val filesPicker = mediaPickerProvider.registerFilePicker(AnyMimeTypes) { uri, mimeType ->
             handlePickedMedia(uri, mimeType ?: MimeTypes.OctetStream, sendAsFile = true)
+        }
+        // The document picker hands back bare uris, so the mime type is left to the factory to resolve.
+        val filesMultiPicker = mediaPickerProvider.registerFileMultiPicker(AnyMimeTypes) { uris ->
+            handlePickedMediaList(uris.map { it to null }, sendAsFile = true)
         }
         val cameraPhotoPicker = mediaPickerProvider.registerCameraPhotoPicker { uri ->
             handlePickedMedia(uri, MimeTypes.Jpeg)
@@ -308,7 +310,11 @@ class MessageComposerPresenter(
                 }
                 MessageComposerEvent.PickAttachmentSource.FromFiles -> localCoroutineScope.launch {
                     showAttachmentSourcePicker = false
-                    filesPicker.launch()
+                    if (galleryMessagesEnabled) {
+                        filesMultiPicker.launch()
+                    } else {
+                        filesPicker.launch()
+                    }
                 }
                 MessageComposerEvent.PickAttachmentSource.PhotoFromCamera -> localCoroutineScope.launch {
                     showAttachmentSourcePicker = false
@@ -637,8 +643,17 @@ class MessageComposerPresenter(
         resetComposerModeAfterAttaching()
     }
 
-    private fun handlePickedMediaList(picked: List<Pair<Uri, String?>>) {
+    private fun handlePickedMediaList(
+        picked: List<Pair<Uri, String?>>,
+        sendAsFile: Boolean = false,
+    ) {
         if (picked.isEmpty()) return
+        if (picked.size == 1) {
+            // One item is not a batch: go through the plain single-attachment preview.
+            val (uri, mimeType) = picked.first()
+            handlePickedMedia(uri, mimeType, sendAsFile = sendAsFile)
+            return
+        }
         // Android system picker only treats maxItems as a hint on some OEM galleries -
         // hard-cap on our side so the UI/server flow never exceeds the labs limit.
         val capped = picked.take(io.element.android.libraries.mediapickers.api.DEFAULT_MAX_PICK_ITEMS)
@@ -647,37 +662,14 @@ class MessageComposerPresenter(
         }
         val attachments = capped.map { (uri, mimeType) ->
             Attachment.Media(
-                localMediaFactory.createFromUri(
+                localMedia = localMediaFactory.createFromUri(
                     uri = uri,
                     mimeType = mimeType,
                     name = null,
                     formattedFileSize = null,
-                )
+                ),
+                sendAsFile = sendAsFile,
             )
-        }.toImmutableList()
-        val inReplyToEventId = (messageComposerContext.composerMode as? MessageComposerMode.Reply)?.eventId
-        navigator.navigateToPreviewAttachments(attachments, inReplyToEventId)
-
-        resetComposerModeAfterAttaching()
-    }
-
-    private fun handlePickedMediaList(
-        uris: List<Uri>,
-        sendAsFile: Boolean = false,
-    ) {
-        if (uris.isEmpty()) return
-        if (uris.size == 1) {
-            handlePickedMedia(uris.first(), sendAsFile = sendAsFile)
-            return
-        }
-        val attachments = uris.map { uri ->
-            val localMedia = localMediaFactory.createFromUri(
-                uri = uri,
-                mimeType = null,
-                name = null,
-                formattedFileSize = null,
-            )
-            Attachment.Media(localMedia, sendAsFile = sendAsFile)
         }.toImmutableList()
         val inReplyToEventId = (messageComposerContext.composerMode as? MessageComposerMode.Reply)?.eventId
         navigator.navigateToPreviewAttachments(attachments, inReplyToEventId)

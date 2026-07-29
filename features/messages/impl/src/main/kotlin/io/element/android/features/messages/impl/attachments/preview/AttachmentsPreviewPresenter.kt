@@ -675,8 +675,9 @@ class AttachmentsPreviewPresenter(
             }
         }
         val mediaUploadInfos = prepared.map { it.second }
-        if (mediaUploadInfos.size > 1 && mediaUploadInfos.all { it is MediaUploadInfo.Image || it is MediaUploadInfo.Video }) {
-            // A single gallery event, so the batch lands in the timeline as one collage.
+        if (mediaUploadInfos.size > 1) {
+            // A single gallery event, so the batch lands in the timeline as one collage. The event
+            // carries files and audio as well, so the whole batch goes this way whatever is in it.
             sendActionState.value = SendActionState.Sending.Uploading(mediaInfos = mediaUploadInfos)
             runCatchingExceptions {
                 mediaSender.sendGallery(
@@ -690,8 +691,8 @@ class AttachmentsPreviewPresenter(
                 if (cause is CancellationException) throw cause
             }
         } else {
-            // Anything else keeps a message per item, so a file or an audio clip still gets its own
-            // bubble and its own retry.
+            // A batch that ended up with a single usable item, either because that is all that was
+            // picked or because the rest failed to prepare, goes out as a plain message.
             prepared.forEachIndexed { index, (_, mediaUploadInfo) ->
             runCatchingExceptions {
                 sendActionState.value = SendActionState.Sending.Uploading(

@@ -124,7 +124,7 @@ class AttachmentsPreviewCaptionTest {
     }
 
     @Test
-    fun `content that cannot be a gallery falls back to separate messages`() = runTest {
+    fun `a batch of something other than pictures is still one gallery`() = runTest {
         val recorder = GalleryRecorder()
         val presenter = createMultiAttachmentPresenter(
             attachmentCount = 3,
@@ -137,8 +137,10 @@ class AttachmentsPreviewCaptionTest {
             initial.eventSink(AttachmentsPreviewEvent.SendAttachment)
             consumeItemsUntilTimeout(2.seconds)
             advanceUntilIdle()
-            assertThat(recorder.galleryCaptions).isEmpty()
-            assertThat(recorder.audioCaptions).containsExactly("shared caption", null, null).inOrder()
+            // A gallery event carries audio and files as well, so the batch does not get split up.
+            assertThat(recorder.galleryCaptions).containsExactly("shared caption")
+            assertThat(recorder.galleryItemCounts).containsExactly(3)
+            assertThat(recorder.audioCaptions).isEmpty()
             cancelAndIgnoreRemainingEvents()
         }
     }
