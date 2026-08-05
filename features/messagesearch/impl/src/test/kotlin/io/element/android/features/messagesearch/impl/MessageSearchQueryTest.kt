@@ -57,10 +57,20 @@ class MessageSearchQueryTest {
     }
 
     @Test
-    fun `an english word is widened but not cut`() {
-        // English inflects by appending, so the prefix alone already reaches "meetings".
-        assertThat(expandQueryForPrefixMatching("meeting")).isEqualTo("meeting*")
+    fun `an english word is cut back the same way`() {
+        // Both directions have to work: a prefix alone only carries "meeting" to "meetings".
+        assertThat(expandQueryForPrefixMatching("meeting")).isEqualTo("meet*")
+        assertThat(expandQueryForPrefixMatching("meetings")).isEqualTo("meeting*")
+        assertThat(expandQueryForPrefixMatching("called")).isEqualTo("call*")
+        assertThat(expandQueryForPrefixMatching("stories")).isEqualTo("stor*")
+    }
+
+    @Test
+    fun `an english word with nothing to spare is left whole`() {
+        // Cutting these would leave two letters.
         assertThat(expandQueryForPrefixMatching("cat")).isEqualTo("cat*")
+        assertThat(expandQueryForPrefixMatching("bus")).isEqualTo("bus*")
+        assertThat(expandQueryForPrefixMatching("used")).isEqualTo("used*")
     }
 
     @Test

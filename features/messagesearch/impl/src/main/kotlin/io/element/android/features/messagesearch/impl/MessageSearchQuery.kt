@@ -57,6 +57,16 @@ private val RUSSIAN_INFLECTIONAL_ENDINGS = listOf(
     // stops a future addition from silently landing in the wrong place.
     .sortedByDescending { it.length }
 
+/**
+ * English inflectional endings, longest first.
+ *
+ * Same rule as the Russian list: only endings that inflect a word, never ones that derive a new
+ * one. "-ly" and "-ness" are absent for that reason.
+ */
+private val ENGLISH_INFLECTIONAL_ENDINGS = listOf(
+    "ing", "ies", "es", "ed", "s",
+).sortedByDescending { it.length }
+
 private val CYRILLIC = 'а'..'я'
 
 /**
@@ -97,13 +107,18 @@ internal fun expandQueryForPrefixMatching(query: String): String {
 /**
  * Cuts a single word back to the stem that its other forms share.
  *
- * Non-Cyrillic words are returned unchanged: English inflects by appending, so the prefix that the
- * caller adds already reaches "cats" from "cat", and cutting would only lose precision.
+ * A prefix alone already carries English one way — "meeting" reaches "meetings" — but not the
+ * other, and "meetings" reaching nothing but itself is the same complaint in a different language.
+ * Cutting first makes both directions work, exactly as it does for Russian.
  */
 private fun stemForPrefix(word: String): String {
     val lowercase = word.lowercase()
-    if (lowercase.none { it in CYRILLIC || it == 'ё' }) return word
-    val ending = RUSSIAN_INFLECTIONAL_ENDINGS.firstOrNull { ending ->
+    val endings = if (lowercase.any { it in CYRILLIC || it == 'ё' }) {
+        RUSSIAN_INFLECTIONAL_ENDINGS
+    } else {
+        ENGLISH_INFLECTIONAL_ENDINGS
+    }
+    val ending = endings.firstOrNull { ending ->
         lowercase.endsWith(ending) && lowercase.length - ending.length >= MIN_STEM_LENGTH
     }
     return if (ending == null) word else word.dropLast(ending.length)
