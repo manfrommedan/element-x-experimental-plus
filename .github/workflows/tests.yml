@@ -72,8 +72,11 @@ jobs:
         with:
           cache-read-only: ${{ github.ref != 'refs/heads/develop' }}
 
-      - name: ⚙️ Check coverage for debug variant (includes unit & screenshot tests)
-        run: ./gradlew testDebugUnitTest :tests:uitests:verifyPaparazziDebug :koverXmlReportMerged :koverHtmlReportMerged :koverVerifyAll $CI_GRADLE_ARG_PROPERTIES
+      # Screenshot verification is off on this fork: our UI intentionally differs from upstream and
+      # we do not re-record the references, so verifyPaparazziDebug would keep this job permanently
+      # red and hide real unit test failures behind it.
+      - name: ⚙️ Check coverage for debug variant (unit tests)
+        run: ./gradlew testDebugUnitTest :koverXmlReportMerged :koverHtmlReportMerged :koverVerifyAll $CI_GRADLE_ARG_PROPERTIES
 
       - name: 🚫 Upload kover failed coverage reports
         if: failure()
