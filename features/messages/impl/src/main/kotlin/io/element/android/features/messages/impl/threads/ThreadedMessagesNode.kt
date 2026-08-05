@@ -335,6 +335,7 @@ class ThreadedMessagesNode(
                     knockRequestsBannerView = {},
                     customReactionBottomSheet = {},
                     onThreadsListClick = {},
+                    onSearchClick = {},
                 )
 
                 roomMemberModerationRenderer.Render(

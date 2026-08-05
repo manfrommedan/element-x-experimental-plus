@@ -64,6 +64,8 @@ data class MessagesState(
     val showLiveLocationShareBanner: Boolean,
     val selectionState: TimelineSelectionState,
     val isMultiSelectEnabled: Boolean,
+    /** Whether the message search entry point is available in the top bar. */
+    val canSearch: Boolean,
     val eventSink: (MessagesEvent) -> Unit
 ) {
     val isTombstoned = successorRoom != null

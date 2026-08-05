@@ -152,6 +152,8 @@ class MessagesNode(
 
         fun navigateToThreadsList()
 
+        fun navigateToMessageSearch()
+
         fun navigateToAvatarPreview(username: String, avatarUrl: String)
     }
 
@@ -359,6 +361,7 @@ class MessagesNode(
                     )
                 },
                 onThreadsListClick = callback::navigateToThreadsList,
+                onSearchClick = callback::navigateToMessageSearch,
             )
             roomMemberModerationRenderer.Render(
                 state = state.roomMemberModerationState,

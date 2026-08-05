@@ -130,6 +130,7 @@ fun aMessagesState(
     ),
     isCurrentlySharingLiveLocationInRoom: Boolean = false,
     dmUserStatus: DisplayedStatus? = null,
+    canSearch: Boolean = false,
     eventSink: (MessagesEvent) -> Unit = {},
 ) = MessagesState(
     roomId = RoomId("!id:domain"),
@@ -163,6 +164,7 @@ fun aMessagesState(
     selectionState = io.element.android.features.messages.impl.selection.TimelineSelectionState.Empty,
     isMultiSelectEnabled = false,
     dmUserStatus = dmUserStatus,
+    canSearch = canSearch,
     eventSink = eventSink,
 )
 

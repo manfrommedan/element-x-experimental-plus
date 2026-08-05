@@ -723,6 +723,7 @@ private fun AndroidComposeUiTest<ComponentActivity>.setMessagesView(
                     )
                 },
                 onThreadsListClick = onThreadsListClicked,
+                onSearchClick = {},
             )
         }
     }
