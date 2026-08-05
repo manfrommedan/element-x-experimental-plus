@@ -34,6 +34,7 @@ open class MessageSearchStateProvider : PreviewParameterProvider<MessageSearchSt
             aMessageSearchState(query = "hello", hasError = true),
             // Room-scoped, nothing to show yet while the walk over the global results runs.
             aMessageSearchState(query = "hello", isRoomScoped = true),
+            aMessageSearchState(query = "hello", isRoomScoped = true, isSweepPaused = true),
         )
 }
 
@@ -44,6 +45,7 @@ fun aMessageSearchState(
     isPaginating: Boolean = false,
     endReached: Boolean = false,
     isRoomScoped: Boolean = false,
+    isSweepPaused: Boolean = false,
     hasError: Boolean = false,
     eventSink: (MessageSearchEvents) -> Unit = {},
 ) = MessageSearchState(
@@ -53,6 +55,7 @@ fun aMessageSearchState(
     isPaginating = isPaginating,
     endReached = endReached,
     isRoomScoped = isRoomScoped,
+    isSweepPaused = isSweepPaused,
     hasError = hasError,
     eventSink = eventSink,
 )

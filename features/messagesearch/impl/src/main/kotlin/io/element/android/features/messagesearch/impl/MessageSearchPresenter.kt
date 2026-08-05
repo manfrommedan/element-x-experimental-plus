@@ -45,6 +45,15 @@ import kotlinx.coroutines.flow.first
  */
 private const val DEBOUNCE_MILLIS = 250L
 
+/**
+ * How many pages a room-scoped search walks on its own before pausing to ask.
+ *
+ * The room filter is applied to a globally ranked result set, so a room with few matches genuinely
+ * needs several pages before any of its own rows appear, and a room with none would otherwise walk
+ * the entire index to prove it.
+ */
+private const val MAX_ROOM_SCOPED_SWEEP_PAGES = 20
+
 @AssistedInject
 class MessageSearchPresenter(
     @Assisted private val roomId: RoomId?,
@@ -71,6 +80,11 @@ class MessageSearchPresenter(
         var loadMoreCount by remember { mutableIntStateOf(0) }
         var handledLoadMoreCount by remember { mutableIntStateOf(0) }
         var isListEndVisible by remember { mutableStateOf(false) }
+        // Pages pulled purely because a room-scoped search has nothing to show yet. The walk is
+        // unavoidable — the room filter is applied to a globally ranked set — but on a large
+        // account it can run through the whole index for a room that simply has no matches, so it
+        // pauses and offers to carry on rather than spending the battery unasked.
+        var sweptPages by remember { mutableIntStateOf(0) }
 
         val results by messageSearch.results.collectAsState()
         val paginationState by messageSearch.paginationState.collectAsState()
@@ -79,6 +93,7 @@ class MessageSearchPresenter(
             // A new query invalidates the previous pagination state.
             loadMoreCount = 0
             handledLoadMoreCount = 0
+            sweptPages = 0
             hasError = false
             if (query.isBlank()) {
                 isSearching = false
@@ -139,7 +154,10 @@ class MessageSearchPresenter(
                     // walks the whole set on its own — the pages come from the local index, and
                     // any one of them could be the one holding this room's hits. A list that
                     // already has rows pulls only while the user is looking at the end of it.
-                    val roomScopedAndEmpty = roomId != null && messageSearch.results.value.isEmpty()
+                    val roomScopedAndEmpty = roomId != null &&
+                        messageSearch.results.value.isEmpty() &&
+                        sweptPages < MAX_ROOM_SCOPED_SWEEP_PAGES
+                    if (roomScopedAndEmpty) sweptPages++
                     val shouldPaginate = !idle.endReached && (roomScopedAndEmpty || isListEndVisible)
                     // The loop stops on the first pass that has no reason to pull, or on a failure.
                     keepPaginating = shouldPaginate && paginate()
@@ -158,6 +176,8 @@ class MessageSearchPresenter(
                 }
                 MessageSearchEvents.LoadMore -> {
                     hasError = false
+                    // Carrying on is an explicit request, so the walk gets a fresh allowance.
+                    sweptPages = 0
                     loadMoreCount++
                 }
                 is MessageSearchEvents.ListEndVisible -> {
@@ -173,6 +193,7 @@ class MessageSearchPresenter(
             isPaginating = paginationState is MessageSearchPaginationState.Loading,
             endReached = (paginationState as? MessageSearchPaginationState.Idle)?.endReached == true,
             isRoomScoped = roomId != null,
+            isSweepPaused = sweptPages >= MAX_ROOM_SCOPED_SWEEP_PAGES,
             hasError = hasError,
             eventSink = ::handleEvent,
         )
