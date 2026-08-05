@@ -6,5 +6,5 @@
   -->
 
 <resources>
-    <string name="screen_message_search_scope_hint">Ищется только текст сообщений. Подписи к фото не ищутся, а только что полученные сообщения появляются здесь с небольшой задержкой.</string>
+    <string name="screen_message_search_scope_hint">Только что полученные сообщения появляются здесь с небольшой задержкой.</string>
 </resources>

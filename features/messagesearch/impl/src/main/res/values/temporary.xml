@@ -6,7 +6,7 @@
   -->
 
 <resources>
-    <!-- Shown under "No results". The index only ever holds message text, and it commits in
-         batches, so an empty result is often correct rather than a failure. -->
-    <string name="screen_message_search_scope_hint">Only the text of messages is searched. Photo captions are not, and messages just received appear here after a short delay.</string>
+    <!-- Shown under "No results". The index commits in batches, so a message that has just
+         arrived is genuinely absent for a while, and an empty result is often correct. -->
+    <string name="screen_message_search_scope_hint">Messages just received appear here after a short delay.</string>
 </resources>
