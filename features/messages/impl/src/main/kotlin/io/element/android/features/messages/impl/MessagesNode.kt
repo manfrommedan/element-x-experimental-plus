@@ -39,6 +39,7 @@ import io.element.android.features.messages.impl.messagecomposer.MessageComposer
 import io.element.android.features.messages.impl.timeline.TimelineController
 import io.element.android.features.messages.impl.timeline.TimelineEvent
 import io.element.android.features.messages.impl.timeline.TimelinePresenter
+import io.element.android.features.messages.impl.timeline.components.customreaction.CustomReactionBottomSheet
 import io.element.android.features.messages.impl.timeline.di.LocalTimelineItemPresenterFactories
 import io.element.android.features.messages.impl.timeline.di.TimelineItemPresenterFactories
 import io.element.android.features.messages.impl.timeline.model.TimelineItem
@@ -58,6 +59,7 @@ import io.element.android.libraries.designsystem.utils.OnLifecycleEvent
 import io.element.android.libraries.di.RoomScope
 import io.element.android.libraries.di.annotations.ApplicationContext
 import io.element.android.libraries.di.annotations.SessionCoroutineScope
+import io.element.android.libraries.emoji.api.picker.EmojiPickerRenderer
 import io.element.android.libraries.matrix.api.analytics.toAnalyticsViewRoom
 import io.element.android.libraries.matrix.api.core.EventId
 import io.element.android.libraries.matrix.api.core.RoomId
@@ -70,6 +72,8 @@ import io.element.android.libraries.matrix.api.room.JoinedRoom
 import io.element.android.libraries.matrix.api.room.alias.matches
 import io.element.android.libraries.matrix.api.timeline.Timeline
 import io.element.android.libraries.matrix.api.timeline.item.TimelineItemDebugInfo
+import io.element.android.libraries.matrix.ui.media.contentvalidation.EventContentValidationCache
+import io.element.android.libraries.matrix.ui.media.contentvalidation.LocalEventContentValidationState
 import io.element.android.libraries.matrix.ui.model.getBestName
 import io.element.android.libraries.mediaplayer.api.MediaPlayer
 import io.element.android.libraries.ui.strings.CommonStrings
@@ -103,6 +107,8 @@ class MessagesNode(
     private val knockRequestsBannerRenderer: KnockRequestsBannerRenderer,
     private val roomMemberModerationRenderer: RoomMemberModerationRenderer,
     private val featureFlagService: io.element.android.libraries.featureflag.api.FeatureFlagService,
+    private val eventContentValidationCache: EventContentValidationCache,
+    private val emojiPickerRenderer: EmojiPickerRenderer,
 ) : Node(buildContext, plugins = plugins), MessagesNavigator {
     data class Inputs(
         val focusedEventId: EventId?,
@@ -278,6 +284,7 @@ class MessagesNode(
             io.element.android.features.messages.impl.timeline.components.LocalPhoneVoiceLayoutEnabled provides phoneVoiceLayoutEnabled,
             LocalUrlPreviewService provides urlPreviewService,
             LocalPermalinkParser provides permalinkParser,
+            LocalEventContentValidationState provides eventContentValidationCache,
         ) {
             val state = presenter.present()
 
@@ -340,6 +347,15 @@ class MessagesNode(
                     knockRequestsBannerRenderer.View(
                         modifier = Modifier,
                         onViewRequestsClick = callback::navigateToKnockRequestsList,
+                    )
+                },
+                customReactionBottomSheet = {
+                    CustomReactionBottomSheet(
+                        state = state.customReactionState,
+                        onSelectEmoji = { uniqueId, emoji ->
+                            state.eventSink(MessagesEvent.ToggleReaction(emoji.unicode, uniqueId))
+                        },
+                        emojiPickerRenderer = emojiPickerRenderer,
                     )
                 },
                 onThreadsListClick = callback::navigateToThreadsList,

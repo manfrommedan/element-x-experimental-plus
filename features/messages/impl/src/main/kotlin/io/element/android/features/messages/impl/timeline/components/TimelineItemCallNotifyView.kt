@@ -54,6 +54,7 @@ internal fun TimelineItemCallNotifyView(
     timelineRoomInfo: TimelineRoomInfo,
     event: TimelineItem.Event,
     content: TimelineItemRtcNotificationContent,
+    state: RtcNotificationState.Tombstoned,
     isLastOutgoingMessage: Boolean,
     onLongClick: (TimelineItem.Event) -> Unit,
     onReadReceiptsClick: (TimelineItem.Event) -> Unit,
@@ -78,7 +79,7 @@ internal fun TimelineItemCallNotifyView(
         ) {
             val phoneVoiceLayoutEnabled = LocalPhoneVoiceLayoutEnabled.current
             val isAudio = content.callIntent == CallIntent.AUDIO
-            val baseLabel = getTextRes(timelineRoomInfo, content)
+            val baseLabel = getTextRes(timelineRoomInfo, state)
             val labelRes = if (phoneVoiceLayoutEnabled && isAudio && baseLabel == CommonStrings.common_call_started) {
                 CommonStrings.common_voice_call
             } else {
@@ -155,13 +156,13 @@ internal fun TimelineItemCallNotifyView(
 @StringRes
 private fun getTextRes(
     timelineRoomInfo: TimelineRoomInfo,
-    content: TimelineItemRtcNotificationContent
+    state: RtcNotificationState.Tombstoned
 ): Int = if (timelineRoomInfo.isDm) {
-    when (content.state) {
+    when (state) {
         is RtcNotificationState.Declined -> {
-            if (content.state.byMe) CommonStrings.common_call_you_declined else CommonStrings.common_call_declined
+            if (state.byMe) CommonStrings.common_call_you_declined else CommonStrings.common_call_declined
         }
-        RtcNotificationState.Started -> CommonStrings.common_call_started
+        else -> CommonStrings.common_call_started
     }
 } else {
     // In Rooms, do not show declined info.
@@ -207,6 +208,7 @@ internal fun TimelineItemCallNotifyViewPreview() = ElementPreview {
                             readReceiptState = readReceiptState.removeFirstOrNull() ?: aTimelineItemReadReceipts(),
                         ),
                         content = content,
+                        state,
                         isLastOutgoingMessage = false,
                         onLongClick = {},
                         onReadReceiptsClick = {},

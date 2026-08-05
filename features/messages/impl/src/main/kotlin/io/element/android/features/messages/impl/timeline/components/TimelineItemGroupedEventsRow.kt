@@ -30,7 +30,6 @@ import io.element.android.features.messages.impl.timeline.components.receipt.Tim
 import io.element.android.features.messages.impl.timeline.groups.isRedactedMessagesGroup
 import io.element.android.features.messages.impl.timeline.groups.redactedSendersSummary
 import io.element.android.features.messages.impl.timeline.model.TimelineItem
-import io.element.android.features.messages.impl.timeline.protection.TimelineProtectionEvent
 import io.element.android.features.messages.impl.timeline.protection.TimelineProtectionState
 import io.element.android.features.messages.impl.timeline.protection.aTimelineProtectionState
 import io.element.android.libraries.designsystem.components.avatar.AvatarData
@@ -73,10 +72,10 @@ fun TimelineItemGroupedEventsRow(
     eventContentView: @Composable (TimelineItem.Event, Modifier, (ContentAvoidingLayoutData) -> Unit) -> Unit =
         { event, contentModifier, onContentLayoutChange ->
             TimelineItemEventContentView(
+                eventId = event.eventId,
                 content = event.content,
-                hideMediaContent = timelineProtectionState.hideMediaContent(event.eventId, event.isMine),
-                showUrlPreviews = timelineProtectionState.showUrlPreviews,
-                onShowContentClick = { timelineProtectionState.eventSink(TimelineProtectionEvent.ShowContent(event.eventId)) },
+                timelineProtectionState = timelineProtectionState,
+                isMine = event.isMine,
                 onLinkClick = onLinkClick,
                 onLinkLongClick = onLinkLongClick,
                 eventSink = eventSink,
@@ -146,10 +145,10 @@ private fun TimelineItemGroupedEventsRowContent(
     eventContentView: @Composable (TimelineItem.Event, Modifier, (ContentAvoidingLayoutData) -> Unit) -> Unit =
         { event, contentModifier, onContentLayoutChange ->
             TimelineItemEventContentView(
+                eventId = event.eventId,
                 content = event.content,
-                hideMediaContent = timelineProtectionState.hideMediaContent(event.eventId, event.isMine),
-                showUrlPreviews = timelineProtectionState.showUrlPreviews,
-                onShowContentClick = { timelineProtectionState.eventSink(TimelineProtectionEvent.ShowContent(event.eventId)) },
+                timelineProtectionState = timelineProtectionState,
+                isMine = event.isMine,
                 onLinkClick = onLinkClick,
                 onLinkLongClick = onLinkLongClick,
                 eventSink = eventSink,
@@ -226,6 +225,7 @@ private fun TimelineItemGroupedEventsRowContent(
                         onReactionLongClick = onReactionLongClick,
                         onMoreReactionsClick = onMoreReactionsClick,
                         onReadReceiptClick = onReadReceiptClick,
+                        onJoinCallClick = {},
                         onSwipeToReply = {},
                         eventSink = eventSink,
                         eventContentView = eventContentView,

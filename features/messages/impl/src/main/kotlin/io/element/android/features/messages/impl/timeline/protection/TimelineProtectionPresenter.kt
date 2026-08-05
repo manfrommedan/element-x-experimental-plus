@@ -12,11 +12,14 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.mutableStateSetOf
 import androidx.compose.runtime.remember
 import dev.zacsweers.metro.Inject
+import dev.zacsweers.metro.SingleIn
+import io.element.android.features.contentscanner.api.ContentScannerService
 import io.element.android.libraries.architecture.Presenter
 import io.element.android.libraries.core.coroutine.mapState
+import io.element.android.libraries.di.RoomScope
 import io.element.android.libraries.matrix.api.core.EventId
 import io.element.android.libraries.matrix.api.media.MediaPreviewService
 import io.element.android.libraries.matrix.api.media.isPreviewEnabled
@@ -26,13 +29,15 @@ import io.element.android.libraries.preferences.api.store.UrlPreviewValue
 import io.element.android.libraries.preferences.api.store.isUrlPreviewEnabled
 import kotlinx.collections.immutable.toImmutableSet
 
+@SingleIn(RoomScope::class)
 @Inject
 class TimelineProtectionPresenter(
     private val mediaPreviewService: MediaPreviewService,
     private val room: BaseRoom,
     private val appPreferencesStore: AppPreferencesStore,
+    private val contentScannerService: ContentScannerService,
 ) : Presenter<TimelineProtectionState> {
-    private val allowedEvents = mutableStateOf<Set<EventId>>(setOf())
+    private val allowedEvents = mutableStateSetOf<EventId>()
 
     @Composable
     override fun present(): TimelineProtectionState {
@@ -43,13 +48,14 @@ class TimelineProtectionPresenter(
         val urlPreviewValue by remember {
             appPreferencesStore.getUrlPreviewValueFlow()
         }.collectAsState(initial = UrlPreviewValue.DEFAULT)
+
         val protectionState by remember {
             derivedStateOf {
                 val isPreviewEnabled = mediaPreviewValue.value.isPreviewEnabled(roomInfo.value.joinRule)
                 if (isPreviewEnabled) {
                     ProtectionState.RenderAll
                 } else {
-                    ProtectionState.RenderOnly(eventIds = allowedEvents.value.toImmutableSet())
+                    ProtectionState.RenderOnly(eventIds = allowedEvents.toImmutableSet())
                 }
             }
         }
@@ -63,7 +69,10 @@ class TimelineProtectionPresenter(
         fun handleEvent(event: TimelineProtectionEvent) {
             when (event) {
                 is TimelineProtectionEvent.ShowContent -> {
-                    allowedEvents.value = allowedEvents.value + setOfNotNull(event.eventId)
+                    allowedEvents += setOfNotNull(event.eventId)
+                }
+                is TimelineProtectionEvent.ValidateContent -> {
+                    contentScannerService.scan(event.mediaSources, event.validationState)
                 }
             }
         }

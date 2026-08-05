@@ -19,6 +19,8 @@ import io.element.android.features.messages.impl.timeline.components.MessageShie
 import io.element.android.features.messages.impl.timeline.components.aCriticalShield
 import io.element.android.features.messages.impl.timeline.model.NewEventState
 import io.element.android.features.messages.impl.timeline.model.TimelineItem
+import io.element.android.features.messages.impl.timeline.protection.TimelineProtectionState
+import io.element.android.features.messages.impl.timeline.protection.aTimelineProtectionState
 import io.element.android.features.messages.impl.typing.aTypingNotificationState
 import io.element.android.features.messages.impl.voicemessages.timeline.FakeRedactedVoiceMessageManager
 import io.element.android.features.messages.impl.voicemessages.timeline.RedactedVoiceMessageManager
@@ -28,6 +30,7 @@ import io.element.android.features.poll.api.actions.SendPollResponseAction
 import io.element.android.features.poll.test.actions.FakeEndPollAction
 import io.element.android.features.poll.test.actions.FakeSendPollResponseAction
 import io.element.android.features.roomcall.api.aStandByCallState
+import io.element.android.libraries.architecture.Presenter
 import io.element.android.libraries.featureflag.api.FeatureFlags
 import io.element.android.libraries.featureflag.test.FakeFeatureFlagService
 import io.element.android.libraries.matrix.api.core.EventId
@@ -1588,6 +1591,7 @@ class TimelinePresenterTest {
         liveLocationShareManager: FakeActiveLiveLocationShareManager = FakeActiveLiveLocationShareManager(),
         markAsFullyRead: MarkAsFullyRead = FakeMarkAsFullyRead { _, _ -> },
         appPreferencesStore: AppPreferencesStore = InMemoryAppPreferencesStore(),
+        timelineProtectionPresenter: Presenter<TimelineProtectionState> = { aTimelineProtectionState() },
     ): TimelinePresenter {
         return TimelinePresenter(
             timelineItemsFactoryCreator = aTimelineItemsFactoryCreator(),
@@ -1609,6 +1613,7 @@ class TimelinePresenterTest {
             liveLocationShareManager = liveLocationShareManager,
             markAsFullyRead = markAsFullyRead,
             appPreferencesStore = appPreferencesStore,
+            timelineProtectionPresenter = timelineProtectionPresenter,
         )
     }
 }

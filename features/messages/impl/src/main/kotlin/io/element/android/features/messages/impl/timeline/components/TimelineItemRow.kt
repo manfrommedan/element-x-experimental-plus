@@ -46,13 +46,13 @@ import io.element.android.features.messages.impl.timeline.TimelineRoomInfo
 import io.element.android.features.messages.impl.timeline.components.event.TimelineItemEventContentView
 import io.element.android.features.messages.impl.timeline.components.layout.ContentAvoidingLayoutData
 import io.element.android.features.messages.impl.timeline.model.TimelineItem
+import io.element.android.features.messages.impl.timeline.model.event.RtcNotificationState
 import io.element.android.features.messages.impl.timeline.model.event.TimelineItemLegacyCallInviteContent
 import io.element.android.features.messages.impl.timeline.model.event.TimelineItemPollContent
 import io.element.android.features.messages.impl.timeline.model.event.TimelineItemRtcNotificationContent
 import io.element.android.features.messages.impl.timeline.model.event.TimelineItemStateContent
 import io.element.android.features.messages.impl.timeline.model.event.TimelineItemVoiceContent
 import io.element.android.features.messages.impl.timeline.model.event.isBulkSelectable
-import io.element.android.features.messages.impl.timeline.protection.TimelineProtectionEvent
 import io.element.android.features.messages.impl.timeline.protection.TimelineProtectionState
 import io.element.android.libraries.designsystem.colors.gradientSubtleColors
 import io.element.android.libraries.designsystem.modifiers.onKeyboardContextMenuAction
@@ -88,6 +88,7 @@ internal fun TimelineItemRow(
     onReactionLongClick: (key: String, TimelineItem.Event) -> Unit,
     onMoreReactionsClick: (TimelineItem.Event) -> Unit,
     onReadReceiptClick: (TimelineItem.Event) -> Unit,
+    onJoinCallClick: (isAudioCall: Boolean) -> Unit,
     onSwipeToReply: (TimelineItem.Event) -> Unit,
     eventSink: (TimelineEvent.TimelineItemEvent) -> Unit,
     modifier: Modifier = Modifier,
@@ -95,10 +96,10 @@ internal fun TimelineItemRow(
     eventContentView: @Composable (TimelineItem.Event, Modifier, (ContentAvoidingLayoutData) -> Unit) -> Unit =
         { event, contentModifier, onContentLayoutChange ->
             TimelineItemEventContentView(
+                eventId = event.eventId,
                 content = event.content,
-                hideMediaContent = timelineProtectionState.hideMediaContent(event.eventId, event.isMine),
-                showUrlPreviews = timelineProtectionState.showUrlPreviews,
-                onShowContentClick = { timelineProtectionState.eventSink(TimelineProtectionEvent.ShowContent(event.eventId)) },
+                timelineProtectionState = timelineProtectionState,
+                isMine = event.isMine,
                 onContentClick = { onContentClick(event) },
                 onGalleryItemClick = { index -> onGalleryItemClick(event, index) },
                 onLongClick = { onLongClick(event) },
@@ -179,6 +180,7 @@ internal fun TimelineItemRow(
                     onReadReceiptClick = onReadReceiptClick,
                     onSwipeToReply = onSwipeToReply,
                     onGalleryItemClick = onGalleryItemClick,
+                    onJoinCallClick = onJoinCallClick,
                     eventSink = eventSink,
                     eventContentView = eventContentView,
                 )
@@ -208,6 +210,7 @@ private fun TimelineItemRowContent(
     onReadReceiptClick: (TimelineItem.Event) -> Unit,
     onSwipeToReply: (TimelineItem.Event) -> Unit,
     onGalleryItemClick: (TimelineItem.Event, Int) -> Unit,
+    onJoinCallClick: (isAudioCall: Boolean) -> Unit,
     eventSink: (TimelineEvent.TimelineItemEvent) -> Unit,
     eventContentView: @Composable (TimelineItem.Event, Modifier, (ContentAvoidingLayoutData) -> Unit) -> Unit,
 ) {
@@ -229,18 +232,32 @@ private fun TimelineItemRowContent(
                             onClick = { onContentClick(timelineItem) },
                             onReadReceiptsClick = onReadReceiptClick,
                             onLongClick = { onLongClick(timelineItem) },
+                            timelineProtectionState = timelineProtectionState,
                             eventSink = eventSink,
                         )
                     }
                     is TimelineItemRtcNotificationContent -> {
-                        TimelineItemCallNotifyView(
-                            timelineRoomInfo = timelineRoomInfo,
-                            event = timelineItem,
-                            content = timelineItem.content,
-                            isLastOutgoingMessage = isLastOutgoingMessage,
-                            onLongClick = onLongClick,
-                            onReadReceiptsClick = onReadReceiptClick,
-                        )
+                        when (timelineItem.content.state) {
+                            is RtcNotificationState.Active -> ActiveCallTimelineItemView(
+                                timelineRoomInfo = timelineRoomInfo,
+                                event = timelineItem,
+                                state = timelineItem.content.state,
+                                isLastOutgoingMessage = isLastOutgoingMessage,
+                                onLongClick = onLongClick,
+                                onReadReceiptsClick = onReadReceiptClick,
+                                onJoinCallClick = onJoinCallClick,
+                            )
+                            is RtcNotificationState.Started, is RtcNotificationState.Declined ->
+                                TimelineItemCallNotifyView(
+                                    timelineRoomInfo = timelineRoomInfo,
+                                    event = timelineItem,
+                                    content = timelineItem.content,
+                                    state = timelineItem.content.state,
+                                    isLastOutgoingMessage = isLastOutgoingMessage,
+                                    onLongClick = onLongClick,
+                                    onReadReceiptsClick = onReadReceiptClick,
+                                )
+                        }
                     }
                     else -> {
                         val a11yVoiceMessage = stringResource(CommonStrings.a11y_voice_message)

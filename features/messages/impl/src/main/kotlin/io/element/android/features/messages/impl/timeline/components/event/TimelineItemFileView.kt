@@ -19,12 +19,14 @@ import io.element.android.features.messages.impl.timeline.model.event.TimelineIt
 import io.element.android.features.messages.impl.timeline.model.event.TimelineItemFileContentProvider
 import io.element.android.libraries.designsystem.preview.PreviewsDayNight
 import io.element.android.libraries.matrix.api.timeline.item.event.LocalEventSendState
+import io.element.android.libraries.matrix.ui.media.contentvalidation.ContentValidationValue
 import io.element.android.libraries.ui.strings.CommonStrings
 
 @Composable
 fun TimelineItemFileView(
     content: TimelineItemFileContent,
     onContentLayoutChange: (ContentAvoidingLayoutData) -> Unit,
+    contentValidationValue: ContentValidationValue,
     modifier: Modifier = Modifier,
     uploadProgress: LocalEventSendState.Sending.MediaWithProgress? = null,
     onCancelUpload: (() -> Unit)? = null,
@@ -35,8 +37,8 @@ fun TimelineItemFileView(
             iconContentDescription = stringResource(CommonStrings.common_file),
             filename = content.filename,
             fileExtensionAndSize = content.fileExtensionAndSize,
-            caption = content.caption,
             onContentLayoutChange = onContentLayoutChange,
+            contentValidationValue = contentValidationValue,
         )
         if (onCancelUpload != null) {
             MediaUploadOverlay(
@@ -54,6 +56,7 @@ internal fun TimelineItemFileViewPreview(@PreviewParameter(TimelineItemFileConte
         TimelineItemFileView(
             content,
             onContentLayoutChange = {},
+            contentValidationValue = ContentValidationValue.Valid,
         )
     }
 }

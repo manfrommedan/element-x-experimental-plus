@@ -53,7 +53,7 @@ import io.element.android.libraries.matrix.test.room.FakeJoinedRoom
 import io.element.android.libraries.matrix.test.room.aRoomInfo
 import io.element.android.libraries.matrix.test.room.powerlevels.FakeRoomPermissions
 import io.element.android.libraries.matrix.test.timeline.FakeTimeline
-import io.element.android.libraries.recentemojis.api.AddRecentEmoji
+import io.element.android.libraries.emoji.api.recentemojis.AddRecentEmoji
 import io.element.android.libraries.textcomposer.model.aTextEditorStateMarkdown
 import io.element.android.libraries.ui.strings.CommonStrings
 import io.element.android.services.analytics.test.FakeAnalyticsService

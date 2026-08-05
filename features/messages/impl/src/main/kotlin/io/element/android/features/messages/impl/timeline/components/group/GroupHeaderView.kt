@@ -26,9 +26,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.unit.dp
 import io.element.android.compound.theme.ElementTheme
 import io.element.android.compound.tokens.generated.CompoundIcons
@@ -40,6 +42,7 @@ import io.element.android.libraries.designsystem.preview.PreviewsDayNight
 import io.element.android.libraries.designsystem.theme.components.Icon
 import io.element.android.libraries.designsystem.theme.components.Surface
 import io.element.android.libraries.designsystem.theme.components.Text
+import io.element.android.libraries.ui.strings.CommonStrings
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.persistentListOf
 
@@ -58,6 +61,8 @@ fun GroupHeaderView(
     val backgroundColor = Color.Transparent
     val shape = RoundedCornerShape(CORNER_RADIUS)
 
+    val expandedStateDescription = stringResource(CommonStrings.a11y_state_expanded)
+    val collapsedStateDescription = stringResource(CommonStrings.a11y_state_collapsed)
     Box(
         modifier = modifier
             .fillMaxWidth()
@@ -68,6 +73,7 @@ fun GroupHeaderView(
             )
             .clearAndSetSemantics {
                 contentDescription = text
+                stateDescription = if (isExpanded) expandedStateDescription else collapsedStateDescription
             },
         contentAlignment = Alignment.Center
     ) {

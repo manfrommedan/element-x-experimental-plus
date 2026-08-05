@@ -18,11 +18,13 @@ import io.element.android.features.messages.impl.timeline.model.event.TimelineIt
 import io.element.android.features.messages.impl.timeline.model.event.TimelineItemAudioContentProvider
 import io.element.android.libraries.designsystem.preview.PreviewsDayNight
 import io.element.android.libraries.matrix.api.timeline.item.event.LocalEventSendState
+import io.element.android.libraries.matrix.ui.media.contentvalidation.ContentValidationValue
 
 @Composable
 fun TimelineItemAudioView(
     content: TimelineItemAudioContent,
     onContentLayoutChange: (ContentAvoidingLayoutData) -> Unit,
+    contentValidationValue: ContentValidationValue,
     modifier: Modifier = Modifier,
     uploadProgress: LocalEventSendState.Sending.MediaWithProgress? = null,
     onCancelUpload: (() -> Unit)? = null,
@@ -33,8 +35,8 @@ fun TimelineItemAudioView(
             iconContentDescription = null,
             filename = content.filename,
             fileExtensionAndSize = content.fileExtensionAndSize,
-            caption = content.caption,
             onContentLayoutChange = onContentLayoutChange,
+            contentValidationValue = contentValidationValue,
         )
         if (onCancelUpload != null) {
             MediaUploadOverlay(
@@ -52,5 +54,6 @@ internal fun TimelineItemAudioViewPreview(@PreviewParameter(TimelineItemAudioCon
         TimelineItemAudioView(
             content,
             onContentLayoutChange = {},
+            contentValidationValue = ContentValidationValue.Valid,
         )
     }
