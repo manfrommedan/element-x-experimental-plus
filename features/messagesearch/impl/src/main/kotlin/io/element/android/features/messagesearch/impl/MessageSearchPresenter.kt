@@ -90,7 +90,15 @@ class MessageSearchPresenter(
             // Relaunching this effect cancels the previous one, so a still-pending query is
             // superseded by the newer one — the user typing again always wins.
             delay(DEBOUNCE_MILLIS)
-            hasError = messageSearch.setQuery(query).isFailure
+            // Ask for prefixes rather than exact words so inflected forms match. If the index
+            // rejects the widened query it is a syntax the SDK does not accept, and the words the
+            // user actually typed are still a valid query, so that is what gets asked instead.
+            val widened = expandQueryForPrefixMatching(query)
+            var result = messageSearch.setQuery(widened)
+            if (result.isFailure && widened != query) {
+                result = messageSearch.setQuery(query)
+            }
+            hasError = result.isFailure
             isSearching = false
         }
 

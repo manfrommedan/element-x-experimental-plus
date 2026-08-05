@@ -143,7 +143,13 @@ private fun MessageSearchContent(
                 CenteredMessage(text = stringResource(CommonStrings.screen_message_search_error))
             }
             state.displayEmptyState -> {
-                CenteredMessage(text = stringResource(CommonStrings.common_no_results))
+                // Say what was actually searched. An index that holds message text only, and
+                // commits it in batches, produces plenty of honest empty results that otherwise
+                // read as the screen being broken.
+                CenteredMessage(
+                    text = stringResource(CommonStrings.common_no_results),
+                    detail = stringResource(R.string.screen_message_search_scope_hint),
+                )
             }
             state.displaySearchingState -> {
                 SearchingIndicator()
@@ -192,16 +198,33 @@ private fun MessageSearchResultList(
 private fun CenteredMessage(
     text: String,
     modifier: Modifier = Modifier,
+    detail: String? = null,
 ) {
-    Text(
-        text = text,
-        style = ElementTheme.typography.fontBodyLgRegular,
-        color = ElementTheme.colors.textSecondary,
-        textAlign = TextAlign.Center,
+    Column(
         modifier = modifier
             .fillMaxWidth()
             .padding(horizontal = 32.dp, vertical = 24.dp),
-    )
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Text(
+            text = text,
+            style = ElementTheme.typography.fontBodyLgRegular,
+            color = ElementTheme.colors.textSecondary,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.fillMaxWidth(),
+        )
+        if (detail != null) {
+            Text(
+                text = detail,
+                style = ElementTheme.typography.fontBodySmRegular,
+                color = ElementTheme.colors.textDisabled,
+                textAlign = TextAlign.Center,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 8.dp),
+            )
+        }
+    }
 }
 
 @Composable
