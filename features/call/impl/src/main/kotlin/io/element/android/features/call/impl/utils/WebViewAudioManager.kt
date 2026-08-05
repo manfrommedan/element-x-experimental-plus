@@ -33,6 +33,7 @@ import kotlinx.serialization.json.Json
 import timber.log.Timber
 import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicInteger
 import kotlin.time.Duration.Companion.seconds
 
 /**
@@ -126,6 +127,18 @@ class WebViewAudioManager(
     private val proximitySensorMutex = Mutex()
 
     /**
+     * True when we route through [AudioManager.setCommunicationDevice] rather than the legacy flags.
+     *
+     * Deliberately keyed to [Build.VERSION_CODES.TIRAMISU] and not to
+     * [Build.VERSION_CODES.S], where the API first appeared: the communication-device API only takes
+     * effect in [AudioManager.MODE_IN_COMMUNICATION], and [onCallStarted] keeps Android 12 in
+     * [AudioManager.MODE_NORMAL] because communication mode breaks device switching there. Selecting
+     * a device through an API that silently no-ops was why tapping the earpiece did nothing on
+     * Android 12 while the call stayed on the loudspeaker.
+     */
+    private val usesCommunicationDeviceApi = Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU
+
+    /**
      * This listener tracks the current communication device and updates the WebView when it changes.
      */
     @get:RequiresApi(Build.VERSION_CODES.S)
@@ -133,13 +146,32 @@ class WebViewAudioManager(
         AudioManager.OnCommunicationDeviceChangedListener { device ->
             Timber.d("Audio device changed, type: ${device?.id}")
             val wantedDevice = this.ecRequestedDeviceId
-            if (wantedDevice != null && this.ecRequestedDeviceId != device?.id?.toString()) {
-                // We want to ensure that we stick to what EC selected even if it was changed outside
-                Timber.d("Audio device changed to unwanted device ${device?.id}, enforce using the expected device $wantedDevice")
-                audioManager.selectAudioDevice(wantedDevice)
+            if (wantedDevice == null || wantedDevice == device?.id?.toString()) {
+                // Either nothing has been asked for yet, or the route already matches.
+                enforcementAttempts.set(0)
+                return@OnCommunicationDeviceChangedListener
             }
+            // We want to stick to what Element Call selected even if it was changed outside, but the
+            // WebView's own audio stack also owns this route and will push back. Re-asserting without
+            // a bound turns that into an endless tug of war whose winner is whoever wrote last, so we
+            // give up after a few rounds and leave the route to the WebView.
+            val attempt = enforcementAttempts.incrementAndGet()
+            if (attempt > MAX_ROUTE_ENFORCEMENT_ATTEMPTS) {
+                Timber.w(
+                    "Audio: giving up re-selecting %s after %d attempts, the WebView keeps moving it to %s",
+                    wantedDevice,
+                    MAX_ROUTE_ENFORCEMENT_ATTEMPTS,
+                    device?.id,
+                )
+                return@OnCommunicationDeviceChangedListener
+            }
+            Timber.d("Audio device changed to unwanted device ${device?.id}, enforce using the expected device $wantedDevice (attempt $attempt)")
+            audioManager.selectAudioDevice(wantedDevice)
         }
     }
+
+    /** Guards [commsDeviceChangedListener] against fighting the WebView forever. */
+    private val enforcementAttempts = AtomicInteger(0)
 
     /**
      * This callback is used to listen for audio device changes coming from the OS.
@@ -297,6 +329,8 @@ class WebViewAudioManager(
             onAudioDeviceSelected = { selectedDeviceId ->
                 previousSelectedDevice = listAudioDevices().find { it.id.toString() == selectedDeviceId }
                 this.ecRequestedDeviceId = selectedDeviceId
+                // A fresh pick from the user deserves a fresh set of attempts.
+                enforcementAttempts.set(0)
                 audioManager.selectAudioDevice(selectedDeviceId)
             },
             onAudioPlaybackStarted = {
@@ -388,15 +422,19 @@ class WebViewAudioManager(
      * @param device The info of the audio device to select, or none to clear the selected device.
      */
     private fun AudioManager.selectAudioDevice(device: AudioDeviceInfo?) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+        if (usesCommunicationDeviceApi) {
             if (device != null) {
-                runCatchingExceptions {
+                val applied = runCatchingExceptions {
                     Timber.d("Setting communication device: ${device.id} - ${deviceName(device.type, device.productName.toString())}")
-                    if (!setCommunicationDevice(device)) {
-                        Timber.w("Failed to setCommunication device")
-                    }
+                    setCommunicationDevice(device)
                 }.onFailure {
                     Timber.e(it, "Could not set communication device.")
+                }.getOrDefault(false)
+                if (!applied) {
+                    // Some vendors reject setCommunicationDevice while their own stack is mid-handover.
+                    // Falling back keeps the route honest instead of leaving the user on the loudspeaker.
+                    Timber.w("Audio: setCommunicationDevice refused ${device.id}, falling back to the legacy route")
+                    selectAudioDeviceLegacy(device)
                 }
             } else {
                 runCatchingExceptions {
@@ -406,26 +444,35 @@ class WebViewAudioManager(
                 }
             }
         } else {
-            // On Android 11 and lower, we don't have the concept of communication devices
-            // We have to call the right methods based on the device type
-            @Suppress("DEPRECATION")
-            if (device != null) {
-                if (device.type == AudioDeviceInfo.TYPE_BLUETOOTH_SCO && disableBluetoothAudioDevices) {
-                    Timber.w("Bluetooth audio devices are disabled on this Android version")
-                    setAudioEnabled(false)
-                    onInvalidAudioDeviceAdded(InvalidAudioDeviceReason.BT_AUDIO_DEVICE_DISABLED)
-                    return
-                }
-                setAudioEnabled(true)
-                isSpeakerphoneOn = device.type == AudioDeviceInfo.TYPE_BUILTIN_SPEAKER
-                isBluetoothScoOn = device.type == AudioDeviceInfo.TYPE_BLUETOOTH_SCO
-            } else {
-                isSpeakerphoneOn = false
-                isBluetoothScoOn = false
-            }
+            selectAudioDeviceLegacy(device)
         }
 
         updateProximityForDevice(device)
+    }
+
+    /**
+     * Routes audio the pre-[Build.VERSION_CODES.S] way, by toggling the speakerphone and SCO flags.
+     *
+     * This is also the fallback whenever [AudioManager.setCommunicationDevice] refuses a device, and
+     * the only path we use while the audio mode is [AudioManager.MODE_NORMAL], because the
+     * communication-device API is a no-op outside of communication mode.
+     */
+    @Suppress("DEPRECATION")
+    private fun AudioManager.selectAudioDeviceLegacy(device: AudioDeviceInfo?) {
+        if (device != null) {
+            if (device.type == AudioDeviceInfo.TYPE_BLUETOOTH_SCO && disableBluetoothAudioDevices) {
+                Timber.w("Bluetooth audio devices are disabled on this Android version")
+                setAudioEnabled(false)
+                onInvalidAudioDeviceAdded(InvalidAudioDeviceReason.BT_AUDIO_DEVICE_DISABLED)
+                return
+            }
+            setAudioEnabled(true)
+            isSpeakerphoneOn = device.type == AudioDeviceInfo.TYPE_BUILTIN_SPEAKER
+            isBluetoothScoOn = device.type == AudioDeviceInfo.TYPE_BLUETOOTH_SCO
+        } else {
+            isSpeakerphoneOn = false
+            isBluetoothScoOn = false
+        }
     }
 
     /** Holds the proximity wake lock only on the earpiece route. */
@@ -462,6 +509,9 @@ class WebViewAudioManager(
     private companion object {
         const val QUIET_CALL_VOLUME_FLOOR_RATIO = 0.5f
         const val AUDIBLE_CALL_VOLUME_TARGET_RATIO = 0.8f
+
+        /** How many times we re-assert the route before conceding it to the WebView. */
+        const val MAX_ROUTE_ENFORCEMENT_ATTEMPTS = 3
     }
 }
 
