@@ -33,7 +33,6 @@ import kotlinx.serialization.json.Json
 import timber.log.Timber
 import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicBoolean
-import java.util.concurrent.atomic.AtomicInteger
 import kotlin.time.Duration.Companion.seconds
 
 /**
@@ -68,11 +67,6 @@ class WebViewAudioManager(
      * This flag indicates whether the WebView audio is enabled or not. By default, it is enabled.
      */
     private val isWebViewAudioEnabled = AtomicBoolean(true)
-
-    /**
-     * Store the device id requested by EC, and re-set it if something try to switch (only android S+).
-     */
-    private var ecRequestedDeviceId: String? = null
 
     /**
      * The list of device types that are considered as communication devices, sorted by likelihood of it being used for communication.
@@ -144,34 +138,28 @@ class WebViewAudioManager(
     @get:RequiresApi(Build.VERSION_CODES.S)
     private val commsDeviceChangedListener by lazy {
         AudioManager.OnCommunicationDeviceChangedListener { device ->
+            // Whoever moved the route, Element Call is told where it actually ended up. Forcing the
+            // route back to what Element Call last asked for is how this used to work, and it turned
+            // every disagreement into a tug of war with the WebView's own audio stack.
             Timber.d("Audio device changed, type: ${device?.id}")
-            val wantedDevice = this.ecRequestedDeviceId
-            if (wantedDevice == null || wantedDevice == device?.id?.toString()) {
-                // Either nothing has been asked for yet, or the route already matches.
-                enforcementAttempts.set(0)
-                return@OnCommunicationDeviceChangedListener
-            }
-            // We want to stick to what Element Call selected even if it was changed outside, but the
-            // WebView's own audio stack also owns this route and will push back. Re-asserting without
-            // a bound turns that into an endless tug of war whose winner is whoever wrote last, so we
-            // give up after a few rounds and leave the route to the WebView.
-            val attempt = enforcementAttempts.incrementAndGet()
-            if (attempt > MAX_ROUTE_ENFORCEMENT_ATTEMPTS) {
-                Timber.w(
-                    "Audio: giving up re-selecting %s after %d attempts, the WebView keeps moving it to %s",
-                    wantedDevice,
-                    MAX_ROUTE_ENFORCEMENT_ATTEMPTS,
-                    device?.id,
-                )
-                return@OnCommunicationDeviceChangedListener
-            }
-            Timber.d("Audio device changed to unwanted device ${device?.id}, enforce using the expected device $wantedDevice (attempt $attempt)")
-            audioManager.selectAudioDevice(wantedDevice)
+            reportEffectiveRoute(device?.id?.toString())
         }
     }
 
-    /** Guards [commsDeviceChangedListener] against fighting the WebView forever. */
-    private val enforcementAttempts = AtomicInteger(0)
+    /**
+     * Tells Element Call which device the audio is really coming out of.
+     *
+     * Without this the picker only ever reflects what was asked for, so a selection the platform
+     * refused still looked applied: the user tapped the earpiece, the UI moved, and the call stayed
+     * on the loudspeaker with nothing to say otherwise.
+     */
+    private fun reportEffectiveRoute(deviceId: String?) {
+        if (deviceId == null) return
+        coroutineScope.launch(Dispatchers.Main) {
+            Timber.d("Audio: reporting effective route $deviceId to Element Call")
+            webView.evaluateJavascript("controls.setAudioDevice(\"$deviceId\");", null)
+        }
+    }
 
     /**
      * This callback is used to listen for audio device changes coming from the OS.
@@ -328,9 +316,6 @@ class WebViewAudioManager(
         val webViewAudioDeviceSelectedCallback = AndroidWebViewAudioBridge(
             onAudioDeviceSelected = { selectedDeviceId ->
                 previousSelectedDevice = listAudioDevices().find { it.id.toString() == selectedDeviceId }
-                this.ecRequestedDeviceId = selectedDeviceId
-                // A fresh pick from the user deserves a fresh set of attempts.
-                enforcementAttempts.set(0)
                 audioManager.selectAudioDevice(selectedDeviceId)
             },
             onAudioPlaybackStarted = {
@@ -435,6 +420,8 @@ class WebViewAudioManager(
                     // Falling back keeps the route honest instead of leaving the user on the loudspeaker.
                     Timber.w("Audio: setCommunicationDevice refused ${device.id}, falling back to the legacy route")
                     selectAudioDeviceLegacy(device)
+                    // The refusal means no listener callback is coming, so report what we settled on.
+                    reportEffectiveRoute(communicationDevice?.id?.toString() ?: device.id.toString())
                 }
             } else {
                 runCatchingExceptions {
@@ -445,6 +432,9 @@ class WebViewAudioManager(
             }
         } else {
             selectAudioDeviceLegacy(device)
+            // No communication device is ever set on this path, so the change listener stays silent
+            // and this is the only chance to tell Element Call where the audio actually went.
+            reportEffectiveRoute(device?.id?.toString())
         }
 
         updateProximityForDevice(device)
@@ -509,9 +499,6 @@ class WebViewAudioManager(
     private companion object {
         const val QUIET_CALL_VOLUME_FLOOR_RATIO = 0.5f
         const val AUDIBLE_CALL_VOLUME_TARGET_RATIO = 0.8f
-
-        /** How many times we re-assert the route before conceding it to the WebView. */
-        const val MAX_ROUTE_ENFORCEMENT_ATTEMPTS = 3
     }
 }
 
