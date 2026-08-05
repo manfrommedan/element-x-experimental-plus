@@ -234,7 +234,8 @@ enum class FeatureFlags(
     MessageSearch(
         key = "feature.message_search",
         title = "Message search",
-        description = "Index messages locally so they can be searched. Older history is backfilled in the background.",
+        description = "Index messages locally so they can be searched. Enabling this rebuilds the index once, re-fetching recent history, " +
+            "and older history is then backfilled in the background.",
         defaultValue = { false },
         isFinished = false,
     ),
