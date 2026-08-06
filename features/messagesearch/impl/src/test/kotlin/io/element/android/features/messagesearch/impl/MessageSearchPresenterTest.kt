@@ -16,7 +16,9 @@ import io.element.android.libraries.matrix.api.core.EventId
 import io.element.android.libraries.matrix.api.core.RoomId
 import io.element.android.libraries.matrix.api.search.MessageSearchPaginationState
 import io.element.android.libraries.matrix.api.search.MessageSearchResult
+import io.element.android.libraries.matrix.api.timeline.item.event.EventContent
 import io.element.android.libraries.matrix.api.timeline.item.event.ProfileDetails
+import io.element.android.libraries.matrix.api.timeline.item.event.RedactedContent
 import io.element.android.libraries.matrix.test.A_ROOM_ID
 import io.element.android.libraries.matrix.test.A_USER_ID
 import io.element.android.libraries.matrix.test.FakeMatrixClient
@@ -154,6 +156,31 @@ class MessageSearchPresenterTest {
             expectMostRecentItem().also { state ->
                 assertThat(state.displayEmptyState).isFalse()
                 assertThat(state.displayErrorState).isTrue()
+            }
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `present - a deleted message is not shown among the results`() = runTest {
+        val messageSearch = FakeMessageSearch()
+        val presenter = createMessageSearchPresenter(messageSearch = messageSearch)
+        presenter.test {
+            awaitItem().eventSink(MessageSearchEvents.QueryChanged("hello"))
+            advanceUntilIdle()
+            messageSearch.emitResults(
+                persistentListOf(
+                    aMessageSearchResult(eventId = EventId("\$kept")),
+                    aMessageSearchResult(eventId = EventId("\$redacted"), content = RedactedContent),
+                )
+            )
+            advanceUntilIdle()
+
+            expectMostRecentItem().also { state ->
+                // Removing a redacted event from the index is still open in the SDK, so it can
+                // keep matching long after it left the room.
+                assertThat(state.results).hasSize(1)
+                assertThat(state.results.first().eventId).isEqualTo(EventId("\$kept"))
             }
             cancelAndIgnoreRemainingEvents()
         }
@@ -401,12 +428,13 @@ class MessageSearchPresenterTest {
 private fun aMessageSearchResult(
     eventId: EventId = EventId("\$anEventId"),
     roomId: RoomId = A_ROOM_ID,
+    content: EventContent = aMessageContent(body = "hello world"),
 ) = MessageSearchResult(
     roomId = roomId,
     eventId = eventId,
     senderId = A_USER_ID,
     senderProfile = ProfileDetails.Unavailable,
-    content = aMessageContent(body = "hello world"),
+    content = content,
     timestamp = 0L,
 )
 

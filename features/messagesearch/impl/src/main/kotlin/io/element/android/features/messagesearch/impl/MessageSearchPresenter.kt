@@ -32,6 +32,7 @@ import io.element.android.libraries.matrix.api.core.RoomId
 import io.element.android.libraries.matrix.api.roomlist.LatestEventValue
 import io.element.android.libraries.matrix.api.search.MessageSearchPaginationState
 import io.element.android.libraries.matrix.api.search.MessageSearchResult
+import io.element.android.libraries.matrix.api.timeline.item.event.RedactedContent
 import io.element.android.libraries.matrix.api.timeline.item.event.getAvatarUrl
 import io.element.android.libraries.matrix.api.timeline.item.event.getDisambiguatedDisplayName
 import kotlinx.collections.immutable.toImmutableList
@@ -162,7 +163,15 @@ class MessageSearchPresenter(
         }
 
         val items = remember(results) {
-            results.map { it.toResultItem() }.toImmutableList()
+            results
+                // A message that has been deleted must not surface here. Removing an event from
+                // the index on redaction is still an open item in the SDK, so a redacted message
+                // can stay findable long after it left the room. Dropping it at the point of
+                // display costs nothing if the SDK is already withholding them, and closes the
+                // hole if it is not.
+                .filter { it.content !is RedactedContent }
+                .map { it.toResultItem() }
+                .toImmutableList()
         }
 
         fun handleEvent(event: MessageSearchEvents) {
