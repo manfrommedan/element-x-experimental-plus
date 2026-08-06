@@ -99,7 +99,7 @@ class MessageSearchPresenterTest {
             assertThat(messageSearch.lastQuery).isNull()
 
             advanceUntilIdle()
-            assertThat(messageSearch.lastQuery).isEqualTo("hello*")
+            assertThat(messageSearch.lastQuery).isEqualTo("hello")
             cancelAndIgnoreRemainingEvents()
         }
     }
@@ -118,7 +118,7 @@ class MessageSearchPresenterTest {
             }
             advanceUntilIdle()
             // Only the final query ever reached the SDK.
-            assertThat(messageSearch.lastQuery).isEqualTo("hello*")
+            assertThat(messageSearch.lastQuery).isEqualTo("hello")
             assertThat(messageSearch.setQueryCallCount).isEqualTo(1)
             cancelAndIgnoreRemainingEvents()
         }

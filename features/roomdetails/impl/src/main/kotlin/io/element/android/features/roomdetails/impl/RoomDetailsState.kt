@@ -23,6 +23,8 @@ import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.toImmutableList
 
 data class RoomDetailsState(
+    /** Whether the message search entry point should be offered for this room. */
+    val canSearch: Boolean,
     val roomId: RoomId,
     val roomName: String,
     val roomAlias: RoomAlias?,

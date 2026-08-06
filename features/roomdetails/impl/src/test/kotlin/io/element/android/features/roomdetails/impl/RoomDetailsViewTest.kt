@@ -395,6 +395,7 @@ private fun AndroidComposeUiTest<ComponentActivity>.setRoomDetailView(
             openPollHistory = openPollHistory,
             openMediaGallery = openMediaGallery,
             openAdminSettings = openAdminSettings,
+            openMessageSearch = {},
             onJoinCallClick = onJoinCallClick,
             onPinnedMessagesClick = onPinnedMessagesClick,
             onKnockRequestsClick = onKnockRequestsClick,

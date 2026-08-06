@@ -74,6 +74,7 @@ class DefaultRoomDetailsEntryPointTest {
             override fun navigateToRoom(roomId: RoomId, serverNames: List<String>, clearBackStack: Boolean) = lambdaError()
             override fun handlePermalinkClick(data: PermalinkData, pushToBackstack: Boolean) = lambdaError()
             override fun startForwardEventFlow(eventId: EventId, fromPinnedEvents: Boolean) = lambdaError()
+            override fun navigateToMessageSearch() = lambdaError()
         }
         val params = RoomDetailsEntryPoint.Params(
             initialElement = RoomDetailsEntryPoint.InitialTarget.RoomDetails,

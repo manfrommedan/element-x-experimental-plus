@@ -167,6 +167,10 @@ class JoinedRoomLoadedFlowNode(
             override fun startForwardEventFlow(eventId: EventId, fromPinnedEvents: Boolean) {
                 backstack.push(NavTarget.ForwardEvent(eventId, fromPinnedEvents))
             }
+
+            override fun navigateToMessageSearch() {
+                callback.navigateToMessageSearch(inputs.room.roomId)
+            }
         }
         return roomDetailsEntryPoint.createNode(
             parentNode = this,

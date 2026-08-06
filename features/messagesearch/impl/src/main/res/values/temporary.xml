@@ -8,5 +8,5 @@
 <resources>
     <!-- Shown under "No results". The index commits in batches, so a message that has just
          arrived is genuinely absent for a while, and an empty result is often correct. -->
-    <string name="screen_message_search_scope_hint">Messages just received appear here after a short delay.</string>
+    <string name="screen_message_search_scope_hint">Whole words are matched, so try the exact form. Messages just received appear here after a short delay.</string>
 </resources>

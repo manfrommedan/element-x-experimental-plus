@@ -116,6 +116,7 @@ fun RoomDetailsView(
     openAvatarPreview: (name: String, url: String) -> Unit,
     openPollHistory: () -> Unit,
     openMediaGallery: () -> Unit,
+    openMessageSearch: () -> Unit,
     openAdminSettings: () -> Unit,
     onJoinCallClick: (CallIntent) -> Unit,
     onPinnedMessagesClick: () -> Unit,
@@ -241,6 +242,11 @@ fun RoomDetailsView(
             }
             // Room content
             PreferenceCategory {
+                if (state.canSearch) {
+                    MessageSearchItem(
+                        onClick = openMessageSearch
+                    )
+                }
                 MediaGalleryItem(
                     onClick = openMediaGallery
                 )
@@ -816,6 +822,17 @@ private fun PollsItem(
 }
 
 @Composable
+private fun MessageSearchItem(
+    onClick: () -> Unit,
+) {
+    ListItem(
+        headlineContent = { Text(stringResource(CommonStrings.screen_message_search_title)) },
+        leadingContent = ListItemContent.Icon(IconSource.Vector(CompoundIcons.Search())),
+        onClick = onClick,
+    )
+}
+
+@Composable
 private fun MediaGalleryItem(
     onClick: () -> Unit,
 ) {
@@ -936,6 +953,7 @@ private fun ContentToPreview(state: RoomDetailsState) {
         openPollHistory = {},
         openMediaGallery = {},
         openAdminSettings = {},
+        openMessageSearch = {},
         onJoinCallClick = {},
         onPinnedMessagesClick = {},
         onKnockRequestsClick = {},

@@ -186,6 +186,7 @@ class RoomDetailsPresenter(
         val canReportRoom by produceState(false) { value = client.canReportRoom() }
 
         return RoomDetailsState(
+            canSearch = client.isMessageSearchAvailable,
             roomId = room.roomId,
             roomName = roomName,
             roomAlias = canonicalAlias,

@@ -56,6 +56,7 @@ class RoomDetailsNode(
         fun navigateToAvatarPreview(name: String, url: String)
         fun navigateToPollHistory()
         fun navigateToMediaGallery()
+        fun navigateToMessageSearch()
         fun navigateToAdminSettings()
         fun navigateToPinnedMessagesList()
         fun navigateToKnockRequestsList()
@@ -130,6 +131,7 @@ class RoomDetailsNode(
             openAvatarPreview = callback::navigateToAvatarPreview,
             openPollHistory = callback::navigateToPollHistory,
             openMediaGallery = callback::navigateToMediaGallery,
+            openMessageSearch = callback::navigateToMessageSearch,
             openAdminSettings = callback::navigateToAdminSettings,
             onJoinCallClick = callback::navigateToRoomCall,
             onPinnedMessagesClick = callback::navigateToPinnedMessagesList,

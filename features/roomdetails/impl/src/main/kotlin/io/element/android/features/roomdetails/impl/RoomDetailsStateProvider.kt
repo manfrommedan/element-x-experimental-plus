@@ -92,6 +92,7 @@ fun aDmRoomMember(
 )
 
 fun aRoomDetailsState(
+    canSearch: Boolean = false,
     roomId: RoomId = RoomId("!aRoomId:domain.com"),
     roomName: String = "Marketing",
     roomAlias: RoomAlias? = RoomAlias("#marketing:domain.com"),
@@ -129,6 +130,7 @@ fun aRoomDetailsState(
     hasNewContent: Boolean = false,
     eventSink: (RoomDetailsEvent) -> Unit = {},
 ) = RoomDetailsState(
+    canSearch = canSearch,
     roomId = roomId,
     roomName = roomName,
     roomAlias = roomAlias,

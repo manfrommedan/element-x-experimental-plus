@@ -204,6 +204,10 @@ class RoomDetailsFlowNode(
                         backstack.push(NavTarget.PollHistory)
                     }
 
+                    override fun navigateToMessageSearch() {
+                        callback.navigateToMessageSearch()
+                    }
+
                     override fun navigateToMediaGallery() {
                         backstack.push(NavTarget.MediaGallery)
                     }

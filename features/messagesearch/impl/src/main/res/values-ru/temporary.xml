@@ -6,5 +6,5 @@
   -->
 
 <resources>
-    <string name="screen_message_search_scope_hint">Только что полученные сообщения появляются здесь с небольшой задержкой.</string>
+    <string name="screen_message_search_scope_hint">Слова ищутся целиком, поэтому нужна точная форма. Только что полученные сообщения появляются здесь с небольшой задержкой.</string>
 </resources>

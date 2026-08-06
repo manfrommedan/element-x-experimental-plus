@@ -151,7 +151,6 @@ fun MessagesView(
     onViewAllPinnedMessagesClick: () -> Unit,
     onThreadsListClick: () -> Unit,
     knockRequestsBannerView: @Composable () -> Unit,
-    onSearchClick: () -> Unit,
     modifier: Modifier = Modifier,
     forceJumpToBottomVisibility: Boolean = false,
     customReactionBottomSheet: @Composable () -> Unit,
@@ -321,11 +320,14 @@ fun MessagesView(
                             menuActions = {
                                 MessagesMenuActions(
                                     displayThreads = state.timelineState.timelineMode !is Timeline.Mode.Thread && state.threads.hasThreads,
-                                    displaySearch = state.canSearch,
                                     roomCallState = state.roomCallState,
                                     onJoinCallClick = onJoinCallClick,
                                     onThreadsListClick = onThreadsListClick,
-                                    onSearchClick = onSearchClick,
+                                    // The search entry point sits in the room details screen next to
+                                    // the media gallery, where people go looking for it, rather than
+                                    // as a third icon competing for room in the toolbar.
+                                    displaySearch = false,
+                                    onSearchClick = {},
                                 )
                             }
                         )
@@ -769,7 +771,6 @@ internal fun MessagesViewPreview(@PreviewParameter(MessagesStateProvider::class)
         knockRequestsBannerView = {},
         customReactionBottomSheet = {},
         onThreadsListClick = {},
-        onSearchClick = {},
     )
 }
 
@@ -824,7 +825,6 @@ internal fun MessagesViewA11yPreview() = ElementPreview {
         onJoinCallClick = {},
         onViewAllPinnedMessagesClick = {},
         onThreadsListClick = {},
-        onSearchClick = {},
         forceJumpToBottomVisibility = true,
         knockRequestsBannerView = {},
         customReactionBottomSheet = {},

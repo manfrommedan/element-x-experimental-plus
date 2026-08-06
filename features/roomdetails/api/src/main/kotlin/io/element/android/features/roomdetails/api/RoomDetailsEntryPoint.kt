@@ -44,6 +44,7 @@ interface RoomDetailsEntryPoint : FeatureEntryPoint {
         fun navigateToRoom(roomId: RoomId, serverNames: List<String>, clearBackStack: Boolean = false)
         fun handlePermalinkClick(data: PermalinkData, pushToBackstack: Boolean)
         fun startForwardEventFlow(eventId: EventId, fromPinnedEvents: Boolean)
+        fun navigateToMessageSearch()
     }
 
     fun createNode(
