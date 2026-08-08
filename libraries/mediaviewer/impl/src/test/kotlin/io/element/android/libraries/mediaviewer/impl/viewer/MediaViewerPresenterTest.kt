@@ -46,6 +46,7 @@ import io.element.android.libraries.mediaviewer.test.FakeLocalMediaActions
 import io.element.android.libraries.mediaviewer.test.FakeLocalMediaFactory
 import io.element.android.services.toolbox.test.systemclock.FakeSystemClock
 import io.element.android.tests.testutils.WarmUpRule
+import io.element.android.tests.testutils.consumeItemsUntilPredicate
 import io.element.android.tests.testutils.lambda.lambdaRecorder
 import io.element.android.tests.testutils.lambda.value
 import io.element.android.tests.testutils.test
@@ -646,8 +647,10 @@ class MediaViewerPresenterTest {
                     }
                 )
             )
-            skipItems(2)
-            val stateWithSnackbar = awaitItem()
+            // Wait for the snackbar rather than for a fixed number of states: how many times the
+            // screen recomposes on the way there is not what this test is about, and counting them
+            // makes it fail whenever anything else on the screen gains or loses a state.
+            val stateWithSnackbar = consumeItemsUntilPredicate { it.snackbarMessage != null }.last()
             assertThat(stateWithSnackbar.snackbarMessage!!.messageResId).isEqualTo(expectedSnackbarResId)
         }
     }

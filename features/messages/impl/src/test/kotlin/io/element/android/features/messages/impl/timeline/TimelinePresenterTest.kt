@@ -883,7 +883,11 @@ class TimelinePresenterTest {
                 }
             ),
         )
-        val presenter = createTimelinePresenter(timeline = timeline)
+        // Stated rather than assumed: collapsing is on by default in the app, but the shared
+        // in-memory preferences start with it off, and a test that leans on either default is
+        // testing the double instead of the behaviour.
+        val appPreferencesStore = InMemoryAppPreferencesStore().apply { setHideRedactedEvents(true) }
+        val presenter = createTimelinePresenter(timeline = timeline, appPreferencesStore = appPreferencesStore)
         presenter.test {
             val state = consumeItemsUntilPredicate { it.timelineItems.size == 1 }.last()
             val group = state.timelineItems.single()
