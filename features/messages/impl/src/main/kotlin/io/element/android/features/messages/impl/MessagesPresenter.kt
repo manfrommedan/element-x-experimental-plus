@@ -419,7 +419,10 @@ class MessagesPresenter(
                         snackbarDispatcher.post(
                             SnackbarMessage(
                                 when {
-                                    saved == targets.size -> CommonStrings.common_file_saved_on_disk_android
+                                    // One file or several: the viewer's own wording is about a
+                                    // file, singular, and reads wrong over a batch of twelve.
+                                    saved == targets.size && saved == 1 -> CommonStrings.common_file_saved_on_disk_android
+                                    saved == targets.size -> R.string.screen_messages_selection_saved
                                     saved > 0 -> R.string.screen_messages_selection_saved_partly
                                     else -> CommonStrings.common_error
                                 }

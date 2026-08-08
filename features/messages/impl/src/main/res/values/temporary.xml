@@ -18,6 +18,7 @@
     <string name="screen_messages_selection_cap_reached">"Maximum messages selected"</string>
     <string name="screen_messages_selection_save_action">"Save to Downloads"</string>
     <string name="screen_messages_selection_saving_progress">"Saving %1$d of %2$d"</string>
+    <string name="screen_messages_selection_saved">"Files saved to Downloads"</string>
     <string name="screen_messages_selection_saved_partly">"Some files could not be saved"</string>
     <string name="screen_composer_attachments_cap_reached">"You can share up to 30 items at a time"</string>
     <string name="screen_messages_forwarded">"Forwarded"</string>
