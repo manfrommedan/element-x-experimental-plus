@@ -38,7 +38,10 @@ import io.element.android.features.messages.impl.link.LinkState
 import io.element.android.features.messages.impl.messagecomposer.MessageComposerEvent
 import io.element.android.features.messages.impl.messagecomposer.MessageComposerState
 import io.element.android.features.messages.impl.pinned.banner.PinnedMessagesBannerState
+import io.element.android.features.messages.impl.selection.SelectionSaveProgress
 import io.element.android.features.messages.impl.selection.TimelineSelectionState
+import io.element.android.features.messages.impl.selection.SelectionMediaSaver
+import io.element.android.features.messages.impl.selection.savableSelection
 import io.element.android.features.messages.impl.selection.allEvents
 import io.element.android.features.messages.impl.timeline.MarkAsFullyRead
 import io.element.android.features.messages.impl.timeline.TimelineController
@@ -99,6 +102,7 @@ import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.toImmutableList
 import kotlinx.collections.immutable.toImmutableSet
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.onStart
@@ -140,6 +144,7 @@ class MessagesPresenter(
     private val addRecentEmoji: AddRecentEmoji,
     private val markAsFullyRead: MarkAsFullyRead,
     private val liveLocationShareManager: ActiveLiveLocationShareManager,
+    private val selectionMediaSaver: SelectionMediaSaver,
     @SessionCoroutineScope private val sessionCoroutineScope: CoroutineScope,
 ) : Presenter<MessagesState> {
     @AssistedFactory
@@ -197,6 +202,10 @@ class MessagesPresenter(
         // on screen re-entry, while still reflecting a disable on the next entry.
         multiSelectSeen = isMultiSelectEnabled
         // rememberSaveable so a large in-progress selection survives rotation / process death.
+        // Not saveable: a save in flight belongs to the coroutine doing it, and that does not
+        // survive process death either.
+        var saveProgress by remember { mutableStateOf<SelectionSaveProgress?>(null) }
+        var saveJob by remember { mutableStateOf<Job?>(null) }
         var selectionState by rememberSaveable(stateSaver = TimelineSelectionState.Saver) {
             mutableStateOf(TimelineSelectionState.Empty)
         }
@@ -317,6 +326,14 @@ class MessagesPresenter(
                 MessagesEvent.ClearSelection -> {
                     selectionState = TimelineSelectionState.Empty
                 }
+                MessagesEvent.CancelSelectionSave -> {
+                    // Whatever has already been written stays written. Stopping a batch is not
+                    // undoing it, and going round deleting files the user watched arrive would be
+                    // the greater surprise.
+                    saveJob?.cancel()
+                    saveJob = null
+                    saveProgress = null
+                }
                 MessagesEvent.BulkRedactSelected -> {
                     // Only redact events the user is actually permitted to, skipping the rest so we
                     // don't fire requests guaranteed to fail. Route through the current timeline so
@@ -375,6 +392,40 @@ class MessagesPresenter(
                     val orderedTargets = selected.sortedBy { sentTimeById[it] ?: Long.MAX_VALUE }
                     selectionState = TimelineSelectionState.Empty
                     navigator.forwardEvents(orderedTargets)
+                }
+                MessagesEvent.BulkSaveSelected -> {
+                    if (saveJob?.isActive == true) return@handleEvent
+                    val targets = savableSelection(timelineState.timelineItems, selectionState.selectedIds)
+                    if (targets.isEmpty()) return@handleEvent
+                    saveProgress = SelectionSaveProgress(saved = 0, total = targets.size)
+                    // The selection is done with the moment the work starts: the room comes back
+                    // and the banner carries the progress from here. Session scope, so walking out
+                    // of the room does not abandon a half-saved batch.
+                    selectionState = TimelineSelectionState.Empty
+                    saveJob = sessionCoroutineScope.launch {
+                        var saved = 0
+                        targets.forEach { target ->
+                            selectionMediaSaver.save(target).onSuccess {
+                                saved += 1
+                                saveProgress = SelectionSaveProgress(saved = saved, total = targets.size)
+                            }.onFailure {
+                                Timber.w(it, "Bulk save: one of ${targets.size} files could not be saved")
+                            }
+                        }
+                        saveProgress = null
+                        saveJob = null
+                        // Three outcomes, not two: saying "error" over a batch where most files
+                        // did land would send someone looking for files that are already there.
+                        snackbarDispatcher.post(
+                            SnackbarMessage(
+                                when {
+                                    saved == targets.size -> CommonStrings.common_file_saved_on_disk_android
+                                    saved > 0 -> R.string.screen_messages_selection_saved_partly
+                                    else -> CommonStrings.common_error
+                                }
+                            )
+                        )
+                    }
                 }
                 is MessagesEvent.ToggleReaction -> {
                     localCoroutineScope.toggleReaction(event.emoji, event.eventOrTransactionId)
@@ -455,6 +506,7 @@ class MessagesPresenter(
             ),
             showLiveLocationShareBanner = isCurrentlySharingLiveLocationInRoom && timelineState.timelineMode !is Timeline.Mode.Thread,
             selectionState = selectionState,
+            selectionSaveProgress = saveProgress,
             isMultiSelectEnabled = isMultiSelectEnabled,
             canSearch = canSearch,
             eventSink = ::handleEvent,

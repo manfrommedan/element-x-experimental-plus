@@ -162,6 +162,7 @@ fun aMessagesState(
     threads = threads,
     showLiveLocationShareBanner = isCurrentlySharingLiveLocationInRoom,
     selectionState = io.element.android.features.messages.impl.selection.TimelineSelectionState.Empty,
+    selectionSaveProgress = null,
     isMultiSelectEnabled = false,
     dmUserStatus = dmUserStatus,
     canSearch = canSearch,

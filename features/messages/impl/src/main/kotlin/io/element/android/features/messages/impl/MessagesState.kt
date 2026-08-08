@@ -14,6 +14,7 @@ import io.element.android.features.messages.impl.crypto.identity.IdentityChangeS
 import io.element.android.features.messages.impl.link.LinkState
 import io.element.android.features.messages.impl.messagecomposer.MessageComposerState
 import io.element.android.features.messages.impl.pinned.banner.PinnedMessagesBannerState
+import io.element.android.features.messages.impl.selection.SelectionSaveProgress
 import io.element.android.features.messages.impl.selection.TimelineSelectionState
 import io.element.android.features.messages.impl.timeline.TimelineState
 import io.element.android.features.messages.impl.timeline.components.customreaction.CustomReactionState
@@ -63,6 +64,8 @@ data class MessagesState(
     val threads: Threads,
     val showLiveLocationShareBanner: Boolean,
     val selectionState: TimelineSelectionState,
+    /** Non-null while the selection is being written to Downloads. */
+    val selectionSaveProgress: SelectionSaveProgress?,
     val isMultiSelectEnabled: Boolean,
     /** Whether the message search entry point is available in the top bar. */
     val canSearch: Boolean,

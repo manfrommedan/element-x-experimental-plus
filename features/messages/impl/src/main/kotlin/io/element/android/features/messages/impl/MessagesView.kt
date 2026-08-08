@@ -295,7 +295,12 @@ fun MessagesView(
                             onCancelClick = { state.eventSink(MessagesEvent.ClearSelection) },
                             // Clipboard write + snackbar are handled in the presenter.
                             onCopyClick = { state.eventSink(MessagesEvent.BulkCopySelected) },
+                            canSaveSelection = io.element.android.features.messages.impl.selection.canSaveSelection(
+                                timelineItems = state.timelineState.timelineItems,
+                                selectedIds = state.selectionState.selectedIds,
+                            ),
                             onForwardClick = { state.eventSink(MessagesEvent.BulkForwardSelected) },
+                            onSaveClick = { state.eventSink(MessagesEvent.BulkSaveSelected) },
                             onDeleteClick = { showBulkDeleteConfirm = true },
                         )
                     } else if (state.timelineState.timelineMode is Timeline.Mode.Thread) {
@@ -656,6 +661,12 @@ private fun MessagesViewContent(
                             state = state.pinnedMessagesBannerState,
                             onClick = ::focusOnPinnedEvent,
                             onViewAllClick = onViewAllPinnedMessagesClick,
+                        )
+                    }
+                    state.selectionSaveProgress?.let { progress ->
+                        io.element.android.features.messages.impl.selection.SelectionSaveBanner(
+                            progress = progress,
+                            onCancelClick = { state.eventSink(MessagesEvent.CancelSelectionSave) },
                         )
                     }
                     if (state.showLiveLocationShareBanner) {

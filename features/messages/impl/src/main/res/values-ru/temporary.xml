@@ -20,6 +20,9 @@
         <item quantity="other">"Удалить %1$d сообщения?"</item>
     </plurals>
     <string name="screen_messages_selection_cap_reached">"Выбран максимум сообщений"</string>
+    <string name="screen_messages_selection_save_action">"Сохранить в загрузки"</string>
+    <string name="screen_messages_selection_saving_progress">"Сохраняем %1$d из %2$d"</string>
+    <string name="screen_messages_selection_saved_partly">"Часть файлов сохранить не удалось"</string>
     <string name="screen_composer_attachments_cap_reached">"Можно отправить до 30 файлов за раз"</string>
     <string name="screen_messages_forwarded">"Переслано"</string>
     <plurals name="screen_room_timeline_redacted_messages_from">

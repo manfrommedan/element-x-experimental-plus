@@ -39,6 +39,12 @@ sealed interface MessagesEvent {
 
     /** Open the forward picker pre-loaded with every selected event. */
     data object BulkForwardSelected : MessagesEvent
+
+    /** Download every file in the selection and write it to the device's Downloads folder. */
+    data object BulkSaveSelected : MessagesEvent
+
+    /** Stop a bulk save that is still running. Files already written stay where they are. */
+    data object CancelSelectionSave : MessagesEvent
 }
 
 enum class InviteDialogAction {

@@ -30,10 +30,12 @@ import kotlinx.collections.immutable.persistentSetOf
 fun MessagesSelectionTopBar(
     state: TimelineSelectionState,
     canDeleteSelection: Boolean,
+    canSaveSelection: Boolean,
     onCancelClick: () -> Unit,
     onCopyClick: () -> Unit,
     onDeleteClick: () -> Unit,
     onForwardClick: () -> Unit,
+    onSaveClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     TopAppBar(
@@ -67,6 +69,18 @@ fun MessagesSelectionTopBar(
                     contentDescription = stringResource(CommonStrings.action_copy),
                     tint = ElementTheme.colors.iconPrimary,
                 )
+            }
+            // Absent, not disabled, when the selection holds anything that is not a file. There is
+            // nothing to save then, and a greyed out icon would only pose the question without
+            // answering it.
+            if (canSaveSelection) {
+                IconButton(onClick = onSaveClick) {
+                    Icon(
+                        imageVector = CompoundIcons.Download(),
+                        contentDescription = stringResource(R.string.screen_messages_selection_save_action),
+                        tint = ElementTheme.colors.iconPrimary,
+                    )
+                }
             }
             IconButton(onClick = onForwardClick) {
                 Icon(
@@ -103,10 +117,31 @@ internal fun MessagesSelectionTopBarPreview() = ElementPreview {
             maxSelection = TimelineSelectionState.MAX_SELECTION,
         ),
         canDeleteSelection = true,
+        canSaveSelection = false,
         onCancelClick = {},
         onCopyClick = {},
         onDeleteClick = {},
         onForwardClick = {},
+        onSaveClick = {},
+    )
+}
+
+@PreviewsDayNight
+@Composable
+internal fun MessagesSelectionTopBarWithMediaPreview() = ElementPreview {
+    MessagesSelectionTopBar(
+        state = TimelineSelectionState(
+            isActive = true,
+            selectedIds = persistentSetOf(EventId("\$1"), EventId("\$2")),
+            maxSelection = TimelineSelectionState.MAX_SELECTION,
+        ),
+        canDeleteSelection = true,
+        canSaveSelection = true,
+        onCancelClick = {},
+        onCopyClick = {},
+        onDeleteClick = {},
+        onForwardClick = {},
+        onSaveClick = {},
     )
 }
 
@@ -120,9 +155,11 @@ internal fun MessagesSelectionTopBarAtCapPreview() = ElementPreview {
             maxSelection = 1,
         ),
         canDeleteSelection = true,
+        canSaveSelection = false,
         onCancelClick = {},
         onCopyClick = {},
         onDeleteClick = {},
         onForwardClick = {},
+        onSaveClick = {},
     )
 }

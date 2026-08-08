@@ -84,6 +84,7 @@ import io.element.android.libraries.matrix.test.A_THREAD_ID
 import io.element.android.libraries.matrix.test.A_USER_ID
 import io.element.android.libraries.matrix.test.A_USER_ID_2
 import io.element.android.libraries.matrix.test.FakeMatrixClient
+import io.element.android.features.messages.impl.selection.FakeSelectionMediaSaver
 import io.element.android.libraries.matrix.test.core.aBuildMeta
 import io.element.android.libraries.matrix.test.encryption.FakeEncryptionService
 import io.element.android.libraries.matrix.test.permalink.FakePermalinkParser
@@ -1409,6 +1410,7 @@ class MessagesPresenterTest {
         actionListEventSink: (ActionListEvent) -> Unit = {},
         addRecentEmoji: AddRecentEmoji = AddRecentEmoji { _ -> lambdaError() },
         markAsFullyRead: MarkAsFullyRead = FakeMarkAsFullyRead(),
+        selectionMediaSaver: FakeSelectionMediaSaver = FakeSelectionMediaSaver(),
         liveLocationShareManager: FakeActiveLiveLocationShareManager = FakeActiveLiveLocationShareManager(),
     ): MessagesPresenter {
         return MessagesPresenter(
@@ -1442,6 +1444,7 @@ class MessagesPresenterTest {
             markAsFullyRead = markAsFullyRead,
             liveLocationShareManager = liveLocationShareManager,
             sessionCoroutineScope = backgroundScope,
+            selectionMediaSaver = selectionMediaSaver,
         )
     }
 }
