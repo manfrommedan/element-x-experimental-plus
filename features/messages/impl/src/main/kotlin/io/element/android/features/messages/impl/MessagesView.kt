@@ -287,6 +287,10 @@ fun MessagesView(
                     if (state.selectionState.isActive) {
                         io.element.android.features.messages.impl.selection.MessagesSelectionTopBar(
                             state = state.selectionState,
+                            canCopySelection = io.element.android.features.messages.impl.selection.canCopySelection(
+                                timelineItems = state.timelineState.timelineItems,
+                                selectedIds = state.selectionState.selectedIds,
+                            ),
                             canDeleteSelection = io.element.android.features.messages.impl.selection.canDeleteSelection(
                                 timelineItems = state.timelineState.timelineItems,
                                 selectedIds = state.selectionState.selectedIds,

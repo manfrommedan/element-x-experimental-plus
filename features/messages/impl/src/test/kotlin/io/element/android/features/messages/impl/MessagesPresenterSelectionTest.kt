@@ -374,6 +374,31 @@ class MessagesPresenterSelectionTest {
     }
 
     @Test
+    fun `BulkCopySelected copies the captions of pictures along with the text`() = runTest {
+        val text = aTimelineItemEvent(eventId = EventId("\$K1"), content = aTimelineItemTextContent(body = "look")).copy(sentTimeMillis = 1000L)
+        val captioned = aTimelineItemEvent(
+            eventId = EventId("\$K2"),
+            content = aTimelineItemImageContent(caption = "at this"),
+        ).copy(sentTimeMillis = 2000L)
+        val clipboardHelper = FakeClipboardHelper()
+        val presenter = createMessagesPresenter(
+            clipboardHelper = clipboardHelper,
+            timelineItems = persistentListOf(text, captioned),
+        )
+        presenter.testWithLifecycleOwner {
+            val initial = awaitItem()
+            initial.eventSink(MessagesEvent.ToggleSelection(text))
+            initial.eventSink(MessagesEvent.ToggleSelection(captioned))
+            val readied = consumeItemsUntilPredicate { it.selectionState.count == 2 }.last()
+            readied.eventSink(MessagesEvent.BulkCopySelected)
+            consumeItemsUntilPredicate { !it.selectionState.isActive }
+            // A caption is text someone wrote, and leaving it behind would copy half the message.
+            assertThat(clipboardHelper.clipboardContents).isEqualTo("look\n\nat this")
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
     fun `BulkCopySelected with media-only selection writes nothing but still clears`() = runTest {
         val image = aTimelineItemEvent(eventId = EventId("\$IMG"), content = aTimelineItemImageContent())
         val clipboardHelper = FakeClipboardHelper()

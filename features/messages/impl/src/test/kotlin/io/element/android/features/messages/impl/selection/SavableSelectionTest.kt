@@ -53,6 +53,35 @@ class SavableSelectionTest {
     }
 
     @Test
+    fun `pictures without captions have nothing to copy`() {
+        val items = listOf(
+            aTimelineItemEvent(eventId = EventId("\$1"), content = aTimelineItemImageContent()),
+            aTimelineItemEvent(eventId = EventId("\$2"), content = aTimelineItemImageContent()),
+        )
+        assertThat(canCopySelection(items, setOf(EventId("\$1"), EventId("\$2")))).isFalse()
+    }
+
+    @Test
+    fun `a caption is text, and text is worth copying`() {
+        val items = listOf(
+            aTimelineItemEvent(eventId = EventId("\$1"), content = aTimelineItemImageContent(caption = "on the beach")).copy(sentTimeMillis = 1000L),
+            aTimelineItemEvent(eventId = EventId("\$2"), content = aTimelineItemImageContent()).copy(sentTimeMillis = 2000L),
+        )
+        assertThat(canCopySelection(items, setOf(EventId("\$1"), EventId("\$2")))).isTrue()
+        // The captionless picture contributes nothing rather than a blank line.
+        assertThat(copyableSelection(items, setOf(EventId("\$1"), EventId("\$2")))).isEqualTo("on the beach")
+    }
+
+    @Test
+    fun `text and captions are copied together, oldest first`() {
+        val items = listOf(
+            aTimelineItemEvent(eventId = EventId("\$1"), content = aTimelineItemTextContent(body = "look")).copy(sentTimeMillis = 1000L),
+            aTimelineItemEvent(eventId = EventId("\$2"), content = aTimelineItemImageContent(caption = "at this")).copy(sentTimeMillis = 2000L),
+        )
+        assertThat(copyableSelection(items, setOf(EventId("\$1"), EventId("\$2")))).isEqualTo("look\n\nat this")
+    }
+
+    @Test
     fun `an album counts as all of its pictures`() {
         val gallery = aTimelineItemGalleryContent(
             items = listOf(

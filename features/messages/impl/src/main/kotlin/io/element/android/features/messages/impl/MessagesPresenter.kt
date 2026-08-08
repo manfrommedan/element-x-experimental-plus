@@ -41,6 +41,7 @@ import io.element.android.features.messages.impl.pinned.banner.PinnedMessagesBan
 import io.element.android.features.messages.impl.selection.SelectionSaveProgress
 import io.element.android.features.messages.impl.selection.TimelineSelectionState
 import io.element.android.features.messages.impl.selection.SelectionMediaSaver
+import io.element.android.features.messages.impl.selection.copyableSelection
 import io.element.android.features.messages.impl.selection.savableSelection
 import io.element.android.features.messages.impl.selection.allEvents
 import io.element.android.features.messages.impl.timeline.MarkAsFullyRead
@@ -367,12 +368,7 @@ class MessagesPresenter(
                 MessagesEvent.BulkCopySelected -> {
                     // Assemble + write here (not in the View) so we get the standard copied
                     // snackbar. Ordered by sentTime so the pasted block reads chronologically.
-                    val text = timelineState.timelineItems
-                        .allEvents()
-                        .filter { it.eventId != null && it.eventId in selectionState.selectedIds }
-                        .sortedBy { it.sentTimeMillis }
-                        .mapNotNull { (it.content as? TimelineItemTextBasedContent)?.body }
-                        .joinToString("\n\n")
+                    val text = copyableSelection(timelineState.timelineItems, selectionState.selectedIds)
                     if (text.isNotEmpty()) {
                         clipboardHelper.copyPlainText(text)
                         snackbarDispatcher.post(SnackbarMessage(CommonStrings.common_copied_to_clipboard))

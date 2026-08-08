@@ -12,6 +12,8 @@ import io.element.android.features.messages.impl.timeline.model.event.TimelineIt
 import io.element.android.features.messages.impl.timeline.model.event.TimelineItemEventContent
 import io.element.android.features.messages.impl.timeline.model.event.TimelineItemEventContentWithAttachment
 import io.element.android.features.messages.impl.timeline.model.event.TimelineItemGalleryContent
+import io.element.android.features.messages.impl.timeline.model.event.TimelineItemTextBasedContent
+import io.element.android.features.messages.impl.timeline.model.event.captionOrNull
 import io.element.android.libraries.matrix.api.core.EventId
 import io.element.android.libraries.matrix.api.media.MediaSource
 
@@ -76,3 +78,34 @@ fun canSaveSelection(
     timelineItems: List<TimelineItem>,
     selectedIds: Set<EventId>,
 ): Boolean = savableSelection(timelineItems, selectedIds).isNotEmpty()
+
+/**
+ * The text a selection would put on the clipboard, oldest first, or an empty string if it would
+ * put nothing there.
+ *
+ * A picture with a caption carries text worth copying; a picture without one carries none, and
+ * neither does a file. Captions count so that the action is offered exactly when it has something
+ * to hand over.
+ */
+fun copyableSelection(
+    timelineItems: List<TimelineItem>,
+    selectedIds: Set<EventId>,
+): String = timelineItems
+    .allEvents()
+    .filter { it.eventId != null && it.eventId in selectedIds }
+    .sortedBy { it.sentTimeMillis }
+    .mapNotNull { event ->
+        (event.content as? TimelineItemTextBasedContent)?.body ?: event.content.captionOrNull()
+    }
+    .filter { it.isNotBlank() }
+    .joinToString("\n\n")
+
+/**
+ * Whether the bulk copy action should be enabled. Disabled rather than hidden, unlike saving: copy
+ * is the one thing people expect to find in a selection, and a greyed out icon in its usual place
+ * says "not this selection" more clearly than an icon that comes and goes.
+ */
+fun canCopySelection(
+    timelineItems: List<TimelineItem>,
+    selectedIds: Set<EventId>,
+): Boolean = copyableSelection(timelineItems, selectedIds).isNotEmpty()

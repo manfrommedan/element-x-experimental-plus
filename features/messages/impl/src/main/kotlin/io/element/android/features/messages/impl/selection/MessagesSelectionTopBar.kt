@@ -29,6 +29,7 @@ import kotlinx.collections.immutable.persistentSetOf
 @Composable
 fun MessagesSelectionTopBar(
     state: TimelineSelectionState,
+    canCopySelection: Boolean,
     canDeleteSelection: Boolean,
     canSaveSelection: Boolean,
     onCancelClick: () -> Unit,
@@ -63,11 +64,16 @@ fun MessagesSelectionTopBar(
             )
         },
         actions = {
-            IconButton(onClick = onCopyClick) {
+            // A picture without a caption has nothing to put on a clipboard, and offering to
+            // copy it invites the question of where any of it would be pasted.
+            IconButton(
+                onClick = onCopyClick,
+                enabled = canCopySelection,
+            ) {
                 Icon(
                     imageVector = CompoundIcons.Copy(),
                     contentDescription = stringResource(CommonStrings.action_copy),
-                    tint = ElementTheme.colors.iconPrimary,
+                    tint = if (canCopySelection) ElementTheme.colors.iconPrimary else ElementTheme.colors.iconDisabled,
                 )
             }
             // Absent, not disabled, when the selection holds anything that is not a file. There is
@@ -116,6 +122,7 @@ internal fun MessagesSelectionTopBarPreview() = ElementPreview {
             selectedIds = persistentSetOf(EventId("\$1"), EventId("\$2"), EventId("\$3")),
             maxSelection = TimelineSelectionState.MAX_SELECTION,
         ),
+        canCopySelection = true,
         canDeleteSelection = true,
         canSaveSelection = false,
         onCancelClick = {},
@@ -135,6 +142,8 @@ internal fun MessagesSelectionTopBarWithMediaPreview() = ElementPreview {
             selectedIds = persistentSetOf(EventId("\$1"), EventId("\$2")),
             maxSelection = TimelineSelectionState.MAX_SELECTION,
         ),
+        // Pictures without captions: nothing to copy, everything to save.
+        canCopySelection = false,
         canDeleteSelection = true,
         canSaveSelection = true,
         onCancelClick = {},
@@ -154,6 +163,7 @@ internal fun MessagesSelectionTopBarAtCapPreview() = ElementPreview {
             selectedIds = persistentSetOf(EventId("\$1")),
             maxSelection = 1,
         ),
+        canCopySelection = true,
         canDeleteSelection = true,
         canSaveSelection = false,
         onCancelClick = {},
