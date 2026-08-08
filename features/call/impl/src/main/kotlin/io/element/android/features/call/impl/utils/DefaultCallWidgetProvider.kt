@@ -90,9 +90,10 @@ class DefaultCallWidgetProvider(
             hasActiveCall = roomInfo.hasRoomCall,
         )
         val phoneStyleEnabled = featureFlagService.isFeatureEnabled(FeatureFlags.PhoneVoiceLayout)
-        // With our phone-voice layer the call follows the app theme (a light app theme -> white
-        // call); without it we keep upstream's forced-dark Element Call (#7162).
-        val effectiveTheme = if (phoneStyleEnabled) theme else "dark"
+        // Calls are dark whatever the app is set to, which is what upstream does and what every
+        // other dialler does. Letting the phone-voice layer follow a light app theme turned the
+        // call white, and next to the same screen in dark it simply looked worse.
+        val effectiveTheme = "dark"
         val callUrl = room.generateWidgetWebViewUrl(
             widgetSettings = widgetSettings,
             clientId = clientId,
