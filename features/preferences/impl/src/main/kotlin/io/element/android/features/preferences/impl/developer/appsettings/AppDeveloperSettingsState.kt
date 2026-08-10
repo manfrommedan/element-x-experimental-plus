@@ -21,6 +21,8 @@ data class AppDeveloperSettingsState(
     val tracingLogLevel: AsyncData<LogLevelItem>,
     val tracingLogPacks: ImmutableList<TraceLogPack>,
     val appLanguage: AppLanguageItem,
+    val gitBranch: String,
+    val gitSha: String,
     val eventSink: (AppDeveloperSettingsEvent) -> Unit
 )
 

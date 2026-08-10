@@ -16,7 +16,7 @@ import org.junit.Test
 
 class VersionFormatterTest {
     @Test
-    fun `version formatter hides the branch name and shows the Element base version - main`() = runTest {
+    fun `version formatter names the build it came from - main`() = runTest {
         val sut = DefaultVersionFormatter(
             stringProvider = FakeStringProvider(defaultResult = VERSION),
             buildMeta = aBuildMeta(
@@ -26,11 +26,11 @@ class VersionFormatterTest {
                 gitRevision = "1234567890",
             )
         )
-        assertThat(sut.get()).isEqualTo("${VERSION}versionName, 123\nmxtrproxy-antidpi")
+        assertThat(sut.get()).isEqualTo("${VERSION}versionName, 123\nmain (1234567890)")
     }
 
     @Test
-    fun `version formatter hides the branch name and shows the Element base version - experiments branch`() = runTest {
+    fun `version formatter names the build it came from - experiments branch`() = runTest {
         val sut = DefaultVersionFormatter(
             stringProvider = FakeStringProvider(defaultResult = VERSION),
             buildMeta = aBuildMeta(
@@ -40,10 +40,10 @@ class VersionFormatterTest {
                 gitRevision = "1234567890",
             )
         )
-        assertThat(sut.get()).isEqualTo("${VERSION}versionName, 123\nmxtrproxy-antidpi")
+        assertThat(sut.get()).isEqualTo("${VERSION}versionName, 123\nexperiments (1234567890)")
     }
 
     companion object {
-        const val VERSION = "version"
+        const val VERSION = "version: "
     }
 }

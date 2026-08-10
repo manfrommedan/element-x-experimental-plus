@@ -84,7 +84,7 @@
     <string name="screen_advanced_settings_show_link_previews_subtitle">"Предпросмотр делает ваш homeserver; для ссылки он может раскрыть сайту IP вашего сервера"</string>
     <string name="screen_advanced_settings_show_link_previews_off">"Не показывать"</string>
     <string name="screen_advanced_settings_show_link_previews_unencrypted_only">"Только в незашифрованных комнатах"</string>
-    <string name="screen_advanced_settings_show_link_previews_all">"Всегда показывать"</string>
+    <string name="screen_advanced_settings_show_link_previews_all">"Во всех комнатах"</string>
 
     <!-- Дополнительные настройки: свернуть подряд идущие удалённые события. -->
     <string name="screen_advanced_settings_hide_redacted_events_toggle_title">"Сворачивать удалённые сообщения"</string>

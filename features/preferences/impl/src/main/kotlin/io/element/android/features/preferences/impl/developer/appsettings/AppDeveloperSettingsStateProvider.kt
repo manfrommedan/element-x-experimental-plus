@@ -39,6 +39,8 @@ fun anAppDeveloperSettingsState(
     tracingLogLevel = AsyncData.Success(LogLevelItem.INFO),
     tracingLogPacks = traceLogPacks.toImmutableList(),
     appLanguage = appLanguage,
+    gitBranch = "feature/awesome-feature",
+    gitSha = "1234567890",
     eventSink = eventSink,
 )
 

@@ -114,7 +114,7 @@
     <string name="screen_advanced_settings_show_link_previews_subtitle">"Previews may share your IP address with the linked website"</string>
     <string name="screen_advanced_settings_show_link_previews_off">"Never show"</string>
     <string name="screen_advanced_settings_show_link_previews_unencrypted_only">"In unencrypted rooms only"</string>
-    <string name="screen_advanced_settings_show_link_previews_all">"Always show"</string>
+    <string name="screen_advanced_settings_show_link_previews_all">"In all rooms"</string>
 
     <!-- User status (upstream v26.07.1). -->
     <string name="common_user_status_in_a_meeting">In a meeting</string>

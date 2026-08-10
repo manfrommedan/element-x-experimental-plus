@@ -27,6 +27,7 @@ import io.element.android.features.rageshake.api.preferences.RageshakePreference
 import io.element.android.libraries.architecture.AsyncData
 import io.element.android.libraries.architecture.Presenter
 import io.element.android.libraries.core.extensions.runCatchingExceptions
+import io.element.android.libraries.core.meta.BuildMeta
 import io.element.android.libraries.featureflag.api.FeatureFlagService
 import io.element.android.libraries.featureflag.ui.model.FeatureUiModel
 import io.element.android.libraries.preferences.api.store.AppPreferencesStore
@@ -44,6 +45,7 @@ class AppDeveloperSettingsPresenter(
     private val featureFlagService: FeatureFlagService,
     private val rageshakePresenter: Presenter<RageshakePreferencesState>,
     private val appPreferencesStore: AppPreferencesStore,
+    private val buildMeta: BuildMeta,
 ) : Presenter<AppDeveloperSettingsState> {
     @Composable
     override fun present(): AppDeveloperSettingsState {
@@ -123,6 +125,8 @@ class AppDeveloperSettingsPresenter(
             tracingLogLevel = tracingLogLevel,
             tracingLogPacks = tracingLogPacks,
             appLanguage = appLanguage,
+            gitBranch = buildMeta.gitBranchName,
+            gitSha = buildMeta.gitRevision,
             eventSink = ::handleEvent,
         )
     }

@@ -30,8 +30,9 @@ class DefaultVersionFormatter(
             buildMeta.versionCode.toString()
         )
         // versionName/versionCode come from the static Versions.kt, so they only change on a
-        // manual bump, not per CI build. Show the build's git branch + revision (the 8-char
-        // commit == the experimental-<sha> release tag) so each build is identifiable in About.
+        // manual bump, not per CI build. Upstream now shows the branch and revision on a
+        // developer screen instead, but ours has to be readable off a screenshot from someone
+        // testing a build, so About keeps saying which build it is.
         return "$base\n${buildMeta.gitBranchName} (${buildMeta.gitRevision})"
     }
 }
