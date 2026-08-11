@@ -22,9 +22,9 @@ exactly like the official Element X release until the switch is flipped.
   bothering upstream maintainers, so please don't open issues against
   `element-hq/element-x-android` for changes that originated here.
 
-## What's in this build (Element X v26.07.1 base)
+## What's in this build (Element X v26.08.0 base)
 
-This fork tracks upstream Element X (currently **v26.07.1**) and adds the
+This fork tracks upstream Element X (currently **v26.08.0**) and adds the
 features below. Each one is optional: where it changes existing UI it sits
 behind a Labs toggle, so with the toggles off the app behaves exactly like
 official Element X.
@@ -101,10 +101,13 @@ difference.
    hang up), instead of upstream's participant grid with a large remote tile and
    small bottom controls.
 
-2. **Ringback that cuts out the instant the call connects.** Outgoing voice calls
-   play a classic two-tone dial tone (440 + 480 Hz) generated with the Web Audio
-   API rather than looping the upstream mp3, and it stops the moment the peer
-   joins, without the lag of waiting for the LiveKit room to register them.
+2. **Ringback that comes out of the right speaker, and cuts out the instant the
+   call connects.** Outgoing voice calls play a classic ringback rather than
+   looping the upstream mp3, and it stops the moment the peer joins, without the
+   lag of waiting for the LiveKit room to register them. The app plays it on the
+   voice call stream, so it follows the call route from the first pulse instead
+   of starting in the loudspeaker and moving to the earpiece once the call's own
+   audio takes over, which is what web audio in a WebView does on Android.
 
 3. **You can tell it is actually ringing.** The timer slot, empty in upstream while
    the caller waits, now shows a "Ringing…" / "Соединение…" line with a soft
@@ -128,76 +131,90 @@ difference.
    event pinned to "audio", the receiver gets a "Decline / Answer" pair instead of
    upstream's "Decline / Video" fallback for groups.
 
-8. **No leftover ringtone or "Calling…" badge.** The phone-style layer suppresses
+8. **The screen shows who you are calling.** While a call waits to be answered the
+   spotlight holds the person being rung, or the room itself when a room is called
+   rather than a person. Upstream picks whichever room member comes first in a map,
+   which in a room of several is nobody in particular.
+
+9. **Tiles on a phone held sideways, and only when asked for.** Turning the phone
+   offers a switch to Element Call's own speaker-and-column layout. Upright there
+   is no room for it, so it is neither offered nor honoured, and a call is never
+   drawn as a grid of one tile showing your own face.
+
+10. **The floating window shows the call, not its controls.** Sending the call to
+   the corner leaves the caller on screen and nothing else, as upstream does;
+   a row of controls built for a phone does not fit a window that size.
+
+11. **No leftover ringtone or "Calling…" badge.** The phone-style layer suppresses
    upstream's lobby ringtone, large "Calling…" header and earpiece overlay, since
    its own UI already conveys the same thing.
 
 ### Audio system
 
-9. **VoIP audio focus claim on call start.** Upstream relies on the
+12. **VoIP audio focus claim on call start.** Upstream relies on the
     system to route focus to us when the call activity opens, which fails
     on Pixel / AOSP off the back of an incoming-call notification and
     leaves the call silent. The fork explicitly claims VoIP audio focus,
     fixing the silent-incoming-call path.
 
-10. **Music auto-resume after the call.** Upstream requests
+13. **Music auto-resume after the call.** Upstream requests
     `AUDIOFOCUS_GAIN` (durable), which sends `AUDIOFOCUS_LOSS` to other
     apps and leaves Spotify, YouTube Music or podcast clients paused
     after the call ends. The fork uses `AUDIOFOCUS_GAIN_TRANSIENT`, the
     iOS Phone / WhatsApp behaviour, so the players resume on their own.
 
-11. **Earpiece-first routing for voice.** Upstream starts a voice call
+14. **Earpiece-first routing for voice.** Upstream starts a voice call
     on the loudspeaker. The fork prioritises the built-in earpiece for
     audio-only calls, the way a native dialer does. External devices
     (Bluetooth, wired headsets) keep their priority either way.
 
-12. **Audible call-stream volume floor.** Upstream leaves the call stream
+15. **Audible call-stream volume floor.** Upstream leaves the call stream
     silent if the user had it turned all the way down before the call.
     The fork bumps it to a usable level at call start while respecting
     higher user-set volumes.
 
 ### Compatibility
 
-13. **`Promise.withResolvers` polyfill.** The embedded Element Call
+16. **`Promise.withResolvers` polyfill.** The embedded Element Call
     bundle uses `Promise.withResolvers`, available from Chromium 119,
     which is missing on devices like Huawei phones without Google
     Services that remain on Chromium 114 or earlier. The fork ships an
     ESM polyfill so the bundle boots cleanly on those WebViews.
 
-14. **CSS Grid `min/max/minmax` fallback.** The bundle uses Grid with
+17. **CSS Grid `min/max/minmax` fallback.** The bundle uses Grid with
     `min/max/minmax` (Chromium 79+), which the fork backs up with a
     two-step CSS fallback so the call screen renders on older WebViews.
 
 ### Timeline card
 
-15. **Receiver-side call duration.** The duration of a connected call
+18. **Receiver-side call duration.** The duration of a connected call
     is now persisted on the receiving device too, not just on the
     caller's. Both ends now show the same number of seconds.
 
-16. **No duplicate timeline message.** Upstream renders both a
+19. **No duplicate timeline message.** Upstream renders both a
     "voice call no answer" text message and a structured call card. The
     fork drops the text message and keeps only the card.
 
 ### Build and packaging
 
-17. **Side-by-side install.** The release build uses applicationId
+20. **Side-by-side install.** The release build uses applicationId
     `io.element.android.x.plusng` so the fork installs cleanly next to
     the official Element X without overwriting it. The package id changed
     from an earlier `.plus`, so if you had that build, uninstall it first
     - the new one cannot upgrade in place.
 
-18. **`-PdisableR8` for low-RAM build hosts.** R8 stays enabled in CI
+21. **`-PdisableR8` for low-RAM build hosts.** R8 stays enabled in CI
     (16 GB RAM) for the production size win, but local builds on hosts
     with under ~10 GB can pass `-PdisableR8` to skip the step rather
     than running out of memory.
 
 ### CI
 
-19. **Manual dispatch only.** The build workflow runs on
+22. **Manual dispatch only.** The build workflow runs on
     `workflow_dispatch` rather than on every push, avoiding wasted CI
     minutes and a release per commit on a fast-moving branch.
 
-20. **Self-pruning releases and runs.** The workflow keeps at most three
+23. **Self-pruning releases and runs.** The workflow keeps at most three
     releases (the current build plus two previous, for rollback) and
     deletes older completed workflow runs as part of every successful
     build.
