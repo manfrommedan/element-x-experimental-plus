@@ -14,6 +14,7 @@ import android.media.AudioDeviceCallback
 import android.media.AudioDeviceInfo
 import android.media.AudioFocusRequest
 import android.media.AudioManager
+import android.media.ToneGenerator
 import android.os.Build
 import android.os.PowerManager
 import android.webkit.JavascriptInterface
@@ -299,12 +300,40 @@ class WebViewAudioManager(
             return
         }
 
+        setRingbackPlaying(false)
+
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             audioManager.clearCommunicationDevice()
             audioManager.removeOnCommunicationDeviceChangedListener(commsDeviceChangedListener)
         }
 
         audioManager.unregisterAudioDeviceCallback(audioDeviceCallback)
+    }
+
+    /**
+     * Plays the ringback while a call waits to be answered.
+     *
+     * The dialler used to play it from the WebView through Web Audio, which Android treats as media
+     * and sends to the loudspeaker until the call's own audio pulls the route to the earpiece. A
+     * tone on the voice call stream follows the call route from the first pulse.
+     */
+    private var ringbackTone: ToneGenerator? = null
+
+    private fun setRingbackPlaying(playing: Boolean) {
+        if (playing) {
+            if (ringbackTone != null) return
+            ringbackTone = runCatchingExceptions {
+                ToneGenerator(AudioManager.STREAM_VOICE_CALL, RINGBACK_VOLUME).apply {
+                    startTone(ToneGenerator.TONE_SUP_RINGTONE)
+                }
+            }.onFailure { Timber.w(it, "Audio: could not start the ringback tone") }.getOrNull()
+        } else {
+            ringbackTone?.runCatchingExceptions {
+                stopTone()
+                release()
+            }
+            ringbackTone = null
+        }
     }
 
     /**
@@ -317,6 +346,9 @@ class WebViewAudioManager(
             onAudioDeviceSelected = { selectedDeviceId ->
                 previousSelectedDevice = listAudioDevices().find { it.id.toString() == selectedDeviceId }
                 audioManager.selectAudioDevice(selectedDeviceId)
+            },
+            onRingingChanged = { ringing ->
+                coroutineScope.launch(Dispatchers.Main) { setRingbackPlaying(ringing) }
             },
             onAudioPlaybackStarted = {
                 coroutineScope.launch(Dispatchers.Main) {
@@ -352,6 +384,15 @@ class WebViewAudioManager(
         webView.evaluateJavascript("controls.onAudioPlaybackStarted = () => { androidNativeBridge.onTrackReady(); };", null)
         Timber.d("Adding callback in controls.onAudioDeviceSelect")
         webView.evaluateJavascript("controls.onAudioDeviceSelect = (id) => { androidNativeBridge.setAudioDevice(id); };", null)
+        // Only the dialler hands its ringback over. Without the flag Element Call keeps playing its
+        // own, exactly as it does everywhere else.
+        if (isAudioOnlyCall) {
+            Timber.d("Adding callback in controls.onRingingChanged")
+            webView.evaluateJavascript(
+                "controls.onRingingChanged = (ringing) => { androidNativeBridge.setRinging(ringing); };",
+                null,
+            )
+        }
     }
 
     /**
@@ -508,8 +549,15 @@ class WebViewAudioManager(
  */
 private class AndroidWebViewAudioBridge(
     private val onAudioDeviceSelected: (String) -> Unit,
+    private val onRingingChanged: (Boolean) -> Unit,
     private val onAudioPlaybackStarted: () -> Unit,
 ) {
+    @JavascriptInterface
+    fun setRinging(ringing: Boolean) {
+        Timber.d("Ringing changed in webview: $ringing")
+        onRingingChanged(ringing)
+    }
+
     @JavascriptInterface
     fun setAudioDevice(id: String) {
         Timber.d("Audio device selected in webview, id: $id")
@@ -582,3 +630,6 @@ internal data class SerializableAudioDevice(
         }
     }
 }
+
+/** Loud enough to hear against the earpiece, quiet enough not to startle. */
+private const val RINGBACK_VOLUME = 80
