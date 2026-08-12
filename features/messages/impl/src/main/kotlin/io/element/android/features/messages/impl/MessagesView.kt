@@ -77,6 +77,10 @@ import io.element.android.features.messages.impl.messagecomposer.suggestions.Sug
 import io.element.android.features.messages.impl.pinned.banner.PinnedMessagesBannerState
 import io.element.android.features.messages.impl.pinned.banner.PinnedMessagesBannerView
 import io.element.android.features.messages.impl.pinned.banner.PinnedMessagesBannerViewDefaults
+import io.element.android.features.messages.impl.selection.MessagesSelectionTopBar
+import io.element.android.features.messages.impl.selection.canCopySelection
+import io.element.android.features.messages.impl.selection.canDeleteSelection
+import io.element.android.features.messages.impl.selection.canSaveSelection
 import io.element.android.features.messages.impl.timeline.FOCUS_ON_PINNED_EVENT_DEBOUNCE_DURATION_IN_MILLIS
 import io.element.android.features.messages.impl.timeline.TimelineEvent
 import io.element.android.features.messages.impl.timeline.TimelineView
@@ -135,6 +139,16 @@ import io.element.android.wysiwyg.link.Link
 import kotlinx.collections.immutable.persistentListOf
 import timber.log.Timber
 import kotlin.time.Duration.Companion.milliseconds
+
+/**
+ * What the selection top bar is allowed to offer, worked out once per selection rather than once
+ * per recomposition. Held together so the three answers cannot drift apart across frames.
+ */
+private data class SelectionActions(
+    val canCopy: Boolean,
+    val canDelete: Boolean,
+    val canSave: Boolean,
+)
 
 @Composable
 fun MessagesView(
@@ -285,24 +299,39 @@ fun MessagesView(
                 contentWindowInsets = scaffoldScrollableContentInsets,
                 topBar = {
                     if (state.selectionState.isActive) {
-                        io.element.android.features.messages.impl.selection.MessagesSelectionTopBar(
+                        // Each of these walks the whole loaded timeline, and this top bar
+                        // recomposes on every timeline update while a selection is up. Keyed on
+                        // what they actually read so a batch of arriving messages does not pay for
+                        // three passes and a discarded copy of the clipboard text every time.
+                        val availableActions = remember(
+                            state.selectionState.selectedIds,
+                            state.timelineState.timelineItems,
+                            state.userEventPermissions,
+                        ) {
+                            SelectionActions(
+                                canCopy = canCopySelection(
+                                    timelineItems = state.timelineState.timelineItems,
+                                    selectedIds = state.selectionState.selectedIds,
+                                ),
+                                canDelete = canDeleteSelection(
+                                    timelineItems = state.timelineState.timelineItems,
+                                    selectedIds = state.selectionState.selectedIds,
+                                    userEventPermissions = state.userEventPermissions,
+                                ),
+                                canSave = canSaveSelection(
+                                    timelineItems = state.timelineState.timelineItems,
+                                    selectedIds = state.selectionState.selectedIds,
+                                ),
+                            )
+                        }
+                        MessagesSelectionTopBar(
                             state = state.selectionState,
-                            canCopySelection = io.element.android.features.messages.impl.selection.canCopySelection(
-                                timelineItems = state.timelineState.timelineItems,
-                                selectedIds = state.selectionState.selectedIds,
-                            ),
-                            canDeleteSelection = io.element.android.features.messages.impl.selection.canDeleteSelection(
-                                timelineItems = state.timelineState.timelineItems,
-                                selectedIds = state.selectionState.selectedIds,
-                                userEventPermissions = state.userEventPermissions,
-                            ),
+                            canCopySelection = availableActions.canCopy,
+                            canDeleteSelection = availableActions.canDelete,
+                            canSaveSelection = availableActions.canSave,
                             onCancelClick = { state.eventSink(MessagesEvent.ClearSelection) },
                             // Clipboard write + snackbar are handled in the presenter.
                             onCopyClick = { state.eventSink(MessagesEvent.BulkCopySelected) },
-                            canSaveSelection = io.element.android.features.messages.impl.selection.canSaveSelection(
-                                timelineItems = state.timelineState.timelineItems,
-                                selectedIds = state.selectionState.selectedIds,
-                            ),
                             onForwardClick = { state.eventSink(MessagesEvent.BulkForwardSelected) },
                             onSaveClick = { state.eventSink(MessagesEvent.BulkSaveSelected) },
                             onDeleteClick = { showBulkDeleteConfirm = true },

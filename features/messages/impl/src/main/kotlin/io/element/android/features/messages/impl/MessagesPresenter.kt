@@ -38,12 +38,11 @@ import io.element.android.features.messages.impl.link.LinkState
 import io.element.android.features.messages.impl.messagecomposer.MessageComposerEvent
 import io.element.android.features.messages.impl.messagecomposer.MessageComposerState
 import io.element.android.features.messages.impl.pinned.banner.PinnedMessagesBannerState
-import io.element.android.features.messages.impl.selection.SelectionSaveProgress
+import io.element.android.features.messages.impl.selection.SelectionSaveCoordinator
 import io.element.android.features.messages.impl.selection.TimelineSelectionState
-import io.element.android.features.messages.impl.selection.SelectionMediaSaver
+import io.element.android.features.messages.impl.selection.allEvents
 import io.element.android.features.messages.impl.selection.copyableSelection
 import io.element.android.features.messages.impl.selection.savableSelection
-import io.element.android.features.messages.impl.selection.allEvents
 import io.element.android.features.messages.impl.timeline.MarkAsFullyRead
 import io.element.android.features.messages.impl.timeline.TimelineController
 import io.element.android.features.messages.impl.timeline.TimelineEvent
@@ -103,7 +102,6 @@ import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.toImmutableList
 import kotlinx.collections.immutable.toImmutableSet
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.onStart
@@ -145,7 +143,7 @@ class MessagesPresenter(
     private val addRecentEmoji: AddRecentEmoji,
     private val markAsFullyRead: MarkAsFullyRead,
     private val liveLocationShareManager: ActiveLiveLocationShareManager,
-    private val selectionMediaSaver: SelectionMediaSaver,
+    private val selectionSaveCoordinator: SelectionSaveCoordinator,
     @SessionCoroutineScope private val sessionCoroutineScope: CoroutineScope,
 ) : Presenter<MessagesState> {
     @AssistedFactory
@@ -202,11 +200,12 @@ class MessagesPresenter(
         // Track both directions: seeding from the last seen value kills the initial-frame flicker
         // on screen re-entry, while still reflecting a disable on the next entry.
         multiSelectSeen = isMultiSelectEnabled
+        // Read rather than owned: the batch belongs to the coordinator, which outlives this screen,
+        // so leaving the room and coming back finds the same progress and the same cancel button.
+        val saveProgress by remember(room.roomId) {
+            selectionSaveCoordinator.progressIn(room.roomId)
+        }.collectAsState(initial = null)
         // rememberSaveable so a large in-progress selection survives rotation / process death.
-        // Not saveable: a save in flight belongs to the coroutine doing it, and that does not
-        // survive process death either.
-        var saveProgress by remember { mutableStateOf<SelectionSaveProgress?>(null) }
-        var saveJob by remember { mutableStateOf<Job?>(null) }
         var selectionState by rememberSaveable(stateSaver = TimelineSelectionState.Saver) {
             mutableStateOf(TimelineSelectionState.Empty)
         }
@@ -328,12 +327,7 @@ class MessagesPresenter(
                     selectionState = TimelineSelectionState.Empty
                 }
                 MessagesEvent.CancelSelectionSave -> {
-                    // Whatever has already been written stays written. Stopping a batch is not
-                    // undoing it, and going round deleting files the user watched arrive would be
-                    // the greater surprise.
-                    saveJob?.cancel()
-                    saveJob = null
-                    saveProgress = null
+                    selectionSaveCoordinator.cancel()
                 }
                 MessagesEvent.BulkRedactSelected -> {
                     // Only redact events the user is actually permitted to, skipping the rest so we
@@ -390,41 +384,12 @@ class MessagesPresenter(
                     navigator.forwardEvents(orderedTargets)
                 }
                 MessagesEvent.BulkSaveSelected -> {
-                    if (saveJob?.isActive == true) return@handleEvent
                     val targets = savableSelection(timelineState.timelineItems, selectionState.selectedIds)
                     if (targets.isEmpty()) return@handleEvent
-                    saveProgress = SelectionSaveProgress(saved = 0, total = targets.size)
                     // The selection is done with the moment the work starts: the room comes back
-                    // and the banner carries the progress from here. Session scope, so walking out
-                    // of the room does not abandon a half-saved batch.
+                    // and the banner carries the progress from here.
                     selectionState = TimelineSelectionState.Empty
-                    saveJob = sessionCoroutineScope.launch {
-                        var saved = 0
-                        targets.forEach { target ->
-                            selectionMediaSaver.save(target).onSuccess {
-                                saved += 1
-                                saveProgress = SelectionSaveProgress(saved = saved, total = targets.size)
-                            }.onFailure {
-                                Timber.w(it, "Bulk save: one of ${targets.size} files could not be saved")
-                            }
-                        }
-                        saveProgress = null
-                        saveJob = null
-                        // Three outcomes, not two: saying "error" over a batch where most files
-                        // did land would send someone looking for files that are already there.
-                        snackbarDispatcher.post(
-                            SnackbarMessage(
-                                when {
-                                    // One file or several: the viewer's own wording is about a
-                                    // file, singular, and reads wrong over a batch of twelve.
-                                    saved == targets.size && saved == 1 -> CommonStrings.common_file_saved_on_disk_android
-                                    saved == targets.size -> R.string.screen_messages_selection_saved
-                                    saved > 0 -> R.string.screen_messages_selection_saved_partly
-                                    else -> CommonStrings.common_error
-                                }
-                            )
-                        )
-                    }
+                    selectionSaveCoordinator.start(room.roomId, targets)
                 }
                 is MessagesEvent.ToggleReaction -> {
                     localCoroutineScope.toggleReaction(event.emoji, event.eventOrTransactionId)

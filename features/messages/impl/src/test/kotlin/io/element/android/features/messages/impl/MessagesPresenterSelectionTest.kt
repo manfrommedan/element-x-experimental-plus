@@ -18,6 +18,8 @@ import io.element.android.features.messages.impl.link.aLinkState
 import io.element.android.features.messages.impl.messagecomposer.MessageComposerState
 import io.element.android.features.messages.impl.messagecomposer.aMessageComposerState
 import io.element.android.features.messages.impl.pinned.banner.aLoadedPinnedMessagesBannerState
+import io.element.android.features.messages.impl.selection.FakeSelectionMediaSaver
+import io.element.android.features.messages.impl.selection.SelectionSaveCoordinator
 import io.element.android.features.messages.impl.selection.TimelineSelectionState
 import io.element.android.features.messages.impl.timeline.FakeMarkAsFullyRead
 import io.element.android.features.messages.impl.timeline.MarkAsFullyRead
@@ -25,8 +27,11 @@ import io.element.android.features.messages.impl.timeline.TimelineController
 import io.element.android.features.messages.impl.timeline.TimelineEvent
 import io.element.android.features.messages.impl.timeline.aTimelineItemEvent
 import io.element.android.features.messages.impl.timeline.aTimelineState
+import io.element.android.features.messages.impl.timeline.components.event.aGalleryItem
+import io.element.android.features.messages.impl.timeline.components.event.aTimelineItemGalleryContent
 import io.element.android.features.messages.impl.timeline.model.TimelineItem
 import io.element.android.features.messages.impl.timeline.model.event.TimelineItemRedactedContent
+import io.element.android.features.messages.impl.timeline.model.event.aTimelineItemFileContent
 import io.element.android.features.messages.impl.timeline.model.event.aTimelineItemImageContent
 import io.element.android.features.messages.impl.timeline.model.event.aTimelineItemTextContent
 import io.element.android.features.messages.impl.timeline.protection.aTimelineProtectionState
@@ -38,6 +43,7 @@ import io.element.android.libraries.androidutils.clipboard.FakeClipboardHelper
 import io.element.android.libraries.architecture.Presenter
 import io.element.android.libraries.core.coroutine.CoroutineDispatchers
 import io.element.android.libraries.designsystem.utils.snackbar.SnackbarDispatcher
+import io.element.android.libraries.emoji.api.recentemojis.AddRecentEmoji
 import io.element.android.libraries.featureflag.test.FakeFeatureFlagService
 import io.element.android.libraries.matrix.api.core.EventId
 import io.element.android.libraries.matrix.api.permalink.PermalinkParser
@@ -46,10 +52,6 @@ import io.element.android.libraries.matrix.api.room.StateEventType
 import io.element.android.libraries.matrix.api.timeline.Timeline
 import io.element.android.libraries.matrix.api.timeline.item.event.EventOrTransactionId
 import io.element.android.libraries.matrix.test.FakeMatrixClient
-import io.element.android.features.messages.impl.selection.FakeSelectionMediaSaver
-import io.element.android.features.messages.impl.timeline.components.event.aGalleryItem
-import io.element.android.features.messages.impl.timeline.components.event.aTimelineItemGalleryContent
-import io.element.android.features.messages.impl.timeline.model.event.aTimelineItemFileContent
 import io.element.android.libraries.matrix.test.core.aBuildMeta
 import io.element.android.libraries.matrix.test.encryption.FakeEncryptionService
 import io.element.android.libraries.matrix.test.permalink.FakePermalinkParser
@@ -58,7 +60,6 @@ import io.element.android.libraries.matrix.test.room.FakeJoinedRoom
 import io.element.android.libraries.matrix.test.room.aRoomInfo
 import io.element.android.libraries.matrix.test.room.powerlevels.FakeRoomPermissions
 import io.element.android.libraries.matrix.test.timeline.FakeTimeline
-import io.element.android.libraries.emoji.api.recentemojis.AddRecentEmoji
 import io.element.android.libraries.textcomposer.model.aTextEditorStateMarkdown
 import io.element.android.libraries.ui.strings.CommonStrings
 import io.element.android.services.analytics.test.FakeAnalyticsService
@@ -71,6 +72,7 @@ import io.element.android.tests.testutils.testWithLifecycleOwner
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.toImmutableList
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.advanceUntilIdle
@@ -240,7 +242,6 @@ class MessagesPresenterSelectionTest {
         }
     }
 
-
     // --- BulkSave ---
 
     @Test
@@ -258,10 +259,12 @@ class MessagesPresenterSelectionTest {
             initial.eventSink(MessagesEvent.ToggleSelection(photo))
             val readied = consumeItemsUntilPredicate { it.selectionState.count == 2 }.last()
             readied.eventSink(MessagesEvent.BulkSaveSelected)
-            // The selection ends the moment the work starts; the banner carries it from there.
-            val started = consumeItemsUntilPredicate { !it.selectionState.isActive }.last()
+            // The selection ends the moment the work starts; the banner carries it from there. The
+            // progress reaches the screen from the coordinator's flow, so wait for it rather than
+            // expecting it in the same frame the selection clears.
+            val started = consumeItemsUntilPredicate { it.selectionSaveProgress != null }.last()
+            assertThat(started.selectionState.isActive).isFalse()
             assertThat(started.selectionSaveProgress?.total).isEqualTo(2)
-            advanceUntilIdle()
             val finished = consumeItemsUntilPredicate { it.selectionSaveProgress == null }.last()
             assertThat(mediaSaver.savedFilenames).containsExactly("photo.jpg", "notes.pdf").inOrder()
             assertThat(finished.selectionSaveProgress).isNull()
@@ -345,6 +348,55 @@ class MessagesPresenterSelectionTest {
             assertThat(mediaSaver.savedFilenames.size).isLessThan(2)
             cancelAndIgnoreRemainingEvents()
         }
+    }
+
+    @Test
+    fun `a save in flight is still shown after leaving the room and coming back`() = runTest {
+        // Regression: with the progress held in the presenter's composition, walking out of the
+        // room left the download running with no banner and no way to cancel it, and the guard
+        // against starting a second batch went with it.
+        val first = aTimelineItemEvent(eventId = EventId("\$S8"), content = aTimelineItemImageContent(filename = "one.jpg")).copy(sentTimeMillis = 1000L)
+        val second = aTimelineItemEvent(eventId = EventId("\$S9"), content = aTimelineItemImageContent(filename = "two.jpg")).copy(sentTimeMillis = 2000L)
+        val gate = CompletableDeferred<Unit>()
+        val mediaSaver = FakeSelectionMediaSaver(beforeEachSave = { gate.await() })
+        val coordinator = SelectionSaveCoordinator(
+            selectionMediaSaver = mediaSaver,
+            snackbarDispatcher = SnackbarDispatcher(),
+            sessionCoroutineScope = backgroundScope,
+        )
+        val timelineItems = persistentListOf(first, second)
+
+        createMessagesPresenter(
+            timelineItems = timelineItems,
+            selectionSaveCoordinator = coordinator,
+        ).testWithLifecycleOwner {
+            val initial = awaitItem()
+            initial.eventSink(MessagesEvent.ToggleSelection(first))
+            initial.eventSink(MessagesEvent.ToggleSelection(second))
+            val readied = consumeItemsUntilPredicate { it.selectionState.count == 2 }.last()
+            readied.eventSink(MessagesEvent.BulkSaveSelected)
+            val started = consumeItemsUntilPredicate { it.selectionSaveProgress != null }.last()
+            assertThat(started.selectionSaveProgress?.total).isEqualTo(2)
+            cancelAndIgnoreRemainingEvents()
+        }
+
+        // Back into the room: a different presenter, a different composition, same batch.
+        createMessagesPresenter(
+            timelineItems = timelineItems,
+            selectionSaveCoordinator = coordinator,
+        ).testWithLifecycleOwner {
+            val onReturn = consumeItemsUntilPredicate { it.selectionSaveProgress != null }.last()
+            assertThat(onReturn.selectionSaveProgress?.total).isEqualTo(2)
+            // And the cancel button works again, rather than pointing at a job nobody holds.
+            onReturn.eventSink(MessagesEvent.CancelSelectionSave)
+            val stopped = consumeItemsUntilPredicate { it.selectionSaveProgress == null }.last()
+            assertThat(stopped.selectionSaveProgress).isNull()
+            cancelAndIgnoreRemainingEvents()
+        }
+
+        gate.complete(Unit)
+        advanceUntilIdle()
+        assertThat(mediaSaver.savedFilenames).isEmpty()
     }
 
     // --- BulkCopy ---
@@ -495,8 +547,12 @@ class MessagesPresenterSelectionTest {
         addRecentEmoji: AddRecentEmoji = AddRecentEmoji { _ -> lambdaError() },
         markAsFullyRead: MarkAsFullyRead = FakeMarkAsFullyRead(),
         selectionMediaSaver: FakeSelectionMediaSaver = FakeSelectionMediaSaver(),
+        // Passed in when a test needs two presenters to share one, the way leaving a room and
+        // coming back gives the same session-scoped coordinator to a brand new composition.
+        selectionSaveCoordinator: SelectionSaveCoordinator? = null,
         liveLocationShareManager: FakeActiveLiveLocationShareManager = FakeActiveLiveLocationShareManager(),
     ): MessagesPresenter {
+        val snackbarDispatcher = SnackbarDispatcher()
         return MessagesPresenter(
             navigator = navigator,
             room = joinedRoom,
@@ -513,7 +569,7 @@ class MessagesPresenterSelectionTest {
             pinnedMessagesBannerPresenter = { aLoadedPinnedMessagesBannerState() },
             roomCallStatePresenter = { aStandByCallState() },
             roomMemberModerationPresenter = roomMemberModerationPresenter,
-            snackbarDispatcher = SnackbarDispatcher(),
+            snackbarDispatcher = snackbarDispatcher,
             dispatchers = coroutineDispatchers,
             clipboardHelper = clipboardHelper,
             htmlConverterProvider = FakeHtmlConverterProvider(),
@@ -528,7 +584,11 @@ class MessagesPresenterSelectionTest {
             liveLocationShareManager = liveLocationShareManager,
             sessionCoroutineScope = backgroundScope,
             matrixClient = FakeMatrixClient(),
-            selectionMediaSaver = selectionMediaSaver,
+            selectionSaveCoordinator = selectionSaveCoordinator ?: SelectionSaveCoordinator(
+                selectionMediaSaver = selectionMediaSaver,
+                snackbarDispatcher = snackbarDispatcher,
+                sessionCoroutineScope = backgroundScope,
+            ),
         )
     }
 }
