@@ -73,7 +73,7 @@ class ForwardMessagesPresenter(
                 if (result.isFailure) {
                     failures += 1
                     lastError = result.exceptionOrNull()
-                    Timber.e(lastError, "Error forwarding event $eventId (${failures} failed so far)")
+                    Timber.e(lastError, "Error forwarding event $eventId ($failures failed so far)")
                 }
                 if (index < eventIds.lastIndex) kotlinx.coroutines.delay(150)
             }

@@ -126,7 +126,7 @@ internal fun TimelineItemRow(
     val selectableEvent = (timelineItem as? TimelineItem.Event)?.takeIf {
         it.eventId != null && selectedEventIds != null && it.content.isBulkSelectable()
     }
-    val isSelected = selectableEvent != null && selectableEvent.eventId in selectedEventIds!!
+    val isSelected = selectableEvent != null && selectableEvent.eventId in selectedEventIds.orEmpty()
     val selectionTint = if (isSelected) {
         Modifier.background(ElementTheme.colors.bgAccentSelected)
     } else {
