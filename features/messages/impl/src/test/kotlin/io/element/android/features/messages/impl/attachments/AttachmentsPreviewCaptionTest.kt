@@ -71,7 +71,7 @@ class AttachmentsPreviewCaptionTest {
     @Test
     fun `pictures leave as one gallery and the caption goes on the gallery`() = runTest {
         val recorder = GalleryRecorder()
-        val presenter = createMultiAttachmentPresenter(attachmentCount = 5, recorder = recorder)
+        val presenter = createAttachmentsPreviewPresenter(attachmentCount = 5, recorder = recorder)
         presenter.test {
             val initial = awaitItem()
             initial.textEditorState.setMarkdown("shared caption")
@@ -91,7 +91,7 @@ class AttachmentsPreviewCaptionTest {
         // whole batch - swiping between slides must NOT reload or clear the text.
         // Asserted by: type, navigate, type more, then read back; expected concat.
         val recorder = GalleryRecorder()
-        val presenter = createMultiAttachmentPresenter(attachmentCount = 5, recorder = recorder)
+        val presenter = createAttachmentsPreviewPresenter(attachmentCount = 5, recorder = recorder)
         presenter.test {
             val initial = awaitItem()
             initial.textEditorState.setMarkdown("hel")
@@ -114,7 +114,7 @@ class AttachmentsPreviewCaptionTest {
     @Test
     fun `multi-send without caption - the gallery gets no caption`() = runTest {
         val recorder = GalleryRecorder()
-        val presenter = createMultiAttachmentPresenter(attachmentCount = 3, recorder = recorder)
+        val presenter = createAttachmentsPreviewPresenter(attachmentCount = 3, recorder = recorder)
         presenter.test {
             val initial = awaitItem()
             initial.eventSink(AttachmentsPreviewEvent.SendAttachment)
@@ -128,7 +128,7 @@ class AttachmentsPreviewCaptionTest {
     @Test
     fun `a batch of something other than pictures is still one gallery`() = runTest {
         val recorder = GalleryRecorder()
-        val presenter = createMultiAttachmentPresenter(
+        val presenter = createAttachmentsPreviewPresenter(
             attachmentCount = 3,
             recorder = recorder,
             preProcessorSetup = { givenAudioResult() },
@@ -152,7 +152,7 @@ class AttachmentsPreviewCaptionTest {
         // Picking several items does not depend on the flag; only the way they leave does. This is
         // the path for talking to clients that do not implement the unstable gallery msgtype.
         val recorder = GalleryRecorder()
-        val presenter = createMultiAttachmentPresenter(
+        val presenter = createAttachmentsPreviewPresenter(
             attachmentCount = 3,
             recorder = recorder,
             sendAsGallery = false,
@@ -172,7 +172,7 @@ class AttachmentsPreviewCaptionTest {
     @Test
     fun `the Labs toggle wins over the developer gallery flag`() = runTest {
         val recorder = GalleryRecorder()
-        val presenter = createMultiAttachmentPresenter(
+        val presenter = createAttachmentsPreviewPresenter(
             attachmentCount = 3,
             recorder = recorder,
             featureFlagService = FakeFeatureFlagService(
@@ -204,7 +204,7 @@ class AttachmentsPreviewCaptionTest {
         val audioCaptions = mutableListOf<String?>()
     }
 
-    private fun TestScope.createMultiAttachmentPresenter(
+    private fun TestScope.createAttachmentsPreviewPresenter(
         attachmentCount: Int,
         recorder: GalleryRecorder,
         preProcessorSetup: FakeMediaPreProcessor.() -> Unit = { givenImageResult() },

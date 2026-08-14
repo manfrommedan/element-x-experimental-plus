@@ -65,6 +65,9 @@ class KonsistClassNameTest {
                 "AspectRatioProvider",
                 "EditableAvatarViewUriProvider",
                 "LoginModeViewErrorProvider",
+                // Provides a nested type, which the check below flattens to
+                // 'LocalEventSendStateSendingMediaWithProgress'; no readable name contains that.
+                "MediaWithProgressProvider",
                 "OverlapRatioProvider",
                 "TextFileContentProvider",
             )

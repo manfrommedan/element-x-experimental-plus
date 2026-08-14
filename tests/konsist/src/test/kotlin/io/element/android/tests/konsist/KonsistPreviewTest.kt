@@ -111,6 +111,7 @@ class KonsistPreviewTest {
         "MessagesReactionButtonAddPreview",
         "MessagesReactionButtonExtraPreview",
         "MessagesSelectionTopBarAtCapPreview",
+        "MessagesSelectionTopBarWithMediaPreview",
         "MessagesViewWithIdentityChangePreview",
         "PendingMemberRowWithLongNamePreview",
         "PinUnlockViewInAppPreview",

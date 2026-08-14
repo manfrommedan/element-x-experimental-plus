@@ -26,11 +26,25 @@ class KonsistImportTest {
             }
     }
 
+    /**
+     * The two mxtr settings screens take a connection string, `mxtr://<psk>@<host>:<port>`, which is
+     * read and compared character by character and so wants a monospaced font and an error state on
+     * the field itself. The design system TextField offers neither, and widening it for two screens
+     * would put a fork change into a component the whole app draws with. They keep the material
+     * field until the design system grows a way to say this.
+     */
+    private val outlinedTextFieldExceptions = listOf(
+        "MxtrSettingsActivity.kt",
+        "MxtrSettingsView.kt",
+    )
+
     @Test
     fun `OutlinedTextField should not be used`() {
         Konsist
             .scopeFromProject()
-            .imports
+            .files
+            .filter { it.nameWithExtension !in outlinedTextFieldExceptions }
+            .flatMap { it.imports }
             .assertFalse(
                 additionalMessage = "Please use 'io.element.android.libraries.designsystem.theme.components.TextField' instead of " +
                     "'androidx.compose.material3.OutlinedTextField.",

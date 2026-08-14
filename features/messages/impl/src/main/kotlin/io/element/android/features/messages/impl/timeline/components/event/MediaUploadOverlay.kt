@@ -179,7 +179,7 @@ fun MediaUploadOverlay(
     }
 }
 
-internal class MediaUploadOverlayStateProvider : PreviewParameterProvider<LocalEventSendState.Sending.MediaWithProgress?> {
+internal class MediaWithProgressProvider : PreviewParameterProvider<LocalEventSendState.Sending.MediaWithProgress?> {
     override val values: Sequence<LocalEventSendState.Sending.MediaWithProgress?> = sequenceOf(
         // Queued (Sending.Event -> no progress object).
         null,
@@ -193,7 +193,7 @@ internal class MediaUploadOverlayStateProvider : PreviewParameterProvider<LocalE
 @PreviewsDayNight
 @Composable
 internal fun MediaUploadOverlayPreview(
-    @PreviewParameter(MediaUploadOverlayStateProvider::class) progress: LocalEventSendState.Sending.MediaWithProgress?,
+    @PreviewParameter(MediaWithProgressProvider::class) progress: LocalEventSendState.Sending.MediaWithProgress?,
 ) = ElementPreview {
     Box(
         modifier = Modifier
