@@ -14,12 +14,15 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+      # Unguarded upstream, so on a fork ssh-agent gets an empty key and fails the job before
+      # Danger has said anything. The submodules are upstream's to begin with.
       - name: Add SSH private keys for submodule repositories
         uses: webfactory/ssh-agent@e83874834305fe9a4a2997156cb26c5de65a8555 # v0.10.0
+        if: ${{ github.repository == 'element-hq/element-x-android' }}
         with:
           ssh-private-key: ${{ secrets.ELEMENT_ENTERPRISE_DEPLOY_KEY }}
       - name: Clone submodules
-        if: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == 'element-hq/element-x-android' }}
+        if: ${{ github.repository == 'element-hq/element-x-android' }}
         run: git submodule update --init --recursive
       - run: |
           npm install --save-dev @babel/plugin-transform-flow-strip-types

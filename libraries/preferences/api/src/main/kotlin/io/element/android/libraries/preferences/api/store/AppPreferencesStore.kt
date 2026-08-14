@@ -53,11 +53,12 @@ interface AppPreferencesStore {
     fun getLiveLocationMinimumDistanceInMetersUpdateFlow(): Flow<Int>
 
     /**
-     * @param value whether a removed message collapses into a single line instead of a placeholder.
+     * @param value whether a run of removed messages collapses into one line rather than showing a
+     * placeholder for each.
      */
     suspend fun setHideRedactedEvents(value: Boolean)
 
-    /** Whether removed messages are collapsed; defaults to false. */
+    /** Whether removed messages are collapsed; defaults to true. */
     fun getHideRedactedEventsFlow(): Flow<Boolean>
 
     /**
@@ -97,7 +98,7 @@ interface AppPreferencesStore {
      */
     suspend fun setUrlPreviewValue(value: UrlPreviewValue)
 
-    /** Where link previews are shown; defaults to all rooms. */
+    /** Where link previews are fetched; defaults to unencrypted rooms only. */
     fun getUrlPreviewValueFlow(): Flow<UrlPreviewValue>
 
     /**

@@ -21,8 +21,9 @@ import java.util.concurrent.locks.ReentrantLock
  * One logical bidirectional stream within an [MxtrSession]. Wraps the session's
  * frame-level writes as InputStream/OutputStream so existing copy-loop code
  * works unchanged.
+ *
+ * The explicit parentheses below document the on-the-wire byte/bit layout; keep them.
  */
-// Explicit parentheses below document the on-the-wire byte/bit layout; keep them.
 @Suppress("UnnecessaryParentheses")
 internal class MxtrStream(
     val id: Int,

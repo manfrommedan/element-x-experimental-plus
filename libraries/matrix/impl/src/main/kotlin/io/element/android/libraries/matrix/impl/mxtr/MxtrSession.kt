@@ -32,8 +32,9 @@ import javax.net.ssl.SSLSocket
  *   [4 byte stream_id BE][1 byte type][2 byte payload_len BE][payload]
  *
  * stream_id 0 reserved for control. Client allocates odd IDs (1, 3, 5, ...).
+ *
+ * The explicit parentheses below document the on-the-wire byte/bit layout; keep them.
  */
-// Explicit parentheses below document the on-the-wire byte/bit layout; keep them.
 @Suppress("UnnecessaryParentheses")
 internal class MxtrSession private constructor(
     private val socket: Socket,
