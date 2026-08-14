@@ -34,7 +34,7 @@ internal object VideoCompressorConfigFactory {
         val newFrameRate = min(originalFrameRate, DEFAULT_FRAME_RATE)
 
         // If we need to resize the video, we also want to recalculate the bitrate
-        val optimalBitrate = resizer.calculateOptimalBitrate(Size(width, height), newFrameRate)
+        val optimalBitrate = resizer.calculateOptimalBitrate(Size(width, height), newFrameRate).toInt()
 
         // METADATA_KEY_BITRATE covers the whole container, video plus audio, so it can only
         // over-estimate the video track. That still makes it a safe ceiling: encoding above what
@@ -42,7 +42,7 @@ internal object VideoCompressorConfigFactory {
         // clip filmed at 720p/1.5Mbps comes out of the STANDARD preset at 2.8Mbps, so the
         // "compression" step nearly doubles the upload.
         val sourceBitrate = metadata?.bitrate?.takeIf { it > 0 }
-        val newBitrate = sourceBitrate?.let { min(optimalBitrate, it) } ?: optimalBitrate
+        val newBitrate = sourceBitrate?.let { min(optimalBitrate.toLong(), it).toInt() } ?: optimalBitrate
 
         // Nothing to scale down and nothing to shave off the bitrate: a re-encode would only cost
         // time and quality. Ask for a remux instead, which still runs through the muxer that strips
@@ -54,7 +54,7 @@ internal object VideoCompressorConfigFactory {
 
         return VideoCompressorConfig(
             videoCompressorHelper = resizer,
-            newBitRate = newBitrate.toInt(),
+            newBitRate = newBitrate,
             newFrameRate = newFrameRate,
             canRemux = canRemux,
         )

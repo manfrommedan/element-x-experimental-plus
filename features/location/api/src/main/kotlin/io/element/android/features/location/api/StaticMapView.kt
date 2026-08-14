@@ -40,14 +40,15 @@ import coil3.request.ImageRequest
 import coil3.request.SuccessResult
 import io.element.android.compound.theme.ElementTheme
 import io.element.android.features.location.api.internal.StaticMapPlaceholder
-import io.element.android.features.location.api.internal.StaticMapUrlBuilder
 import io.element.android.features.location.api.internal.centerBottomEdge
+import io.element.android.features.location.api.internal.rememberStaticMapBuilder
 import io.element.android.libraries.designsystem.components.LocationPin
 import io.element.android.libraries.designsystem.components.PinVariant
 import io.element.android.libraries.designsystem.components.media.LocalAutoLoadMedia
 import io.element.android.libraries.designsystem.preview.ElementPreview
 import io.element.android.libraries.designsystem.preview.PreviewsDayNight
 import io.element.android.libraries.designsystem.utils.CommonDrawables
+import io.element.android.libraries.wellknown.api.MapTilerConfig
 
 /**
  * Shows a static map image downloaded via a third party service's static maps API.
@@ -60,6 +61,7 @@ import io.element.android.libraries.designsystem.utils.CommonDrawables
  */
 @Composable
 fun StaticMapView(
+    mapTilerConfig: MapTilerConfig?,
     location: Location?,
     zoom: Double,
     pinVariant: PinVariant,
@@ -97,6 +99,7 @@ fun StaticMapView(
             }
             // Cases 3 & 4: Non-null location - fetch map
             else -> LoadableMapContent(
+                mapTilerConfig = mapTilerConfig,
                 location = location,
                 zoom = zoom,
                 pinVariant = pinVariant,
@@ -127,6 +130,7 @@ private fun BoxWithConstraintsScope.StaleMapContent(
 
 @Composable
 private fun BoxWithConstraintsScope.LoadableMapContent(
+    mapTilerConfig: MapTilerConfig?,
     location: Location,
     zoom: Double,
     pinVariant: PinVariant,
@@ -135,7 +139,7 @@ private fun BoxWithConstraintsScope.LoadableMapContent(
 ) {
     val context = LocalContext.current
     var retryHash by remember { mutableIntStateOf(0) }
-    val builder = remember { StaticMapUrlBuilder() }
+    val builder = rememberStaticMapBuilder(mapTilerConfig)
     val autoLoad = LocalAutoLoadMedia.current
     var userTapped by rememberSaveable { mutableStateOf(false) }
     val shouldLoad = autoLoad || userTapped
@@ -214,6 +218,7 @@ private fun BoxWithConstraintsScope.LoadableMapContent(
 @Composable
 internal fun StaticMapViewPreview() = ElementPreview {
     StaticMapView(
+        mapTilerConfig = null,
         location = Location(0.0, 0.0),
         zoom = 0.0,
         contentDescription = null,

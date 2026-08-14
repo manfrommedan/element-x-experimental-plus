@@ -71,7 +71,6 @@ fun OnBoardingView(
     onOAuthDetails: (OAuthDetails) -> Unit,
     onNeedLoginPassword: () -> Unit,
     onLearnMoreClick: () -> Unit,
-    onCreateAccountContinue: (url: String) -> Unit,
     onReportProblem: () -> Unit,
     modifier: Modifier = Modifier,
     onMxtrSettingsClick: () -> Unit = {},
@@ -85,7 +84,6 @@ fun OnBoardingView(
             onLearnMoreClick = onLearnMoreClick,
             onOAuthDetails = onOAuthDetails,
             onNeedLoginPassword = onNeedLoginPassword,
-            onCreateAccountContinue = onCreateAccountContinue,
         )
         LocalNetworkPermissionDialogView(
             dialog = state.loginModeState.localNetworkPermissionDialog,
@@ -380,6 +378,5 @@ internal fun OnBoardingViewPreview(
         onOAuthDetails = {},
         onNeedLoginPassword = {},
         onLearnMoreClick = {},
-        onCreateAccountContinue = {},
     )
 }
