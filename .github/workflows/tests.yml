@@ -113,7 +113,10 @@ jobs:
           echo "---" >> $GITHUB_STEP_SUMMARY
 
       # https://github.com/codecov/codecov-action
+      # Upstream only: there is no CODECOV_TOKEN here, and fail_ci_if_error turns that into a red
+      # job on a run whose tests all passed.
       - name: ☂️ Upload coverage reports to codecov
+        if: ${{ github.repository == 'element-hq/element-x-android' }}
         uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7.0.0
         with:
           fail_ci_if_error: true
