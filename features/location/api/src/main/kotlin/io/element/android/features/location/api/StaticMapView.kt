@@ -39,6 +39,7 @@ import coil3.compose.rememberAsyncImagePainter
 import coil3.request.ImageRequest
 import coil3.request.SuccessResult
 import io.element.android.compound.theme.ElementTheme
+import io.element.android.features.enterprise.api.remoteconfig.MapTilerConfig
 import io.element.android.features.location.api.internal.StaticMapPlaceholder
 import io.element.android.features.location.api.internal.centerBottomEdge
 import io.element.android.features.location.api.internal.rememberStaticMapBuilder
@@ -48,7 +49,6 @@ import io.element.android.libraries.designsystem.components.media.LocalAutoLoadM
 import io.element.android.libraries.designsystem.preview.ElementPreview
 import io.element.android.libraries.designsystem.preview.PreviewsDayNight
 import io.element.android.libraries.designsystem.utils.CommonDrawables
-import io.element.android.libraries.wellknown.api.MapTilerConfig
 
 /**
  * Shows a static map image downloaded via a third party service's static maps API.

@@ -313,6 +313,7 @@ dependencies {
     if (isEnterpriseBuild) {
         allEnterpriseImpl(project)
         implementation(projects.appicon.enterprise)
+        implementation(project(":enterprise:features:enterprise:shared"))
     } else if (isPhoneLayerBuild) {
         implementation(projects.features.enterprise.implFoss)
         "vanillaImplementation"(projects.appicon.element)
