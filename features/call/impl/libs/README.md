@@ -25,9 +25,12 @@ cp -R dist/* embedded/android/lib/src/main/assets/element-call/
 # 3. Build the AAR
 #    EC_VERSION is a cosmetic label only (flatDir resolves the AAR by file name,
 #    not version). Keep it on the upstream Element Call base tag this fork
-#    tracks, currently v0.24.0.
+#    tracks. The shipped AAR is currently built from the fork's pre-v0.24.0
+#    state (branch `backup/pre-v0.24.0-merge-20260823`, base v0.23.0-rc.1),
+#    because v0.24.0 stops the client connecting to the SFU — see the commit
+#    that reverted the bundle. The v0.24.0 merge itself lives on `experiments`.
 cd embedded/android
-EC_VERSION=0.24.0-plus ./gradlew :lib:assembleRelease
+EC_VERSION=0.23.0-plus ./gradlew :lib:assembleRelease
 
 # 4. Drop it here
 cp lib/build/outputs/aar/lib-release.aar \
