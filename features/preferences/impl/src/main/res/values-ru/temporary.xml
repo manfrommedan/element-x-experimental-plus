@@ -27,7 +27,7 @@
     <string name="screen_labs_enable_favorites_pinned_to_top_description">"Избранные чаты показываются отдельным разделом над остальным списком, как в SchildiChat или закреплённых чатах Telegram."</string>
     <!-- Labs-тумблер: экран входящего звонка в стиле телефона. -->
     <string name="screen_labs_enable_phone_incoming_call">"Входящие звонки как на телефоне"</string>
-    <string name="screen_labs_enable_phone_incoming_call_description">"Показывать полноэкранный входящий звонок с рингтоном, на который можно ответить с экрана блокировки - вместо тихого уведомления. Аудио- и видеозвонки помечаются по-разному."</string>
+    <string name="screen_labs_enable_phone_incoming_call_description">"Показывать полноэкранный входящий звонок с рингтоном, на который можно ответить с экрана блокировки, вместо тихого уведомления. Аудио- и видеозвонки помечаются по-разному."</string>
     <!-- Labs-тумблер: присоединиться к звонку прямо из списка чатов. -->
     <string name="screen_labs_enable_room_list_call_shortcut">"Звонок из списка чатов"</string>
     <string name="screen_labs_enable_room_list_call_shortcut_description">"Нажми на иконку звонка у чата в списке, чтобы сразу присоединиться к идущему звонку, как в WhatsApp или Telegram."</string>
@@ -43,7 +43,7 @@
     <string name="screen_mxtr_settings_back">"Назад"</string>
     <string name="screen_mxtr_settings_status_off">"Выключено"</string>
     <string name="screen_mxtr_settings_status_connected">"Подключено"</string>
-    <string name="screen_mxtr_settings_status_starting">"Запускается..."</string>
+    <string name="screen_mxtr_settings_status_starting">"Запускается…"</string>
     <string name="screen_mxtr_settings_server">"Сервер"</string>
     <string name="screen_mxtr_settings_metric_active">"Активных"</string>
     <string name="screen_mxtr_settings_use_proxy">"Использовать прокси"</string>

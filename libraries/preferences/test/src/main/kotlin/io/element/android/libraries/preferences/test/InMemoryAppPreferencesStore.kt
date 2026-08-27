@@ -109,10 +109,16 @@ class InMemoryAppPreferencesStore(
         timelineMediaPreviewValue.value = mediaPreviewValue
     }
 
-    override suspend fun setHideRedactedEvents(value: Boolean) { hideRedactedEvents.value = value }
+    override suspend fun setHideRedactedEvents(value: Boolean) {
+        hideRedactedEvents.value = value
+    }
+
     override fun getHideRedactedEventsFlow(): Flow<Boolean> = hideRedactedEvents
 
-    override suspend fun setMediaAutoDownloadOnWifiOnly(value: Boolean) { mediaAutoDownloadOnWifiOnly.value = value }
+    override suspend fun setMediaAutoDownloadOnWifiOnly(value: Boolean) {
+        mediaAutoDownloadOnWifiOnly.value = value
+    }
+
     override fun getMediaAutoDownloadOnWifiOnlyFlow(): Flow<Boolean> = mediaAutoDownloadOnWifiOnly
 
     override suspend fun setUrlPreviewValue(value: UrlPreviewValue) {

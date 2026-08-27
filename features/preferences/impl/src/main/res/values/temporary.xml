@@ -24,7 +24,7 @@
     <string name="screen_labs_enable_favorites_pinned_to_top_description">"Show your favourite rooms in their own section above the rest of the chat list, like SchildiChat or Telegram pinned chats."</string>
     <!-- Labs toggle: phone-style incoming call screen. -->
     <string name="screen_labs_enable_phone_incoming_call">"Phone-style incoming calls"</string>
-    <string name="screen_labs_enable_phone_incoming_call_description">"Show a full-screen ringing call with ringtone, answerable over the lock screen, when a call comes in - instead of a quiet heads-up notification. Voice and video calls are labelled distinctly."</string>
+    <string name="screen_labs_enable_phone_incoming_call_description">"Show a full-screen ringing call with ringtone, answerable over the lock screen, when a call comes in, instead of a quiet heads-up notification. Voice and video calls are labelled distinctly."</string>
     <!-- Labs toggle: join an ongoing call from the chat list. -->
     <string name="screen_labs_enable_room_list_call_shortcut">"Join calls from the chat list"</string>
     <string name="screen_labs_enable_room_list_call_shortcut_description">"Tap the call icon on a room in the chat list to join its ongoing call right away, like WhatsApp or Telegram."</string>
