@@ -13,6 +13,7 @@ import android.media.AudioAttributes
 import android.media.AudioManager
 import android.media.MediaPlayer
 import android.media.RingtoneManager
+import android.os.Build
 import android.os.Bundle
 import android.view.WindowManager
 import androidx.activity.compose.setContent
@@ -163,10 +164,12 @@ class IncomingCallActivity : AppCompatActivity() {
 
     private fun answerCall(notificationData: CallNotificationData, startVideoMuted: Boolean) {
         stopRingtone()
-        if (!answerWithoutUnlocking) {
+        if (!answerWithoutUnlocking && Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             // Dismiss the keyguard so the call screen is reachable when answering from the
             // lock screen. With AnswerCallOnLockScreen we skip this and let the call open
             // over the lock screen (ElementCallActivity is shown-when-locked).
+            // requestDismissKeyguard needs API 26; below that the window flags set in
+            // onCreate are what get us past the keyguard.
             getSystemService<KeyguardManager>()?.requestDismissKeyguard(this, null)
         }
         elementCallEntryPoint.startCall(
