@@ -25,6 +25,7 @@ import io.element.android.features.messages.impl.timeline.model.event.TimelineIt
 import io.element.android.features.messages.impl.timeline.model.event.aTimelineItemStateEventContent
 import io.element.android.features.messages.impl.timeline.model.event.aTimelineItemTextContent
 import io.element.android.features.messages.impl.timeline.model.virtual.aTimelineItemDaySeparatorModel
+import io.element.android.features.messages.impl.timeline.sendfailure.SendFailureDialogState
 import io.element.android.features.messages.impl.typing.TypingNotificationState
 import io.element.android.features.messages.impl.typing.aTypingNotificationState
 import io.element.android.features.roomcall.api.aStandByCallState
@@ -57,6 +58,7 @@ fun aTimelineState(
     isLive: Boolean = true,
     messageShield: MessageShield? = null,
     resolveVerifiedUserSendFailureState: ResolveVerifiedUserSendFailureState = aResolveVerifiedUserSendFailureState(),
+    sendFailureDialogState: SendFailureDialogState = SendFailureDialogState.Hidden,
     displayThreadSummaries: Boolean = false,
     scrollToDateIndex: Int? = null,
     displayJumpToUnread: Boolean = false,
@@ -79,6 +81,7 @@ fun aTimelineState(
         focusRequestState = focusRequestState,
         messageShieldDialogData = messageShield?.let { MessageShieldData(it) },
         resolveVerifiedUserSendFailureState = resolveVerifiedUserSendFailureState,
+        sendFailureDialogState = sendFailureDialogState,
         displayThreadSummaries = displayThreadSummaries,
         scrollToDateIndex = scrollToDateIndex,
         displayJumpToUnread = displayJumpToUnread,

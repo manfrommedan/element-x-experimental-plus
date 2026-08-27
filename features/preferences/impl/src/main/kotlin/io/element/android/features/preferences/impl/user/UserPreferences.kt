@@ -18,7 +18,7 @@ import io.element.android.libraries.designsystem.preview.ElementPreview
 import io.element.android.libraries.designsystem.preview.PreviewsDayNight
 import io.element.android.libraries.matrix.api.user.MatrixUser
 import io.element.android.libraries.matrix.ui.components.MatrixUserHeader
-import io.element.android.libraries.matrix.ui.components.MatrixUserProvider
+import io.element.android.libraries.matrix.ui.components.MatrixUserPreviewParam
 import io.element.android.libraries.ui.strings.CommonStrings
 
 @Composable
@@ -44,6 +44,6 @@ fun UserPreferences(
 
 @PreviewsDayNight
 @Composable
-internal fun UserPreferencesPreview(@PreviewParameter(MatrixUserProvider::class) matrixUser: MatrixUser) = ElementPreview {
+internal fun UserPreferencesPreview(@PreviewParameter(MatrixUserPreviewParam::class) matrixUser: MatrixUser) = ElementPreview {
     UserPreferences(matrixUser, showCopyMxidButton = true)
 }

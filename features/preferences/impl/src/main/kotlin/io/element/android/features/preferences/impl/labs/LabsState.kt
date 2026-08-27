@@ -15,7 +15,7 @@ import kotlinx.collections.immutable.toImmutableList
 data class LabsState(
     val sections: ImmutableList<LabsSection>,
     val isApplyingChanges: Boolean,
-    val eventSink: (LabsEvents) -> Unit,
+    val eventSink: (LabsEvent) -> Unit,
 ) {
     /** Flat view of every feature across sections - kept for tests / legacy. */
     val features: ImmutableList<FeatureUiModel>

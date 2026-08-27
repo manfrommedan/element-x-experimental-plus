@@ -28,7 +28,7 @@ data class AdvancedSettingsState(
     val liveLocationMinimumDistanceUpdate: Int?,
     val hideRedactedEvents: Boolean,
     val mediaAutoDownloadOnWifiOnly: Boolean,
-    val eventSink: (AdvancedSettingsEvents) -> Unit
+    val eventSink: (AdvancedSettingsEvent) -> Unit
 )
 
 sealed interface MediaOptimizationState {

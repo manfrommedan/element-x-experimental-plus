@@ -135,6 +135,7 @@ class KonsistPreviewTest {
         "SecureBackupSetupViewChangePreview",
         "SelectedUserCannotRemovePreview",
         "SpaceMembersViewNoHeroesPreview",
+        "SyncStateViewServerUnreachablePreview",
         "TextComposerAddCaptionPreview",
         "TextComposerCaptionPreview",
         "TextComposerEditCaptionPreview",

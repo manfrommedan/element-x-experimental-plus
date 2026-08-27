@@ -41,10 +41,12 @@ import io.element.android.libraries.architecture.BaseFlowNode
 import io.element.android.libraries.architecture.appyx.canPop
 import io.element.android.libraries.architecture.callback
 import io.element.android.libraries.architecture.createNode
+import io.element.android.libraries.core.mimetype.MimeTypes
 import io.element.android.libraries.di.SessionScope
 import io.element.android.libraries.matrix.api.core.EventId
 import io.element.android.libraries.matrix.api.core.RoomId
 import io.element.android.libraries.matrix.api.user.MatrixUser
+import io.element.android.libraries.mediaviewer.api.FileViewerEntryPoint
 import io.element.android.libraries.troubleshoot.api.NotificationTroubleShootEntryPoint
 import io.element.android.libraries.troubleshoot.api.PushHistoryEntryPoint
 import kotlinx.parcelize.Parcelize
@@ -57,6 +59,7 @@ class PreferencesFlowNode(
     private val lockScreenEntryPoint: LockScreenEntryPoint,
     private val notificationTroubleShootEntryPoint: NotificationTroubleShootEntryPoint,
     private val pushHistoryEntryPoint: PushHistoryEntryPoint,
+    private val fileViewerEntryPoint: FileViewerEntryPoint,
     private val logoutEntryPoint: LogoutEntryPoint,
     private val openSourceLicensesEntryPoint: OpenSourceLicensesEntryPoint,
     private val accountDeactivationEntryPoint: AccountDeactivationEntryPoint,
@@ -98,6 +101,9 @@ class PreferencesFlowNode(
 
         @Parcelize
         data object PushHistory : NavTarget
+
+        @Parcelize
+        data class PushRules(val filename: String, val content: String) : NavTarget
 
         @Parcelize
         data object LockScreenSettings : NavTarget
@@ -191,6 +197,10 @@ class PreferencesFlowNode(
             }
             NavTarget.DeveloperSettings -> {
                 val developerSettingsCallback = object : DeveloperSettingsNode.Callback {
+                    override fun navigateToPushRules(filename: String, content: String) {
+                        backstack.push(NavTarget.PushRules(filename = filename, content = content))
+                    }
+
                     override fun navigateToPushHistory() {
                         backstack.push(NavTarget.PushHistory)
                     }
@@ -270,6 +280,26 @@ class PreferencesFlowNode(
 
                         override fun navigateToEvent(roomId: RoomId, eventId: EventId) {
                             callback.navigateToEvent(roomId, eventId)
+                        }
+                    },
+                )
+            }
+            is NavTarget.PushRules -> {
+                fileViewerEntryPoint.createNode(
+                    parentNode = this,
+                    buildContext = buildContext,
+                    params = FileViewerEntryPoint.Params(
+                        filename = navTarget.filename,
+                        mimeType = MimeTypes.Json,
+                        content = navTarget.content,
+                    ),
+                    callback = object : FileViewerEntryPoint.Callback {
+                        override fun onDone() {
+                            if (backstack.canPop()) {
+                                backstack.pop()
+                            } else {
+                                navigateUp()
+                            }
                         }
                     },
                 )

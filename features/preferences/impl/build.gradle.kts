@@ -65,6 +65,7 @@ dependencies {
     implementation(projects.libraries.testtags)
     implementation(projects.libraries.uiStrings)
     implementation(projects.libraries.matrixui)
+    implementation(projects.libraries.mediaviewer.api)
     implementation(projects.libraries.mediapickers.api)
     implementation(projects.libraries.mediaupload.api)
     implementation(projects.libraries.permissions.api)
@@ -92,6 +93,7 @@ dependencies {
     implementation(libs.color.picker)
     implementation(libs.androidx.browser)
     implementation(libs.androidx.datastore.preferences)
+    implementation(libs.serialization.json)
     api(projects.features.preferences.api)
     implementation(libs.showkase)
 
@@ -109,6 +111,7 @@ dependencies {
     testImplementation(projects.libraries.push.test)
     testImplementation(projects.libraries.pushstore.test)
     testImplementation(projects.libraries.roomselect.test)
+    testImplementation(projects.libraries.mediaviewer.test)
     testImplementation(projects.libraries.troubleshoot.test)
     testImplementation(projects.features.deactivation.test)
     testImplementation(projects.features.enterprise.test)

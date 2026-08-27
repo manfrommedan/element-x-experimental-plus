@@ -57,9 +57,9 @@ class LabsPresenter(
             buildSections(enabledFeatures, featureUiModels)
         }
 
-        fun handleEvent(event: LabsEvents) {
+        fun handleEvent(event: LabsEvent) {
             when (event) {
-                is LabsEvents.ToggleFeature -> coroutineScope.launch {
+                is LabsEvent.ToggleFeature -> coroutineScope.launch {
                     val featureIndex = enabledFeatures.indexOfFirst { it.feature.key == event.feature.key }.takeIf { it != -1 } ?: return@launch
                     val enabledFeature = enabledFeatures[featureIndex]
                     val feature = enabledFeature.feature

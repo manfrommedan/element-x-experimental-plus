@@ -368,7 +368,7 @@ class WebViewAudioManager(
 
                     hasRegisteredCallbacks = true
                 }
-            }
+            },
         )
         Timber.d("Setting androidNativeBridge javascript interface in webview")
         webView.addJavascriptInterface(webViewAudioDeviceSelectedCallback, "androidNativeBridge")

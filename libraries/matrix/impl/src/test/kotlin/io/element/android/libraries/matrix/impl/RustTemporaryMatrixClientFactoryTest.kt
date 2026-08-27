@@ -9,7 +9,6 @@ package io.element.android.libraries.matrix.impl
 
 import com.google.common.truth.Truth.assertThat
 import io.element.android.libraries.featureflag.test.FakeFeatureFlagService
-import io.element.android.libraries.matrix.api.scanner.ContentScannerUrlProvider
 import io.element.android.libraries.matrix.impl.auth.FakeProxyProvider
 import io.element.android.libraries.matrix.impl.auth.FakeUserCertificatesProvider
 import io.element.android.libraries.matrix.impl.paths.SessionPathsFactory
@@ -65,7 +64,6 @@ class RustTemporaryMatrixClientFactoryTest {
         ),
         clientBuilderProvider: ClientBuilderProvider = FakeClientBuilderProvider(),
         workManagerScheduler: FakeWorkManagerScheduler = FakeWorkManagerScheduler(),
-        contentScannerUrlProviderFactory: ContentScannerUrlProvider.Factory = { ContentScannerUrlProvider { Result.success(null) } },
     ) = RustMatrixClientFactory(
         cacheDirectory = cacheDirectory,
         appCoroutineScope = backgroundScope,
@@ -81,6 +79,6 @@ class RustTemporaryMatrixClientFactoryTest {
         clientBuilderProvider = clientBuilderProvider,
         sqliteStoreBuilderProvider = FakeSqliteStoreBuilderProvider(),
         workManagerScheduler = workManagerScheduler,
-        contentScannerUrlProviderFactory = contentScannerUrlProviderFactory,
+        clientBuilderEnterpriseHook = { builder, _ -> builder },
     )
 }

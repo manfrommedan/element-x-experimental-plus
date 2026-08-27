@@ -13,6 +13,7 @@ import io.element.android.features.messages.impl.crypto.sendfailure.resolve.Reso
 import io.element.android.features.messages.impl.timeline.components.MessageShieldData
 import io.element.android.features.messages.impl.timeline.model.NewEventState
 import io.element.android.features.messages.impl.timeline.model.TimelineItem
+import io.element.android.features.messages.impl.timeline.sendfailure.SendFailureDialogState
 import io.element.android.features.messages.impl.typing.TypingNotificationState
 import io.element.android.features.roomcall.api.RoomCallState
 import io.element.android.libraries.matrix.api.core.EventId
@@ -32,6 +33,7 @@ data class TimelineState(
     // If not null, info will be rendered in a dialog
     val messageShieldDialogData: MessageShieldData?,
     val resolveVerifiedUserSendFailureState: ResolveVerifiedUserSendFailureState,
+    val sendFailureDialogState: SendFailureDialogState,
     val displayThreadSummaries: Boolean,
     // When not null, the view should scroll the item at this index to the top (floating date pill tap).
     val scrollToDateIndex: Int?,
