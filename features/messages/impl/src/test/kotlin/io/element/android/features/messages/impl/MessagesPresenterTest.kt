@@ -154,7 +154,7 @@ class MessagesPresenterTest {
     @Test
     fun `present - message search stays unavailable when only the live feature flag is enabled`() = runTest {
         val featureFlagService = FakeFeatureFlagService(
-            initialState = mapOf(FeatureFlags.MessageSearch.key to true),
+            initialState = mapOf(FeatureFlags.MessageSearch.key to true, FeatureFlags.MessageMultiSelect.key to false),
         )
         val presenter = createMessagesPresenter(featureFlagService = featureFlagService)
 
@@ -1247,7 +1247,7 @@ class MessagesPresenterTest {
         val presenter = createMessagesPresenter(
             navigator = FakeMessagesNavigator(onOpenThreadLambda = openThreadLambda),
             featureFlagService = FakeFeatureFlagService(
-                initialState = mapOf(FeatureFlags.Threads.key to true)
+                initialState = mapOf(FeatureFlags.Threads.key to true, FeatureFlags.MessageMultiSelect.key to false)
             ),
         )
         presenter.testWithLifecycleOwner {
@@ -1269,7 +1269,7 @@ class MessagesPresenterTest {
         val presenter = createMessagesPresenter(
             navigator = FakeMessagesNavigator(onOpenThreadLambda = openThreadLambda),
             featureFlagService = FakeFeatureFlagService(
-                initialState = mapOf(FeatureFlags.Threads.key to true)
+                initialState = mapOf(FeatureFlags.Threads.key to true, FeatureFlags.MessageMultiSelect.key to false)
             ),
         )
         presenter.testWithLifecycleOwner {
@@ -1294,7 +1294,7 @@ class MessagesPresenterTest {
         val composerRecorder = EventsRecorder<MessageComposerEvent>()
         val presenter = createMessagesPresenter(
             featureFlagService = FakeFeatureFlagService(
-                initialState = mapOf(FeatureFlags.Threads.key to false)
+                initialState = mapOf(FeatureFlags.Threads.key to false, FeatureFlags.MessageMultiSelect.key to false)
             ),
             messageComposerPresenter = { aMessageComposerState(eventSink = composerRecorder) },
         )
@@ -1404,7 +1404,7 @@ class MessagesPresenterTest {
             threadsListService = FakeThreadsListService(items = itemsFlow)
         )
         val featureFlagService = FakeFeatureFlagService(
-            initialState = mapOf(FeatureFlags.Threads.key to false)
+            initialState = mapOf(FeatureFlags.Threads.key to false, FeatureFlags.MessageMultiSelect.key to false)
         )
         val presenter = createMessagesPresenter(
             joinedRoom = room,
@@ -1485,7 +1485,11 @@ class MessagesPresenterTest {
             aRoomMemberModerationState()
         },
         encryptionService: FakeEncryptionService = FakeEncryptionService(),
-        featureFlagService: FakeFeatureFlagService = FakeFeatureFlagService(),
+        // These cases exercise the timeline outside selection mode, so pin the flag instead of
+        // riding on its default. Selection mode has its own MessagesPresenterSelectionTest.
+        featureFlagService: FakeFeatureFlagService = FakeFeatureFlagService(
+            initialState = mapOf(FeatureFlags.MessageMultiSelect.key to false),
+        ),
         matrixClient: FakeMatrixClient = FakeMatrixClient(),
         actionListEventSink: (ActionListEvent) -> Unit = {},
         addRecentEmoji: AddRecentEmoji = AddRecentEmoji { _ -> lambdaError() },
