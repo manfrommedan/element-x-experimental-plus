@@ -310,7 +310,7 @@ private fun ModerationAndSafety(
             subtitle = stringResource(R.string.screen_advanced_settings_hide_redacted_events_toggle_subtitle),
             isChecked = state.hideRedactedEvents,
             onCheckedChange = {
-                state.eventSink(AdvancedSettingsEvents.SetHideRedactedEvents(it))
+                state.eventSink(AdvancedSettingsEvent.SetHideRedactedEvents(it))
             },
         )
         // Wifi-only auto-download toggle is hidden until the matrix media cache
@@ -391,7 +391,7 @@ private fun LinkPreviews(
                 compact = true
             ),
             onClick = {
-                state.eventSink(AdvancedSettingsEvents.SetUrlPreviewValue(UrlPreviewValue.Off))
+                state.eventSink(AdvancedSettingsEvent.SetUrlPreviewValue(UrlPreviewValue.Off))
             },
         )
         ListItem(
@@ -401,7 +401,7 @@ private fun LinkPreviews(
                 compact = true
             ),
             onClick = {
-                state.eventSink(AdvancedSettingsEvents.SetUrlPreviewValue(UrlPreviewValue.UnencryptedOnly))
+                state.eventSink(AdvancedSettingsEvent.SetUrlPreviewValue(UrlPreviewValue.UnencryptedOnly))
             },
         )
         ListItem(
@@ -411,7 +411,7 @@ private fun LinkPreviews(
                 compact = true
             ),
             onClick = {
-                state.eventSink(AdvancedSettingsEvents.SetUrlPreviewValue(UrlPreviewValue.On))
+                state.eventSink(AdvancedSettingsEvent.SetUrlPreviewValue(UrlPreviewValue.On))
             },
         )
     }

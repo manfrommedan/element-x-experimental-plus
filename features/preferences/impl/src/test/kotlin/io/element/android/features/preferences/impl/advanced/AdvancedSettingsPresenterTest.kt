@@ -382,11 +382,11 @@ class AdvancedSettingsPresenterTest {
             skipItems(1)
             with(awaitItem()) {
                 assertThat(urlPreviewValue).isEqualTo(UrlPreviewValue.UnencryptedOnly)
-                eventSink(AdvancedSettingsEvents.SetUrlPreviewValue(UrlPreviewValue.Off))
+                eventSink(AdvancedSettingsEvent.SetUrlPreviewValue(UrlPreviewValue.Off))
             }
             with(awaitItem()) {
                 assertThat(urlPreviewValue).isEqualTo(UrlPreviewValue.Off)
-                eventSink(AdvancedSettingsEvents.SetUrlPreviewValue(UrlPreviewValue.On))
+                eventSink(AdvancedSettingsEvent.SetUrlPreviewValue(UrlPreviewValue.On))
             }
             with(awaitItem()) {
                 assertThat(urlPreviewValue).isEqualTo(UrlPreviewValue.On)
