@@ -10,6 +10,7 @@ package io.element.android.features.call.impl.utils
 
 import android.graphics.Bitmap
 import android.net.http.SslError
+import android.os.Build
 import android.webkit.JavascriptInterface
 import android.webkit.RenderProcessGoneDetail
 import android.webkit.SslErrorHandler
@@ -139,7 +140,9 @@ class WebViewWidgetMessageInterceptor(
                 // stops Android from killing our whole process; we tear the call down
                 // ourselves instead. This is distinct from onReceivedError (which the
                 // presenter swallows after load) because render death is not recoverable.
-                Timber.e("Call WebView render process gone (didCrash=${detail?.didCrash()})")
+                // didCrash needs API 26, same as this callback, but lint judges them apart.
+                val didCrash = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) detail?.didCrash() else null
+                Timber.e("Call WebView render process gone (didCrash=$didCrash)")
                 onRenderGone()
                 return true
             }

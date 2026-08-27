@@ -18,13 +18,13 @@ import io.element.android.libraries.matrix.api.search.MessageSearchPaginationSta
 import io.element.android.libraries.matrix.api.search.MessageSearchResult
 import io.element.android.libraries.matrix.api.timeline.item.event.EventContent
 import io.element.android.libraries.matrix.api.timeline.item.event.ProfileDetails
-import io.element.android.libraries.matrix.test.timeline.aRedactedContent
 import io.element.android.libraries.matrix.test.A_ROOM_ID
 import io.element.android.libraries.matrix.test.A_USER_ID
 import io.element.android.libraries.matrix.test.FakeMatrixClient
 import io.element.android.libraries.matrix.test.search.FakeMessageSearch
 import io.element.android.libraries.matrix.test.search.FakeMessageSearchService
 import io.element.android.libraries.matrix.test.timeline.aMessageContent
+import io.element.android.libraries.matrix.test.timeline.aRedactedContent
 import io.element.android.tests.testutils.test
 import kotlinx.collections.immutable.persistentListOf
 import kotlinx.coroutines.ExperimentalCoroutinesApi

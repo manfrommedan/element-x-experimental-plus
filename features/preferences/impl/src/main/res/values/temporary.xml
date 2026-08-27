@@ -6,7 +6,7 @@
   ~ Please see LICENSE files in the repository root for full details.
   -->
 
-<resources>
+<resources xmlns:tools="http://schemas.android.com/tools">
     <!-- Labs toggle: phone-style 1:1 voice call layout. -->
     <string name="screen_labs_enable_phone_voice_layout">"Phone-style voice calls"</string>
     <string name="screen_labs_enable_phone_voice_layout_description">"Use a classic phone-style layout for 1:1 voice calls."</string>
@@ -70,7 +70,7 @@
     <!-- Summary shown when the connection string is valid. %1$s = host, %2$d = port. -->
     <string name="screen_mxtr_settings_server_summary">"Server %1$s:%2$d"</string>
     <!-- Error shown when the connection string cannot be parsed. -->
-    <string name="screen_mxtr_settings_format_error">"Invalid format. Expected mxtr://&lt;base58-32B-psk&gt;@&lt;ipv4-or-ipv6&gt;:&lt;port&gt;?sni=&lt;name&gt;. Host must be an IP literal, hostname is rejected."</string>
+    <string name="screen_mxtr_settings_format_error" tools:ignore="TypographyDashes">"Invalid format. Expected mxtr://&lt;base58-32B-psk&gt;@&lt;ipv4-or-ipv6&gt;:&lt;port&gt;?sni=&lt;name&gt;. Host must be an IP literal, hostname is rejected."</string>
     <!-- Tool buttons under the connection string. -->
     <string name="screen_mxtr_settings_action_copy">"Copy"</string>
     <string name="screen_mxtr_settings_action_share">"Share"</string>

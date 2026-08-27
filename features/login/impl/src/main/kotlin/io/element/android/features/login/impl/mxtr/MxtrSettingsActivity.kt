@@ -65,8 +65,8 @@ import io.element.android.libraries.designsystem.theme.components.Scaffold
 import io.element.android.libraries.designsystem.theme.components.Switch
 import io.element.android.libraries.designsystem.theme.components.Text
 import io.element.android.libraries.designsystem.theme.components.TopAppBar
-import io.element.android.libraries.matrix.impl.mxtr.MxtrPreferencesStore
 import io.element.android.libraries.matrix.impl.mxtr.MxtrConfig
+import io.element.android.libraries.matrix.impl.mxtr.MxtrPreferencesStore
 import io.element.android.libraries.matrix.impl.mxtr.MxtrShareString
 import io.element.android.libraries.matrix.impl.mxtr.MxtrStats
 import kotlinx.coroutines.delay
