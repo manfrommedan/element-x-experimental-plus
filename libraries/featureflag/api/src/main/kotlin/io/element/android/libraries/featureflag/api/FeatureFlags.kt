@@ -141,7 +141,8 @@ enum class FeatureFlags(
     PhoneVoiceLayout(
         key = "feature.phone_voice_layout",
         title = "Phone-style calls",
-        description = "Switches the call experience to a messenger flow: voice and video buttons in every room (1:1 and group), no lobby preview, and a classic phone-style UI for voice calls." +
+        description = "Switches the call experience to a messenger flow: voice and video buttons in every room (1:1 and group)," +
+            " no lobby preview, and a classic phone-style UI for voice calls." +
             " Disable to fall back to the upstream Element Call experience.",
         defaultValue = { true },
         isFinished = false,
@@ -168,7 +169,9 @@ enum class FeatureFlags(
     MessageMultiSelect(
         key = "feature.message_multi_select",
         title = "Multi-select messages",
-        description = "Long-press a text message to start selecting and drag up or down to sweep a whole range (the list auto-scrolls at the edges). Long-press media for its menu, where \"Select\" also starts selection. Bulk copy, forward and delete up to 30 at once.",
+        description = "Long-press a text message to start selecting and drag up or down to sweep a whole range (the list auto-scrolls at the edges)." +
+            " Long-press media for its menu, where \"Select\" also starts selection." +
+            " Bulk copy, forward and delete up to 30 at once.",
         defaultValue = { true },
         isFinished = false,
         isInLabs = true,
@@ -184,7 +187,8 @@ enum class FeatureFlags(
     PhoneIncomingCall(
         key = "feature.phone_incoming_call",
         title = "Phone-style incoming calls",
-        description = "Show a full-screen ringing call (with ringtone, answerable over the lock screen) when a call comes in, instead of a quiet heads-up notification." +
+        description = "Show a full-screen ringing call (with ringtone, answerable over the lock screen) when a call comes in," +
+            " instead of a quiet heads-up notification." +
             " Voice and video calls are labelled distinctly. Disable to fall back to the upstream incoming-call notification.",
         defaultValue = { true },
         isFinished = false,

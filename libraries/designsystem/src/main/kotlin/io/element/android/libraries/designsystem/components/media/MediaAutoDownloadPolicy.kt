@@ -35,8 +35,14 @@ fun rememberIsConnectedToWifi(): Boolean {
     DisposableEffect(context) {
         val cm = context.getSystemService(ConnectivityManager::class.java)
         val callback = object : ConnectivityManager.NetworkCallback() {
-            override fun onAvailable(network: Network) { isWifi = currentIsWifi(context) }
-            override fun onLost(network: Network) { isWifi = currentIsWifi(context) }
+            override fun onAvailable(network: Network) {
+                isWifi = currentIsWifi(context)
+            }
+
+            override fun onLost(network: Network) {
+                isWifi = currentIsWifi(context)
+            }
+
             override fun onCapabilitiesChanged(network: Network, caps: NetworkCapabilities) {
                 isWifi = currentIsWifi(context)
             }
