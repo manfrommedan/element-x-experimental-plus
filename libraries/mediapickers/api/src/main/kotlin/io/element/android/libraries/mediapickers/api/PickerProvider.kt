@@ -29,9 +29,10 @@ interface PickerProvider {
     ): PickerLauncher<PickVisualMediaRequest, Uri?>
 
     /**
-     * Registers a picker restricted to a single image, used where a video would not be valid, such as for an avatar.
+     * Registers a picker for several photos or videos at once, reporting each one's MIME type.
      *
-     * @param onResult called with the picked image, `null` when the user cancelled.
+     * @param maxItems the most items the user is allowed to pick.
+     * @param onResult called with the picked media and their MIME types, empty when the user cancelled.
      */
     @Composable
     fun registerMultipleGalleryPicker(
@@ -39,6 +40,11 @@ interface PickerProvider {
         onResult: (List<Pair<Uri, String?>>) -> Unit
     ): PickerLauncher<PickVisualMediaRequest, List<Uri>>
 
+    /**
+     * Registers a picker restricted to a single image, used where a video would not be valid, such as for an avatar.
+     *
+     * @param onResult called with the picked image, `null` when the user cancelled.
+     */
     @Composable
     fun registerGalleryImagePicker(
         onResult: (Uri?) -> Unit
@@ -95,4 +101,6 @@ interface PickerProvider {
     fun registerCameraVideoPicker(onResult: (Uri?) -> Unit): PickerLauncher<Uri, Boolean>
 }
 
+// MSC4274 puts the recommended cap at 60; we stay well under it so a bulk send
+// stays manageable on the wire and in the timeline.
 const val DEFAULT_MAX_PICK_ITEMS: Int = 30

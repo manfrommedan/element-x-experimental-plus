@@ -5,7 +5,7 @@
   ~ Please see LICENSE files in the repository root for full details.
   -->
 
-<resources>
+<resources xmlns:tools="http://schemas.android.com/tools">
     <!-- Заголовки разделов Labs. -->
     <string name="screen_labs_section_make_element_better">"Как ElementX, но лучше"</string>
     <string name="screen_labs_section_calls">"Звонки"</string>
@@ -51,7 +51,8 @@
     <string name="screen_mxtr_settings_connection_string">"Строка подключения"</string>
     <string name="screen_mxtr_settings_connection_string_hint">"Вставьте строку подключения от вашего сервера"</string>
     <string name="screen_mxtr_settings_server_summary">"Сервер %1$s:%2$d"</string>
-    <string name="screen_mxtr_settings_format_error">"Неверный формат. Ожидается mxtr://&lt;base58-32B-psk&gt;@&lt;ipv4-или-ipv6&gt;:&lt;port&gt;?sni=&lt;имя&gt;. host обязан быть IP-литералом, hostname отвергается."</string>
+    <!-- Дефисы здесь части технических токенов (base58-32B-psk, ipv4-или-ipv6), а не тире. -->
+    <string name="screen_mxtr_settings_format_error" tools:ignore="TypographyDashes">"Неверный формат. Ожидается mxtr://&lt;base58-32B-psk&gt;@&lt;ipv4-или-ipv6&gt;:&lt;port&gt;?sni=&lt;имя&gt;. host обязан быть IP-литералом, hostname отвергается."</string>
     <string name="screen_mxtr_settings_action_copy">"Копировать"</string>
     <string name="screen_mxtr_settings_action_share">"Поделиться"</string>
     <string name="screen_mxtr_settings_action_apply">"Применить"</string>

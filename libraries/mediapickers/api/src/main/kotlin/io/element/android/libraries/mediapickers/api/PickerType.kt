@@ -15,9 +15,6 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.Immutable
 import io.element.android.libraries.core.mimetype.MimeTypes
 
-// As per MSC4274, the recommended item cap is 60.
-private const val MAX_GALLERY_ITEMS = 60
-
 @Immutable
 sealed interface PickerType<Input, Output> {
     fun getContract(): ActivityResultContract<Input, Output>

@@ -50,6 +50,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
@@ -98,9 +99,11 @@ private fun BrowserScreen(initialUrl: String, onClose: () -> Unit) {
     var progress by remember { mutableFloatStateOf(0f) }
     var webViewRef by remember { mutableStateOf<WebView?>(null) }
 
-    val redirectScheme = remember(context) {
-        val resId = context.resources.getIdentifier("login_redirect_scheme", "string", context.packageName)
-        if (resId != 0) context.getString(resId) else "io.element.android"
+    val resources = LocalResources.current
+    val packageName = context.packageName
+    val redirectScheme = remember(resources, packageName) {
+        val resId = resources.getIdentifier("login_redirect_scheme", "string", packageName)
+        if (resId != 0) resources.getString(resId) else "io.element.android"
     }
 
     val currentOnClose by rememberUpdatedState(onClose)
