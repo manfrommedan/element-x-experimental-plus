@@ -189,8 +189,11 @@ class WebViewAudioManager(
 
     private var hasRegisteredCallbacks = false
 
-    /** Held for the duration of the call so other apps don't yank our stream. */
+    /** Held for the duration of the call so other apps don't yank our stream. Only set on API 26+. */
     private var audioFocusRequest: AudioFocusRequest? = null
+
+    /** We never pause on focus loss, but the pre-26 API needs a listener to hand back later. */
+    private val audioFocusChangeListener = AudioManager.OnAudioFocusChangeListener { /* no-op, we don't pause */ }
 
     /**
      * Marks if the WebView audio is in call mode or not.
@@ -235,18 +238,29 @@ class WebViewAudioManager(
     /** AUDIOFOCUS_GAIN_TRANSIENT so background music auto-resumes after hangup. */
     private fun claimVoipAudioFocus() {
         runCatchingExceptions {
-            val request = AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN_TRANSIENT)
-                .setAudioAttributes(
-                    AudioAttributes.Builder()
-                        .setUsage(AudioAttributes.USAGE_VOICE_COMMUNICATION)
-                        .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
-                        .build()
+            // AudioFocusRequest is API 26; below that only the stream-based call exists, and
+            // touching the class at all would throw NoClassDefFoundError, which is an Error and
+            // would sail straight past runCatchingExceptions.
+            val focusResult = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                val request = AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN_TRANSIENT)
+                    .setAudioAttributes(
+                        AudioAttributes.Builder()
+                            .setUsage(AudioAttributes.USAGE_VOICE_COMMUNICATION)
+                            .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
+                            .build()
+                    )
+                    .setAcceptsDelayedFocusGain(false)
+                    .setOnAudioFocusChangeListener(audioFocusChangeListener)
+                    .build()
+                audioManager.requestAudioFocus(request).also { audioFocusRequest = request }
+            } else {
+                @Suppress("DEPRECATION")
+                audioManager.requestAudioFocus(
+                    audioFocusChangeListener,
+                    AudioManager.STREAM_VOICE_CALL,
+                    AudioManager.AUDIOFOCUS_GAIN_TRANSIENT,
                 )
-                .setAcceptsDelayedFocusGain(false)
-                .setOnAudioFocusChangeListener { /* no-op, we don't pause */ }
-                .build()
-            val focusResult = audioManager.requestAudioFocus(request)
-            audioFocusRequest = request
+            }
             Timber.d("Audio: VoIP focus request returned $focusResult")
         }.onFailure { Timber.w(it, "Failed to claim VoIP audio focus") }
     }
@@ -269,10 +283,17 @@ class WebViewAudioManager(
     }
 
     private fun abandonVoipAudioFocus() {
-        audioFocusRequest?.let { request ->
-            runCatchingExceptions { audioManager.abandonAudioFocusRequest(request) }
-                .onFailure { Timber.w(it, "Failed to abandon VoIP audio focus") }
-            audioFocusRequest = null
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            audioFocusRequest?.let { request ->
+                runCatchingExceptions { audioManager.abandonAudioFocusRequest(request) }
+                    .onFailure { Timber.w(it, "Failed to abandon VoIP audio focus") }
+                audioFocusRequest = null
+            }
+        } else {
+            runCatchingExceptions {
+                @Suppress("DEPRECATION")
+                audioManager.abandonAudioFocus(audioFocusChangeListener)
+            }.onFailure { Timber.w(it, "Failed to abandon VoIP audio focus") }
         }
     }
 

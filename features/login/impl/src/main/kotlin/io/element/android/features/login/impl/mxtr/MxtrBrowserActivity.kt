@@ -41,11 +41,11 @@ import androidx.compose.foundation.layout.statusBars
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -62,9 +62,9 @@ import io.element.android.compound.theme.ElementTheme
 import io.element.android.compound.tokens.generated.CompoundIcons
 import io.element.android.libraries.androidutils.mxtr.MxtrBridge
 import io.element.android.libraries.designsystem.theme.components.Icon
-import io.element.android.libraries.matrix.impl.mxtr.MxtrConfig
 import io.element.android.libraries.designsystem.theme.components.IconButton
 import io.element.android.libraries.designsystem.theme.components.Text
+import io.element.android.libraries.matrix.impl.mxtr.MxtrConfig
 import timber.log.Timber
 import java.util.concurrent.Executors
 
@@ -241,7 +241,11 @@ private fun BrowserTopBar(
     onOpenExternal: () -> Unit,
 ) {
     val host = remember(url) {
-        try { Uri.parse(url).host ?: url } catch (_: Throwable) { url }
+        try {
+            Uri.parse(url).host ?: url
+        } catch (_: Throwable) {
+            url
+        }
     }
     Row(
         modifier = Modifier
