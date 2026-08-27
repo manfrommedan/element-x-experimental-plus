@@ -18,7 +18,7 @@ import io.element.android.libraries.matrix.api.search.MessageSearchPaginationSta
 import io.element.android.libraries.matrix.api.search.MessageSearchResult
 import io.element.android.libraries.matrix.api.timeline.item.event.EventContent
 import io.element.android.libraries.matrix.api.timeline.item.event.ProfileDetails
-import io.element.android.libraries.matrix.api.timeline.item.event.RedactedContent
+import io.element.android.libraries.matrix.test.timeline.aRedactedContent
 import io.element.android.libraries.matrix.test.A_ROOM_ID
 import io.element.android.libraries.matrix.test.A_USER_ID
 import io.element.android.libraries.matrix.test.FakeMatrixClient
@@ -171,7 +171,7 @@ class MessageSearchPresenterTest {
             messageSearch.emitResults(
                 persistentListOf(
                     aMessageSearchResult(eventId = EventId("\$kept")),
-                    aMessageSearchResult(eventId = EventId("\$redacted"), content = RedactedContent),
+                    aMessageSearchResult(eventId = EventId("\$redacted"), content = aRedactedContent()),
                 )
             )
             advanceUntilIdle()
