@@ -343,16 +343,6 @@ class WebViewAudioManager(
     private fun setRingbackPlaying(playing: Boolean) {
         if (playing) {
             if (ringbackTone != null) return
-            // Nothing has picked a route yet at this point: we only select a device when Element
-            // Call reports one, and it cannot do that before setAvailableAudioDevices runs, which
-            // waits on the WebView starting playback. So the first pulses would follow whatever
-            // the system was already doing, which is the loudspeaker. Put the call route in place
-            // ourselves first, using the same preference order as everywhere else (headset over
-            // earpiece over speaker). Only when no choice has been made yet, so we never override
-            // a device the user or Element Call has picked.
-            if (previousSelectedDevice == null) {
-                listAudioDevices().firstOrNull()?.let { audioManager.selectAudioDevice(it) }
-            }
             ringbackTone = runCatchingExceptions {
                 ToneGenerator(AudioManager.STREAM_VOICE_CALL, RINGBACK_VOLUME).apply {
                     startTone(ToneGenerator.TONE_SUP_RINGTONE)
