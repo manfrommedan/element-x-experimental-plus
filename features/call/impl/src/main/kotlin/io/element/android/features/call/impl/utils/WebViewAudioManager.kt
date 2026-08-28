@@ -187,6 +187,16 @@ class WebViewAudioManager(
      */
     private var previousSelectedDevice: AudioDeviceInfo? = null
 
+    /**
+     * Device we pinned for the ringback ourselves, while nobody owned the route yet.
+     *
+     * The pin exists only for the dialing phase: as soon as the call's own media starts,
+     * Element Call's WebRTC stack becomes the sole owner of the communication device (same
+     * as in the shipping build), and [releasePinnedRingRoute] hands the route back. Holding
+     * a pin past that point made the two stacks fight on MIUI and the mic went silent.
+     */
+    private var pinnedRingRoute: AudioDeviceInfo? = null
+
     private var hasRegisteredCallbacks = false
 
     /** Held for the duration of the call so other apps don't yank our stream. Only set on API 26+. */
@@ -313,6 +323,12 @@ class WebViewAudioManager(
             proximitySensorWakeLock?.release()
         }
 
+        // The ringback and any route we pinned for it must go before the callbacks check: a
+        // call dropped while still ringing never registered them, and returning here used to
+        // leave the tone ringing and the pin in place.
+        setRingbackPlaying(false)
+        releasePinnedRingRoute()
+
         abandonVoipAudioFocus()
 
         audioManager.mode = AudioManager.MODE_NORMAL
@@ -320,8 +336,6 @@ class WebViewAudioManager(
             Timber.w("Audio: tried to disable webview in-call audio mode without registering callbacks")
             return
         }
-
-        setRingbackPlaying(false)
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             audioManager.clearCommunicationDevice()
@@ -343,6 +357,17 @@ class WebViewAudioManager(
     private fun setRingbackPlaying(playing: Boolean) {
         if (playing) {
             if (ringbackTone != null) return
+            // Nothing has picked a route yet at this point, so the first pulses would follow
+            // whatever the system was doing before the call, which is the loudspeaker. Pin the
+            // call route for the dialing phase only; releasePinnedRingRoute hands it back once
+            // the call's own media is up.
+            if (previousSelectedDevice == null && pinnedRingRoute == null) {
+                listAudioDevices().firstOrNull()?.let { device ->
+                    Timber.d("Audio: pinning route for ringback: ${deviceName(device.type, device.productName.toString())}")
+                    audioManager.selectAudioDevice(device)
+                    pinnedRingRoute = device
+                }
+            }
             ringbackTone = runCatchingExceptions {
                 ToneGenerator(AudioManager.STREAM_VOICE_CALL, RINGBACK_VOLUME).apply {
                     startTone(ToneGenerator.TONE_SUP_RINGTONE)
@@ -355,6 +380,24 @@ class WebViewAudioManager(
             }
             ringbackTone = null
         }
+    }
+
+    /**
+     * Hands the communication route back to Element Call's own audio stack.
+     *
+     * If Element Call (or the user through its picker) has already named a device, the pin we
+     * placed for the ringback is obsolete and simply forgotten; otherwise it is actively
+     * cleared so that whoever controls audio from here owns it alone.
+     */
+    private fun releasePinnedRingRoute() {
+        pinnedRingRoute ?: return
+        pinnedRingRoute = null
+        if (previousSelectedDevice != null) {
+            Timber.d("Audio: keeping route, Element Call picked a device by itself")
+            return
+        }
+        Timber.d("Audio: releasing ring route pin")
+        audioManager.selectAudioDevice(null)
     }
 
     /**
@@ -373,6 +416,11 @@ class WebViewAudioManager(
             },
             onAudioPlaybackStarted = {
                 coroutineScope.launch(Dispatchers.Main) {
+                    // The ring is over once the first media plays, so it is time to hand the
+                    // route back: WebRTC takes the communication device for itself right here,
+                    // and on MIUI two owners fight each other until the mic goes silent.
+                    releasePinnedRingRoute()
+
                     // Even with the callback, it seems like starting the audio takes a bit on the webview side,
                     // so we add an extra delay here to make sure it's ready
                     delay(2.seconds)
