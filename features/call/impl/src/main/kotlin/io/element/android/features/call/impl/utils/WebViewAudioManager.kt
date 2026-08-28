@@ -187,9 +187,6 @@ class WebViewAudioManager(
      */
     private var previousSelectedDevice: AudioDeviceInfo? = null
 
-    /** True once we pinned the route ourselves, so retries don't override Element Call's pick. */
-    private var initialRouteSelected = false
-
     private var hasRegisteredCallbacks = false
 
     /** Held for the duration of the call so other apps don't yank our stream. Only set on API 26+. */
@@ -235,7 +232,6 @@ class WebViewAudioManager(
 
         claimVoipAudioFocus()
         ensureCallVolumeIsAudible()
-        selectInitialCallRoute()
         setWebViewAndroidNativeBridge()
     }
 
@@ -286,26 +282,6 @@ class WebViewAudioManager(
         }.onFailure { Timber.w(it, "Failed to adjust call stream volume") }
     }
 
-    /**
-     * Picks the call route as soon as the call starts, before anything has played.
-     *
-     * [AudioManager.setCommunicationDevice] applies asynchronously, so if we wait until the
-     * ringback or the first media is about to play, the first moments go through whatever
-     * route the system had before, often the loudspeaker. Pinning the route right after the
-     * audio mode and focus are set gives the change time to land. Element Call can still
-     * override it later in the device picker, and a user pick in the WebView always wins.
-     */
-    private fun selectInitialCallRoute() {
-        if (initialRouteSelected || previousSelectedDevice != null) return
-        // Bluetooth is disabled below Android 12, so it cannot be the default there even
-        // though it sorts ahead of the earpiece.
-        val device = listAudioDevices()
-            .firstOrNull { !disableBluetoothAudioDevices || it.type != AudioDeviceInfo.TYPE_BLUETOOTH_SCO } ?: return
-        Timber.d("Audio: selecting initial call route: ${deviceName(device.type, device.productName.toString())}")
-        audioManager.selectAudioDevice(device)
-        initialRouteSelected = true
-    }
-
     private fun abandonVoipAudioFocus() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             audioFocusRequest?.let { request ->
@@ -337,26 +313,18 @@ class WebViewAudioManager(
             proximitySensorWakeLock?.release()
         }
 
-        // Stop the ringback and release the route before anything else: a call that ended
-        // before playback started never registered the callbacks below, and the early return
-        // there used to leave the tone ringing and the earpiece pinned for good.
-        setRingbackPlaying(false)
-        // A fresh call in this WebView gets to pick its initial route again.
-        initialRouteSelected = false
-
         abandonVoipAudioFocus()
 
         audioManager.mode = AudioManager.MODE_NORMAL
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            audioManager.clearCommunicationDevice()
-        }
-
         if (!hasRegisteredCallbacks) {
             Timber.w("Audio: tried to disable webview in-call audio mode without registering callbacks")
             return
         }
 
+        setRingbackPlaying(false)
+
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            audioManager.clearCommunicationDevice()
             audioManager.removeOnCommunicationDeviceChangedListener(commsDeviceChangedListener)
         }
 
@@ -375,10 +343,16 @@ class WebViewAudioManager(
     private fun setRingbackPlaying(playing: Boolean) {
         if (playing) {
             if (ringbackTone != null) return
-            // Backstop for selectInitialCallRoute: if no devices were listed when the call
-            // started (transient during boot), retry now rather than let the tone follow
-            // whatever route the system happened to have.
-            selectInitialCallRoute()
+            // Nothing has picked a route yet at this point: we only select a device when Element
+            // Call reports one, and it cannot do that before setAvailableAudioDevices runs, which
+            // waits on the WebView starting playback. So the first pulses would follow whatever
+            // the system was already doing, which is the loudspeaker. Put the call route in place
+            // ourselves first, using the same preference order as everywhere else (headset over
+            // earpiece over speaker). Only when no choice has been made yet, so we never override
+            // a device the user or Element Call has picked.
+            if (previousSelectedDevice == null) {
+                listAudioDevices().firstOrNull()?.let { audioManager.selectAudioDevice(it) }
+            }
             ringbackTone = runCatchingExceptions {
                 ToneGenerator(AudioManager.STREAM_VOICE_CALL, RINGBACK_VOLUME).apply {
                     startTone(ToneGenerator.TONE_SUP_RINGTONE)

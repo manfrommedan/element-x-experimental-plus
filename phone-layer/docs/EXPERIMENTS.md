@@ -231,6 +231,13 @@ feedback welcome.
   missed, neutral for answered) plus "no answer" / "declined" text.
   We plan to wire that state through from the call lifecycle into the
   card composable.
+* **First moment of ringback can leak through the loudspeaker.** The
+  Web Audio context inside the WebView starts emitting before
+  Android's `setCommunicationDevice` finishes pinning the route to the
+  earpiece, so on some devices the very first ~200 ms of dial tone is
+  routed to the speaker before the route flips. Cleanest fix is a
+  native `ToneGenerator(STREAM_VOICE_CALL)` ringback, which we are
+  holding off on so the Web Audio path stays cross-platform.
 
 ## Building
 
