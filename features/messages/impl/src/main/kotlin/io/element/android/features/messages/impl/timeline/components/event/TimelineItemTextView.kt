@@ -29,6 +29,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalInspectionMode
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.tooling.preview.Preview
@@ -37,6 +38,7 @@ import androidx.compose.ui.unit.dp
 import io.element.android.compound.theme.ElementTheme
 import io.element.android.features.messages.impl.timeline.components.layout.ContentAvoidingLayout
 import io.element.android.features.messages.impl.timeline.components.layout.ContentAvoidingLayoutData
+import io.element.android.features.messages.impl.timeline.model.event.AN_EMOJI_ONLY_TEXT
 import io.element.android.features.messages.impl.timeline.model.event.TimelineItemTextBasedContent
 import io.element.android.features.messages.impl.timeline.model.event.TimelineItemTextBasedContentPreviewParam
 import io.element.android.features.messages.impl.timeline.model.event.aTimelineItemTextContent
@@ -67,8 +69,13 @@ fun TimelineItemTextView(
     // The View <-> Compose interop is not working well with Compose UI tests (it loops indefinitely), so we skip it in the UI test mode.
     if (LocalUiTestMode.current) return
 
-    val emojiOnly = content.formattedBody.toString() == content.body &&
-        content.body.replace(" ", "").containsOnlyEmojis()
+    val isInPreview = LocalInspectionMode.current
+    val emojiOnly = remember(content.body, content.formattedBody, isInPreview) {
+        content.formattedBody.toString() == content.body &&
+            content.body.replace(" ", "").let { body ->
+                if (isInPreview) body == AN_EMOJI_ONLY_TEXT else body.containsOnlyEmojis()
+            }
+    }
     val textStyle = when {
         emojiOnly -> ElementTheme.typography.fontHeadingXlRegular
         else -> ElementTheme.typography.fontBodyLgRegular
