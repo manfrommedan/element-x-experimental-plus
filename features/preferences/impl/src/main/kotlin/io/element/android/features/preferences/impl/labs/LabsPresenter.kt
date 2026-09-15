@@ -144,6 +144,8 @@ class LabsPresenter(
                         stringProvider.getString(R.string.screen_labs_enable_room_list_call_shortcut)
                     FeatureFlags.AnswerCallOnLockScreen ->
                         stringProvider.getString(R.string.screen_labs_enable_answer_call_on_lock_screen)
+                    FeatureFlags.SendGalleryMessages -> stringProvider.getString(R.string.screen_labs_enable_gallery)
+                    FeatureFlags.Knock -> stringProvider.getString(R.string.screen_labs_enable_knocking)
                     else -> enabledFeature.feature.title
                 }
                 val description = when (enabledFeature.feature) {
@@ -164,18 +166,22 @@ class LabsPresenter(
                         stringProvider.getString(R.string.screen_labs_enable_room_list_call_shortcut_description)
                     FeatureFlags.AnswerCallOnLockScreen ->
                         stringProvider.getString(R.string.screen_labs_enable_answer_call_on_lock_screen_description)
+                    FeatureFlags.SendGalleryMessages -> stringProvider.getString(R.string.screen_labs_enable_gallery_description)
+                    FeatureFlags.Knock -> stringProvider.getString(R.string.screen_labs_enable_knocking_description)
                     else -> enabledFeature.feature.description
                 }
                 val icon = when (enabledFeature.feature) {
                     FeatureFlags.Threads -> CompoundIcons.Threads()
                     FeatureFlags.PhoneVoiceLayout -> CompoundIcons.VoiceCall()
-                    FeatureFlags.SendMediaAsSeparateMessages -> CompoundIcons.Image()
                     FeatureFlags.ShareMxidShortcut -> CompoundIcons.Copy()
                     FeatureFlags.MessageMultiSelect -> CompoundIcons.CheckCircle()
                     FeatureFlags.FavoritesPinnedToTop -> CompoundIcons.Favourite()
                     FeatureFlags.PhoneIncomingCall -> CompoundIcons.VoiceCallSolid()
                     FeatureFlags.RoomListCallShortcut -> CompoundIcons.VideoCallSolid()
                     FeatureFlags.AnswerCallOnLockScreen -> CompoundIcons.LockOff()
+                    FeatureFlags.SendMediaAsSeparateMessages -> CompoundIcons.Image()
+                    FeatureFlags.SendGalleryMessages -> CompoundIcons.Image()
+                    FeatureFlags.Knock -> CompoundIcons.AskToJoin()
                     else -> null
                 }
                 remember(enabledFeature) {
