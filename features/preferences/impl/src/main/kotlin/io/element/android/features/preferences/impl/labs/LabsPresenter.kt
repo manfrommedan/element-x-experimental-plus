@@ -166,7 +166,7 @@ class LabsPresenter(
                         stringProvider.getString(R.string.screen_labs_enable_room_list_call_shortcut_description)
                     FeatureFlags.AnswerCallOnLockScreen ->
                         stringProvider.getString(R.string.screen_labs_enable_answer_call_on_lock_screen_description)
-                    FeatureFlags.SendGalleryMessages -> stringProvider.getString(R.string.screen_labs_enable_gallery_description)
+                    FeatureFlags.SendGalleryMessages -> stringProvider.getString(R.string.screen_labs_enable_gallery_separate_note)
                     FeatureFlags.Knock -> stringProvider.getString(R.string.screen_labs_enable_knocking_description)
                     else -> enabledFeature.feature.description
                 }
