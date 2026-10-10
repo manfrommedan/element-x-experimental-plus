@@ -87,6 +87,7 @@ import io.element.android.libraries.matrix.api.room.alias.matches
 import io.element.android.libraries.matrix.api.room.joinedRoomMembers
 import io.element.android.libraries.matrix.api.roomlist.RoomListService
 import io.element.android.libraries.matrix.api.timeline.Timeline
+import io.element.android.libraries.matrix.api.timeline.TimelineProvider
 import io.element.android.libraries.matrix.api.timeline.item.TimelineItemDebugInfo
 import io.element.android.libraries.matrix.ui.messages.RoomMemberProfilesCache
 import io.element.android.libraries.matrix.ui.messages.RoomNamesCache
@@ -104,6 +105,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.withContext
+import kotlinx.parcelize.IgnoredOnParcel
 import kotlinx.parcelize.Parcelize
 import kotlin.time.Duration.Companion.milliseconds
 
@@ -182,6 +184,8 @@ class MessagesFlowNode(
         data class ForwardEvent(
             val eventIds: List<EventId>,
             val fromPinnedEvents: Boolean,
+            @IgnoredOnParcel
+            val timelineProvider: TimelineProvider? = null,
         ) : NavTarget
 
         @Parcelize
@@ -304,8 +308,8 @@ class MessagesFlowNode(
                         backstack.push(NavTarget.EventDebugInfo(eventId, debugInfo))
                     }
 
-                    override fun forwardEvent(eventId: EventId) {
-                        backstack.push(NavTarget.ForwardEvent(listOf(eventId), fromPinnedEvents = false))
+                    override fun forwardEvent(eventId: EventId, timelineProvider: TimelineProvider) {
+                        backstack.push(NavTarget.ForwardEvent(listOf(eventId), fromPinnedEvents = false, timelineProvider = timelineProvider))
                     }
 
                     override fun forwardEvents(eventIds: List<EventId>) {
@@ -469,11 +473,10 @@ class MessagesFlowNode(
                 createNode<EventDebugInfoNode>(buildContext, listOf(inputs))
             }
             is NavTarget.ForwardEvent -> {
-                val timelineProvider = if (navTarget.fromPinnedEvents) {
-                    pinnedEventsTimelineProvider
-                } else {
-                    timelineController
-                }
+                // An explicit provider wins; otherwise pick by source: pinned events come from
+                // the pinned timeline, everything else from the live one.
+                val timelineProvider = navTarget.timelineProvider
+                    ?: if (navTarget.fromPinnedEvents) pinnedEventsTimelineProvider else timelineController
                 val params = ForwardEntryPoint.Params(navTarget.eventIds, timelineProvider)
                 val callback = object : ForwardEntryPoint.Callback {
                     override fun onDone(roomIds: List<RoomId>) {
@@ -567,8 +570,8 @@ class MessagesFlowNode(
                         backstack.push(NavTarget.EventDebugInfo(eventId, debugInfo))
                     }
 
-                    override fun handleForwardEventClick(eventId: EventId) {
-                        backstack.push(NavTarget.ForwardEvent(eventIds = listOf(eventId), fromPinnedEvents = true))
+                    override fun handleForwardEventClick(eventId: EventId, timelineProvider: TimelineProvider) {
+                        backstack.push(NavTarget.ForwardEvent(listOf(eventId), fromPinnedEvents = true, timelineProvider = timelineProvider))
                     }
 
                     override fun navigateToThread(threadRootId: ThreadId) {
@@ -634,8 +637,8 @@ class MessagesFlowNode(
                         backstack.push(NavTarget.EventDebugInfo(eventId, debugInfo))
                     }
 
-                    override fun handleForwardEventClick(eventId: EventId) {
-                        backstack.push(NavTarget.ForwardEvent(listOf(eventId), fromPinnedEvents = false))
+                    override fun handleForwardEventClick(eventId: EventId, timelineProvider: TimelineProvider) {
+                        backstack.push(NavTarget.ForwardEvent(listOf(eventId), fromPinnedEvents = false, timelineProvider = timelineProvider))
                     }
 
                     override fun handleBulkForwardEventClick(eventIds: List<EventId>) {

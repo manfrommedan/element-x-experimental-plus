@@ -16,4 +16,5 @@
     <string name="common_voice_call">"Voice call"</string>
     <string name="screen_message_search_title">Search messages</string>
     <string name="screen_message_search_error">Something went wrong while searching. Please try again.</string>
+    <string name="common_switch_account">Switch accounts</string>
 </resources>

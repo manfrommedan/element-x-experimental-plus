@@ -31,6 +31,9 @@ import io.element.android.features.preferences.impl.analytics.AnalyticsSettingsN
 import io.element.android.features.preferences.impl.blockedusers.BlockedUsersNode
 import io.element.android.features.preferences.impl.developer.DeveloperSettingsNode
 import io.element.android.features.preferences.impl.labs.LabsNode
+import io.element.android.features.preferences.impl.location.LocationSettingsNode
+import io.element.android.features.preferences.impl.media.MediaSettingsNode
+import io.element.android.features.preferences.impl.moderation.ModerationAndSafetyNode
 import io.element.android.features.preferences.impl.mxtr.MxtrSettingsNode
 import io.element.android.features.preferences.impl.notifications.NotificationSettingsNode
 import io.element.android.features.preferences.impl.notifications.edit.EditDefaultNotificationSettingNode
@@ -82,6 +85,12 @@ class PreferencesFlowNode(
         data object AdvancedSettings : NavTarget
 
         @Parcelize
+        data object MediaSettings : NavTarget
+
+        @Parcelize
+        data object LocationSettings : NavTarget
+
+        @Parcelize
         data object MxtrSettings : NavTarget
 
         @Parcelize
@@ -95,6 +104,9 @@ class PreferencesFlowNode(
 
         @Parcelize
         data object NotificationSettings : NavTarget
+
+        @Parcelize
+        data object ModerationAndSafety : NavTarget
 
         @Parcelize
         data object TroubleshootNotifications : NavTarget
@@ -137,14 +149,6 @@ class PreferencesFlowNode(
                         callback.navigateToAddAccount()
                     }
 
-                    override fun navigateToBugReport() {
-                        callback.navigateToBugReport()
-                    }
-
-                    override fun navigateToSecureBackup() {
-                        callback.navigateToSecureBackup()
-                    }
-
                     override fun navigateToAnalyticsSettings() {
                         backstack.push(NavTarget.AnalyticsSettings)
                     }
@@ -157,12 +161,16 @@ class PreferencesFlowNode(
                         backstack.push(NavTarget.DeveloperSettings)
                     }
 
-                    override fun navigateToNotificationSettings() {
-                        backstack.push(NavTarget.NotificationSettings)
-                    }
-
                     override fun navigateToLockScreenSettings() {
                         backstack.push(NavTarget.LockScreenSettings)
+                    }
+
+                    override fun navigateToMediaSettings() {
+                        backstack.push(NavTarget.MediaSettings)
+                    }
+
+                    override fun navigateToLocationSettings() {
+                        backstack.push(NavTarget.LocationSettings)
                     }
 
                     override fun navigateToAdvancedSettings() {
@@ -173,16 +181,28 @@ class PreferencesFlowNode(
                         backstack.push(NavTarget.Labs)
                     }
 
+                    override fun navigateToBugReport() {
+                        callback.navigateToBugReport()
+                    }
+
+                    override fun navigateToSecureBackup() {
+                        callback.navigateToSecureBackup()
+                    }
+
+                    override fun navigateToModerationAndSafety() {
+                        backstack.push(NavTarget.ModerationAndSafety)
+                    }
+
+                    override fun navigateToNotificationSettings() {
+                        backstack.push(NavTarget.NotificationSettings)
+                    }
+
                     override fun navigateToLinkNewDevice() {
-                        callback.navigateToLinkNewDevice()
+                        callback.navigateToAddAccount()
                     }
 
                     override fun navigateToUserProfile(matrixUser: MatrixUser) {
                         backstack.push(NavTarget.UserProfile(matrixUser))
-                    }
-
-                    override fun navigateToBlockedUsers() {
-                        backstack.push(NavTarget.BlockedUsers)
                     }
 
                     override fun startSignOutFlow() {
@@ -222,6 +242,17 @@ class PreferencesFlowNode(
                     }
                 }
                 createNode<LabsNode>(buildContext, listOf(callback))
+            }
+            NavTarget.ModerationAndSafety -> {
+                val callback = object : ModerationAndSafetyNode.Callback {
+                    override fun navigateToBlockedUsers() {
+                        backstack.push(NavTarget.BlockedUsers)
+                    }
+                }
+                createNode<ModerationAndSafetyNode>(buildContext, listOf(callback))
+            }
+            NavTarget.LocationSettings -> {
+                createNode<LocationSettingsNode>(buildContext)
             }
             NavTarget.About -> {
                 val callback = object : AboutNode.Callback {
@@ -323,6 +354,9 @@ class PreferencesFlowNode(
             }
             NavTarget.MxtrSettings -> {
                 createNode<MxtrSettingsNode>(buildContext)
+            }
+            NavTarget.MediaSettings -> {
+                createNode<MediaSettingsNode>(buildContext)
             }
             is NavTarget.UserProfile -> {
                 val inputs = EditUserProfileNode.Inputs(navTarget.matrixUser)

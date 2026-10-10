@@ -70,6 +70,7 @@ class KonsistClassNameTest {
                 "MediaWithProgressPreviewParam",
                 "OverlapRatioPreviewParam",
                 "TextFileContentPreviewParam",
+                "HtmlMessageContentPreviewParam",
             )
             .also {
                 // Check that classes are actually found
@@ -108,6 +109,7 @@ class KonsistClassNameTest {
                 "FakeListenableFuture",
                 "FakeMediaStoreContentProvider",
                 "FakeParentNode",
+                "FakeSequentialClientBuilderProvider",
             )
             .assertTrue {
                 val interfaceName = it.name

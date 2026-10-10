@@ -49,6 +49,9 @@ class AppDeveloperSettingsPresenter(
 ) : Presenter<AppDeveloperSettingsState> {
     @Composable
     override fun present(): AppDeveloperSettingsState {
+        val isDeveloperModeEnabled by remember {
+            appPreferencesStore.isDeveloperModeEnabledFlow()
+        }.collectAsState(initial = false)
         val rageshakeState = rageshakePresenter.present()
         val enabledFeatures = remember {
             mutableStateListOf<EnabledFeature>()
@@ -85,6 +88,9 @@ class AppDeveloperSettingsPresenter(
 
         fun handleEvent(event: AppDeveloperSettingsEvent) {
             when (event) {
+                is AppDeveloperSettingsEvent.SetDeveloperModeEnabled -> coroutineScope.launch {
+                    appPreferencesStore.setDeveloperModeEnabled(event.enabled)
+                }
                 is AppDeveloperSettingsEvent.UpdateEnabledFeature -> coroutineScope.updateEnabledFeature(
                     enabledFeatures = enabledFeatures,
                     featureKey = event.feature.key,
@@ -116,6 +122,7 @@ class AppDeveloperSettingsPresenter(
         }
 
         return AppDeveloperSettingsState(
+            isDeveloperModeEnabled = isDeveloperModeEnabled,
             features = featureUiModels,
             rageshakeState = rageshakeState,
             customElementCallBaseUrlState = CustomElementCallBaseUrlState(

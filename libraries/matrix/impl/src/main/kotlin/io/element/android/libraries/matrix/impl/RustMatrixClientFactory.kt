@@ -37,7 +37,6 @@ import io.element.android.services.analytics.api.AnalyticsService
 import io.element.android.services.toolbox.api.systemclock.SystemClock
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.withContext
-import org.matrix.rustcomponents.sdk.Client
 import org.matrix.rustcomponents.sdk.ClientBuilder
 import org.matrix.rustcomponents.sdk.CrossProcessLockConfig
 import org.matrix.rustcomponents.sdk.RequestConfig
@@ -142,7 +141,12 @@ class RustMatrixClientFactory(
         )
             .homeserverUrl(sessionData.homeserverUrl)
             .enableAutomaticBackPagination(featureFlagService.isFeatureEnabled(FeatureFlags.AutomaticBackPagination))
-            .let { (clientBuilderEnterpriseHook(RustMatrixClientBuilder(it), SessionId(sessionData.userId)) as RustMatrixClientBuilder).inner }
+            .let {
+                (clientBuilderEnterpriseHook.beforeClientCreationWithSession(
+                    clientBuilder = RustMatrixClientBuilder(it),
+                    sessionId = SessionId(sessionData.userId),
+                ) as RustMatrixClientBuilder).inner
+            }
             .use { it.build() }
 
         client.setMediaRetentionPolicy(
@@ -161,40 +165,11 @@ class RustMatrixClientFactory(
         client.restoreSession(sessionData.toSession())
 
         if (isMessageSearchAvailable && coverageEstablished && !coverageMarker.exists()) {
-            // Failing to record coverage must never fail the session restore; without the marker
-            // the bootstrap simply runs again on the next start.
+            // A fresh login or a bootstrap that just cleared the event cache: the index covers
+            // everything by construction. Failing to record coverage must never fail the session
+            // restore; without the marker the bootstrap simply runs again on the next start.
             runCatchingExceptions { coverageMarker.createNewFile() }
                 .onFailure { Timber.tag("RustMatrixClient").w(it, "Failed to write the search index coverage marker") }
-        }
-
-        create(client, sessionData, isMessageSearchAvailable)
-    }
-
-    /**
-     * Deletes the event cache store files. The WAL and SHM sidecars go first: if this is
-     * interrupted, a database without its WAL is merely stale, while a fresh database next to a
-     * leftover WAL is corruption waiting to be replayed.
-     */
-    private fun deleteEventCacheStore(sessionPaths: SessionPaths): Boolean =
-        listOf("$EVENT_CACHE_STORE_NAME-wal", "$EVENT_CACHE_STORE_NAME-shm", EVENT_CACHE_STORE_NAME)
-            .map { File(sessionPaths.cacheDirectory, it) }
-            .all { !it.exists() || it.delete() }
-
-    suspend fun create(
-        client: Client,
-        sessionData: SessionData,
-        isMessageSearchAvailable: Boolean,
-    ): RustMatrixClient {
-        if (isMessageSearchAvailable) {
-            val sessionPaths = sessionData.getSessionPaths()
-            val coverageMarker = File(sessionPaths.fileDirectory, SEARCH_INDEX_COVERAGE_MARKER)
-            if (!coverageMarker.exists() && !File(sessionPaths.cacheDirectory, EVENT_CACHE_STORE_NAME).exists()) {
-                // Nothing has been cached yet — a fresh login, or a heal that just cleared the
-                // caches — so the index covers everything by construction. Recording that here
-                // spares fresh sessions a pointless cache clear on their first restart.
-                runCatchingExceptions { coverageMarker.createNewFile() }
-                    .onFailure { Timber.tag("RustMatrixClient").w(it, "Failed to write the search index coverage marker") }
-            }
         }
 
         val (anonymizedAccessToken, anonymizedRefreshToken) = client.session().anonymizedTokens()
@@ -206,7 +181,7 @@ class RustMatrixClientFactory(
             .withOfflineMode()
             .finish()
 
-        return RustMatrixClient(
+        RustMatrixClient(
             sessionPaths = sessionData.getSessionPaths(),
             innerClient = client,
             sessionStore = sessionStore,
@@ -226,6 +201,16 @@ class RustMatrixClientFactory(
             Timber.tag("RustMatrixClient").i("Creating Client with access token '$anonymizedAccessToken' and refresh token '$anonymizedRefreshToken'")
         }
     }
+
+    /**
+     * Deletes the event cache store files. The WAL and SHM sidecars go first: if this is
+     * interrupted, a database without its WAL is merely stale, while a fresh database next to a
+     * leftover WAL is corruption waiting to be replayed.
+     */
+    private fun deleteEventCacheStore(sessionPaths: SessionPaths): Boolean =
+        listOf("$EVENT_CACHE_STORE_NAME-wal", "$EVENT_CACHE_STORE_NAME-shm", EVENT_CACHE_STORE_NAME)
+            .map { File(sessionPaths.cacheDirectory, it) }
+            .all { !it.exists() || it.delete() }
 
     internal suspend fun getBaseClientBuilder(
         sessionPaths: SessionPaths,
@@ -301,6 +286,9 @@ class RustMatrixClientFactory(
             .run {
                 // Workaround for non-nullable proxy parameter in the SDK, since each call to the ClientBuilder returns a new reference we need to keep
                 proxyProvider.provides()?.let { proxy(it) } ?: this
+            }
+            .let {
+                (clientBuilderEnterpriseHook.beforeClientCreation(RustMatrixClientBuilder(it)) as RustMatrixClientBuilder).inner
             }
     }
 }

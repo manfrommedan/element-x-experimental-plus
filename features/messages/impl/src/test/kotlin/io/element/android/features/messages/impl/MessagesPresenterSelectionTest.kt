@@ -223,7 +223,7 @@ class MessagesPresenterSelectionTest {
         val items = persistentListOf<TimelineItem>(e1, e2, e3)
         val forwarded = mutableListOf<EventId>()
         val navigator = FakeMessagesNavigator(
-            onForwardEventClickLambda = { id -> forwarded += id },
+            onForwardEventsClickLambda = { ids -> forwarded += ids },
         )
         val presenter = createMessagesPresenter(
             navigator = navigator,
@@ -574,7 +574,12 @@ class MessagesPresenterSelectionTest {
             clipboardHelper = clipboardHelper,
             htmlConverterProvider = FakeHtmlConverterProvider(),
             buildMeta = aBuildMeta(),
-            timelineController = TimelineController(joinedRoom, timeline),
+            timelineController = TimelineController(
+                room = joinedRoom,
+                liveTimeline = timeline,
+                roomCoroutineScope = backgroundScope,
+                dispatchers = coroutineDispatchers,
+            ),
             permalinkParser = permalinkParser,
             analyticsService = analyticsService,
             encryptionService = encryptionService,

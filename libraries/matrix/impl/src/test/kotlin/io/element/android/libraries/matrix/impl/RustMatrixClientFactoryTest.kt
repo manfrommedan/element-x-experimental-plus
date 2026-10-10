@@ -9,6 +9,7 @@
 package io.element.android.libraries.matrix.impl
 
 import com.google.common.truth.Truth.assertThat
+import io.element.android.features.enterprise.test.FakeClientBuilderEnterpriseHook
 import io.element.android.libraries.featureflag.api.FeatureFlags
 import io.element.android.libraries.featureflag.test.FakeFeatureFlagService
 import io.element.android.libraries.matrix.api.core.SessionId
@@ -18,6 +19,7 @@ import io.element.android.libraries.matrix.impl.fixtures.fakes.FakeFfiClient
 import io.element.android.libraries.matrix.impl.fixtures.fakes.FakeFfiClientBuilder
 import io.element.android.libraries.matrix.impl.room.FakeTimelineEventFilterFactory
 import io.element.android.libraries.matrix.impl.storage.FakeSqliteStoreBuilderProvider
+import io.element.android.libraries.matrix.impl.storage.SqliteStoreBuilderProvider
 import io.element.android.libraries.network.useragent.SimpleUserAgentProvider
 import io.element.android.libraries.sessionstorage.api.SessionStore
 import io.element.android.libraries.sessionstorage.test.InMemorySessionStore
@@ -252,20 +254,21 @@ class RustMatrixClientFactoryTest {
     }
 
     @Test
-    fun `create with a client - records coverage for a fresh session`() = runTest {
+    fun `create - records coverage for a fresh session`() = runTest {
         val sessionFolder = temporaryFolder.newFolder("session")
         val cacheFolder = temporaryFolder.newFolder("cache")
         val sut = createRustMatrixClientFactory(
+            featureFlagService = FakeFeatureFlagService(
+                initialState = mapOf(FeatureFlags.MessageSearch.key to true),
+            ),
             workManagerScheduler = FakeWorkManagerScheduler(submitLambda = {}),
         )
 
         val result = sut.create(
-            client = FakeFfiClient(withUtdHook = {}),
-            sessionData = aSessionData(
+            aSessionData(
                 sessionPath = sessionFolder.absolutePath,
                 cachePath = cacheFolder.absolutePath,
-            ).copy(passphrase = "aSecret"),
-            isMessageSearchAvailable = true,
+            ).copy(passphrase = "aSecret")
         )
 
         // A fresh login has no event cache, so the index covers everything by construction —
@@ -311,6 +314,7 @@ fun TestScope.createRustMatrixClientFactory(
     clientBuilderProvider: ClientBuilderProvider = FakeClientBuilderProvider(),
     workManagerScheduler: FakeWorkManagerScheduler = FakeWorkManagerScheduler(),
     featureFlagService: FakeFeatureFlagService = FakeFeatureFlagService(),
+    sqliteStoreBuilderProvider: SqliteStoreBuilderProvider = FakeSqliteStoreBuilderProvider(),
 ) = RustMatrixClientFactory(
     cacheDirectory = cacheDirectory,
     appCoroutineScope = backgroundScope,
@@ -324,7 +328,7 @@ fun TestScope.createRustMatrixClientFactory(
     featureFlagService = featureFlagService,
     timelineEventFilterFactory = FakeTimelineEventFilterFactory(),
     clientBuilderProvider = clientBuilderProvider,
-    sqliteStoreBuilderProvider = FakeSqliteStoreBuilderProvider(),
+    sqliteStoreBuilderProvider = sqliteStoreBuilderProvider,
     workManagerScheduler = workManagerScheduler,
-    clientBuilderEnterpriseHook = { builder, _ -> builder },
+    clientBuilderEnterpriseHook = FakeClientBuilderEnterpriseHook(),
 )

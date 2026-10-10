@@ -24,15 +24,20 @@ open class AppDeveloperSettingsStatePreviewParam : PreviewParameterProvider<AppD
                     baseUrl = "https://call.element.ahoy",
                 )
             ),
+            anAppDeveloperSettingsState(
+                isDeveloperModeEnabled = true,
+            ),
         )
 }
 
 fun anAppDeveloperSettingsState(
+    isDeveloperModeEnabled: Boolean = false,
     customElementCallBaseUrlState: CustomElementCallBaseUrlState = aCustomElementCallBaseUrlState(),
     traceLogPacks: List<TraceLogPack> = emptyList(),
     appLanguage: AppLanguageItem = AppLanguageItem.System,
     eventSink: (AppDeveloperSettingsEvent) -> Unit = {},
 ) = AppDeveloperSettingsState(
+    isDeveloperModeEnabled = isDeveloperModeEnabled,
     features = aFeatureUiModelList(),
     rageshakeState = aRageshakePreferencesState(),
     customElementCallBaseUrlState = customElementCallBaseUrlState,
