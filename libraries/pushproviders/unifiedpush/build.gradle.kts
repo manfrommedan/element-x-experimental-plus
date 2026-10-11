@@ -21,6 +21,7 @@ setupDependencyInjection()
 
 dependencies {
     implementation(projects.features.enterprise.api)
+    implementation(projects.libraries.featureflag.api)
     implementation(projects.libraries.androidutils)
     implementation(projects.libraries.core)
     implementation(projects.libraries.matrix.api)
@@ -35,6 +36,8 @@ dependencies {
     implementation(projects.services.toolbox.api)
 
     implementation(projects.libraries.network)
+    // ServiceCompat.startForeground needs core >= 1.12; the UnifiedPush connector pins an older one otherwise
+    implementation(libs.androidx.corektx)
     implementation(platform(libs.network.okhttp.bom))
     implementation(libs.network.okhttp.okhttp)
     implementation(platform(libs.network.retrofit.bom))
@@ -46,6 +49,7 @@ dependencies {
     api(libs.unifiedpush)
 
     testCommonDependencies(libs)
+    testImplementation(libs.network.mockwebserver)
     testImplementation(libs.kotlinx.collections.immutable)
     testImplementation(projects.features.enterprise.test)
     testImplementation(projects.libraries.matrix.test)

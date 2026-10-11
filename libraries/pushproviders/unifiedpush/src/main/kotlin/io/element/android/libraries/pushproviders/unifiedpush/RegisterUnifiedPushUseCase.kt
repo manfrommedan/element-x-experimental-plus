@@ -15,6 +15,8 @@ import io.element.android.libraries.di.annotations.ApplicationContext
 import io.element.android.libraries.matrix.api.core.SessionId
 import io.element.android.libraries.pushproviders.api.Distributor
 import io.element.android.libraries.pushproviders.unifiedpush.registration.EndpointRegistrationHandler
+import io.element.android.libraries.pushproviders.unifiedpush.selfpush.SelfPushAvailability
+import io.element.android.libraries.pushproviders.unifiedpush.selfpush.SelfPushRegistrar
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withTimeout
@@ -29,8 +31,15 @@ interface RegisterUnifiedPushUseCase {
 class DefaultRegisterUnifiedPushUseCase(
     @ApplicationContext private val context: Context,
     private val endpointRegistrationHandler: EndpointRegistrationHandler,
+    private val selfPushAvailability: SelfPushAvailability,
+    private val selfPushRegistrar: SelfPushRegistrar,
 ) : RegisterUnifiedPushUseCase {
     override suspend fun execute(distributor: Distributor, clientSecret: String, sessionId: SessionId): Result<Unit> {
+        // The app itself as the distributor means the built-in listener: the endpoint is
+        // made up locally instead of arriving through the UnifiedPush IPC.
+        if (distributor.value == context.packageName && selfPushAvailability.isEnabled()) {
+            return selfPushRegistrar.register(clientSecret)
+        }
         UnifiedPush.saveDistributor(context, distributor.value)
         // This will trigger the callback
         // VectorUnifiedPushMessagingReceiver.onNewEndpoint

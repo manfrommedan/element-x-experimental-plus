@@ -180,6 +180,16 @@ enum class FeatureFlags(
         isFinished = false,
         isInLabs = true,
     ),
+    EmbeddedPush(
+        key = "feature.embedded_push",
+        title = "Built-in push notifications",
+        description = "Receive pushes in real time over a connection the app holds to the notification server itself," +
+            " without a separate distributor app like ntfy. The server is configurable in the notification settings." +
+            " Disable to fall back to an external UnifiedPush distributor.",
+        defaultValue = { false },
+        isFinished = false,
+        isInLabs = true,
+    ),
     RoomListCallShortcut(
         key = "feature.room_list_call_shortcut",
         title = "Join calls from the chat list",

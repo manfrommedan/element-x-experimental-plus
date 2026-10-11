@@ -16,6 +16,10 @@ import io.element.android.libraries.matrix.test.A_SESSION_ID
 import io.element.android.libraries.pushproviders.api.Distributor
 import io.element.android.libraries.pushproviders.unifiedpush.registration.EndpointRegistrationHandler
 import io.element.android.libraries.pushproviders.unifiedpush.registration.RegistrationResult
+import io.element.android.libraries.pushproviders.unifiedpush.selfpush.FakeSelfPushAvailability
+import io.element.android.libraries.pushproviders.unifiedpush.selfpush.FakeSelfPushRegistrar
+import io.element.android.libraries.pushproviders.unifiedpush.selfpush.SelfPushAvailability
+import io.element.android.libraries.pushproviders.unifiedpush.selfpush.SelfPushRegistrar
 import io.element.android.tests.testutils.fake.FakeAndroidKeyStore
 import io.element.android.tests.testutils.robolectric.RobolectricTest
 import kotlinx.coroutines.delay
@@ -72,13 +76,49 @@ class DefaultRegisterUnifiedPushUseCaseTest : RobolectricTest() {
         assertThat(result.isSuccess).isFalse()
     }
 
+    @Test
+    fun `registration with the app itself as distributor goes to the built-in listener`() = runTest {
+        val selfPushRegistrar = FakeSelfPushRegistrar()
+        val context = InstrumentationRegistry.getInstrumentation().context
+        val useCase = createDefaultRegisterUnifiedPushUseCase(
+            selfPushAvailability = FakeSelfPushAvailability(enabled = true),
+            selfPushRegistrar = selfPushRegistrar,
+        )
+        val result = useCase.execute(Distributor(context.packageName, "Built-in push"), A_SECRET, A_SESSION_ID)
+        assertThat(result.isSuccess).isTrue()
+        assertThat(selfPushRegistrar.registeredSecrets).containsExactly(A_SECRET)
+    }
+
+    @Test
+    fun `registration with the app itself as distributor falls back to UnifiedPush when the flag is off`() = runTest {
+        val endpointRegistrationHandler = EndpointRegistrationHandler()
+        val selfPushRegistrar = FakeSelfPushRegistrar()
+        val context = InstrumentationRegistry.getInstrumentation().context
+        val useCase = createDefaultRegisterUnifiedPushUseCase(
+            endpointRegistrationHandler = endpointRegistrationHandler,
+            selfPushAvailability = FakeSelfPushAvailability(enabled = false),
+            selfPushRegistrar = selfPushRegistrar,
+        )
+        launch {
+            delay(100)
+            endpointRegistrationHandler.registrationDone(RegistrationResult(A_SECRET, Result.success(Unit)))
+        }
+        val result = useCase.execute(Distributor(context.packageName, "Built-in push"), A_SECRET, A_SESSION_ID)
+        assertThat(result.isSuccess).isTrue()
+        assertThat(selfPushRegistrar.registeredSecrets).isEmpty()
+    }
+
     private fun TestScope.createDefaultRegisterUnifiedPushUseCase(
-        endpointRegistrationHandler: EndpointRegistrationHandler
+        endpointRegistrationHandler: EndpointRegistrationHandler = EndpointRegistrationHandler(),
+        selfPushAvailability: SelfPushAvailability = FakeSelfPushAvailability(enabled = false),
+        selfPushRegistrar: SelfPushRegistrar = FakeSelfPushRegistrar(),
     ): DefaultRegisterUnifiedPushUseCase {
         val context = InstrumentationRegistry.getInstrumentation().context
         return DefaultRegisterUnifiedPushUseCase(
             context = context,
             endpointRegistrationHandler = endpointRegistrationHandler,
+            selfPushAvailability = selfPushAvailability,
+            selfPushRegistrar = selfPushRegistrar,
         )
     }
 }

@@ -16,6 +16,11 @@ import io.element.android.libraries.matrix.test.A_SECRET
 import io.element.android.libraries.matrix.test.FakeMatrixClient
 import io.element.android.libraries.push.test.FakePusherSubscriber
 import io.element.android.libraries.pushproviders.api.PusherSubscriber
+import io.element.android.libraries.pushproviders.unifiedpush.selfpush.FakeSelfPushRegistrar
+import io.element.android.libraries.pushproviders.unifiedpush.selfpush.FakeSelfPushStore
+import io.element.android.libraries.pushproviders.unifiedpush.selfpush.SelfPushRegistrar
+import io.element.android.libraries.pushproviders.unifiedpush.selfpush.SelfPushRegistration
+import io.element.android.libraries.pushproviders.unifiedpush.selfpush.SelfPushStore
 import io.element.android.tests.testutils.lambda.lambdaRecorder
 import io.element.android.tests.testutils.lambda.value
 import io.element.android.tests.testutils.robolectric.RobolectricTest
@@ -115,15 +120,40 @@ class DefaultUnregisterUnifiedPushUseCaseTest : RobolectricTest() {
         assertThat(result.isFailure).isTrue()
     }
 
+    @Test
+    fun `cleanup of a built-in registration drops the topic instead of unregistering from UnifiedPush`() = runTest {
+        val selfPushStore = FakeSelfPushStore().apply {
+            storeRegistration(A_SECRET, SelfPushRegistration("https://ntfy.sh", "up1234"))
+        }
+        val selfPushRegistrar = FakeSelfPushRegistrar()
+        val useCase = createDefaultUnregisterUnifiedPushUseCase(
+            unifiedPushStore = FakeUnifiedPushStore(
+                getEndpointResult = { "aEndpoint" },
+                getPushGatewayResult = { "aGateway" },
+                storeUpEndpointResult = { _, _ -> },
+                storePushGatewayResult = { _, _ -> },
+            ),
+            selfPushStore = selfPushStore,
+            selfPushRegistrar = selfPushRegistrar,
+        )
+        useCase.cleanup(A_SECRET)
+        // The store cleanup itself belongs to the registrar and is covered in SelfPushRegistrarTest.
+        assertThat(selfPushRegistrar.unregisteredSecrets).containsExactly(A_SECRET)
+    }
+
     private fun createDefaultUnregisterUnifiedPushUseCase(
         unifiedPushStore: UnifiedPushStore = FakeUnifiedPushStore(),
-        pusherSubscriber: PusherSubscriber = FakePusherSubscriber()
+        pusherSubscriber: PusherSubscriber = FakePusherSubscriber(),
+        selfPushStore: SelfPushStore = FakeSelfPushStore(),
+        selfPushRegistrar: SelfPushRegistrar = FakeSelfPushRegistrar(),
     ): DefaultUnregisterUnifiedPushUseCase {
         val context = InstrumentationRegistry.getInstrumentation().context
         return DefaultUnregisterUnifiedPushUseCase(
             context = context,
             unifiedPushStore = unifiedPushStore,
-            pusherSubscriber = pusherSubscriber
+            pusherSubscriber = pusherSubscriber,
+            selfPushStore = selfPushStore,
+            selfPushRegistrar = selfPushRegistrar,
         )
     }
 }

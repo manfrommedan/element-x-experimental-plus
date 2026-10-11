@@ -14,6 +14,8 @@ import dev.zacsweers.metro.ContributesBinding
 import io.element.android.libraries.di.annotations.ApplicationContext
 import io.element.android.libraries.matrix.api.MatrixClient
 import io.element.android.libraries.pushproviders.api.PusherSubscriber
+import io.element.android.libraries.pushproviders.unifiedpush.selfpush.SelfPushRegistrar
+import io.element.android.libraries.pushproviders.unifiedpush.selfpush.SelfPushStore
 import org.unifiedpush.android.connector.UnifiedPush
 import timber.log.Timber
 
@@ -41,6 +43,8 @@ class DefaultUnregisterUnifiedPushUseCase(
     @ApplicationContext private val context: Context,
     private val unifiedPushStore: UnifiedPushStore,
     private val pusherSubscriber: PusherSubscriber,
+    private val selfPushStore: SelfPushStore,
+    private val selfPushRegistrar: SelfPushRegistrar,
 ) : UnregisterUnifiedPushUseCase {
     override suspend fun unregister(
         matrixClient: MatrixClient,
@@ -64,7 +68,11 @@ class DefaultUnregisterUnifiedPushUseCase(
     override fun cleanup(clientSecret: String, unregisterUnifiedPush: Boolean) {
         unifiedPushStore.storeUpEndpoint(clientSecret, null)
         unifiedPushStore.storePushGateway(clientSecret, null)
-        if (unregisterUnifiedPush) {
+        if (selfPushStore.getRegistration(clientSecret) != null) {
+            // A built-in registration has no distributor to unregister from; the topic
+            // just leaves the listener.
+            selfPushRegistrar.unregister(clientSecret)
+        } else if (unregisterUnifiedPush) {
             UnifiedPush.unregister(context, clientSecret)
         }
     }
