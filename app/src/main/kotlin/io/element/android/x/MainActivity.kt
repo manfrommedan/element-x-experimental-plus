@@ -55,6 +55,12 @@ private val loggerTag = LoggerTag("MainActivity")
  */
 private const val MAX_SPLASH_SCREEN_DURATION_MS = 5_000L
 
+/**
+ * Floor for the splash screen lifetime: shorter than this and the logo entrance animation
+ * never gets to play, with the splash flashing by so fast it reads as a glitch.
+ */
+private const val MIN_SPLASH_SCREEN_DURATION_MS = 2_000L
+
 /** Grace period after the deadline before a frame is forced to re-evaluate the keep condition. */
 private const val SPLASH_RELEASE_GRACE_MS = 50L
 
@@ -63,13 +69,17 @@ open class MainActivity : NodeActivity() {
     private lateinit var appBindings: AppBindings
     private var isMigrationScreenDisplayed = false
     private var splashScreenDeadline = 0L
+    private var splashScreenMinDeadline = 0L
 
     override fun onCreate(savedInstanceState: Bundle?) {
         Timber.tag(loggerTag.value).d("onCreate, with savedInstanceState: ${savedInstanceState != null}")
         splashScreenDeadline = SystemClock.elapsedRealtime() + MAX_SPLASH_SCREEN_DURATION_MS
+        splashScreenMinDeadline = SystemClock.elapsedRealtime() + MIN_SPLASH_SCREEN_DURATION_MS
         installSplashScreen().setKeepOnScreenCondition(::shouldKeepSplashScreen)
         super.onCreate(savedInstanceState)
-        // The condition is only evaluated when a frame is about to be drawn, so make sure one is requested once the deadline is over.
+        // The condition is only evaluated when a frame is about to be drawn, so make sure one
+        // is requested once each deadline is over.
+        window.decorView.postDelayed(MIN_SPLASH_SCREEN_DURATION_MS + SPLASH_RELEASE_GRACE_MS) { window.decorView.invalidate() }
         window.decorView.postDelayed(MAX_SPLASH_SCREEN_DURATION_MS + SPLASH_RELEASE_GRACE_MS) { window.decorView.invalidate() }
         appBindings = bindings()
         setupLockManagement(appBindings.lockScreenService(), appBindings.lockScreenEntryPoint())
@@ -94,6 +104,7 @@ open class MainActivity : NodeActivity() {
         return when {
             SystemClock.elapsedRealtime() > splashScreenDeadline -> false
             isMigrationScreenDisplayed -> false
+            SystemClock.elapsedRealtime() < splashScreenMinDeadline -> true
             ::mainNode.isInitialized -> mainNode.isShowingSplashScreen()
             else -> true
         }
