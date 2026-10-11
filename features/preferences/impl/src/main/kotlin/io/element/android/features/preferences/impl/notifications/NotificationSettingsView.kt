@@ -15,11 +15,19 @@ import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.progressSemantics
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalInspectionMode
@@ -27,6 +35,8 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.tooling.preview.PreviewParameter
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
@@ -39,9 +49,11 @@ import io.element.android.libraries.designsystem.components.Announcement
 import io.element.android.libraries.designsystem.components.AnnouncementType
 import io.element.android.libraries.designsystem.components.async.AsyncActionView
 import io.element.android.libraries.designsystem.components.dialogs.ErrorDialog
+import io.element.android.libraries.designsystem.components.dialogs.ListDialog
 import io.element.android.libraries.designsystem.components.dialogs.ListOption
 import io.element.android.libraries.designsystem.components.dialogs.SingleSelectionDialog
 import io.element.android.libraries.designsystem.components.list.ListItemContent
+import io.element.android.libraries.designsystem.components.list.TextFieldListItem
 import io.element.android.libraries.designsystem.components.preferences.PreferenceCategory
 import io.element.android.libraries.designsystem.components.preferences.PreferencePage
 import io.element.android.libraries.designsystem.components.preferences.PreferenceSwitch
@@ -53,6 +65,7 @@ import io.element.android.libraries.designsystem.theme.components.IconButton
 import io.element.android.libraries.designsystem.theme.components.IconSource
 import io.element.android.libraries.designsystem.theme.components.ListItem
 import io.element.android.libraries.designsystem.theme.components.Text
+import io.element.android.libraries.designsystem.theme.components.TextButton
 import io.element.android.libraries.designsystem.utils.OnLifecycleEvent
 import io.element.android.libraries.fullscreenintent.api.FullScreenIntentPermissionsEvent
 import io.element.android.libraries.matrix.api.room.RoomNotificationMode
@@ -253,6 +266,31 @@ private fun NotificationSettingsContentView(
                         }
                     }
                 )
+                state.selfPushServer?.let { selfPushServer ->
+                    ListItem(
+                        content = {
+                            Text(text = stringResource(id = CommonStrings.screen_notifications_push_server_title))
+                        },
+                        supportingContent = {
+                            Text(
+                                text = selfPushServer.customServer
+                                    ?: stringResource(
+                                        id = CommonStrings.screen_notifications_push_server_default_subtitle,
+                                        selfPushServer.effectiveServer,
+                                    )
+                            )
+                        },
+                        onClick = {
+                            state.eventSink(NotificationSettingsEvent.ShowSelfPushServerDialog)
+                        }
+                    )
+                }
+            }
+            if (state.selfPushServer?.showDialog == true) {
+                SelfPushServerDialog(
+                    selfPushServer = state.selfPushServer,
+                    eventSink = state.eventSink,
+                )
             }
             if (state.showChangePushProviderDialog) {
                 SingleSelectionDialog(
@@ -408,6 +446,91 @@ private fun CallRingtoneDialog(state: NotificationSettingsState) {
         },
         onDismissRequest = { state.eventSink(NotificationSettingsEvent.DismissCallRingtoneDialog) },
     )
+}
+
+@Composable
+private fun SelfPushServerDialog(
+    selfPushServer: NotificationSettingsState.SelfPushServerState,
+    eventSink: (NotificationSettingsEvent) -> Unit,
+) {
+    var serverUrl by rememberSaveable { mutableStateOf(selfPushServer.customServer ?: selfPushServer.effectiveServer) }
+    val trimmedUrl = serverUrl.trim()
+    val isValid = isValidSelfPushServerUrl(trimmedUrl)
+    ListDialog(
+        title = stringResource(id = CommonStrings.screen_notifications_push_server_dialog_title),
+        submitText = stringResource(CommonStrings.action_save),
+        onSubmit = { eventSink(NotificationSettingsEvent.SaveSelfPushServer(trimmedUrl)) },
+        onDismissRequest = { eventSink(NotificationSettingsEvent.DismissSelfPushServerDialog) },
+        enabled = isValid,
+    ) {
+        item {
+            TextFieldListItem(
+                placeholder = DEFAULT_SELF_PUSH_SERVER,
+                text = serverUrl,
+                onTextChange = { serverUrl = it },
+                error = if (serverUrl.isNotEmpty() && !isValid) {
+                    stringResource(id = CommonStrings.screen_notifications_push_server_invalid_url)
+                } else {
+                    null
+                },
+                keyboardOptions = KeyboardOptions(
+                    keyboardType = KeyboardType.Uri,
+                    imeAction = ImeAction.Done,
+                ),
+            )
+        }
+        item {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                TextButton(
+                    text = stringResource(id = CommonStrings.screen_notifications_push_server_check_health),
+                    onClick = { eventSink(NotificationSettingsEvent.CheckSelfPushServerHealth(trimmedUrl)) },
+                    enabled = trimmedUrl.isNotEmpty(),
+                )
+                // Only surface a result that was produced for the URL currently in the field.
+                if (selfPushServer.healthCheckServer == trimmedUrl.trimEnd('/')) {
+                    when (selfPushServer.healthCheck) {
+                        is AsyncData.Loading -> CircularProgressIndicator(
+                            modifier = Modifier
+                                .progressSemantics()
+                                .size(20.dp),
+                            strokeWidth = 2.dp,
+                        )
+                        is AsyncData.Success -> Text(
+                            text = stringResource(id = CommonStrings.screen_notifications_push_server_health_ok),
+                            style = ElementTheme.typography.fontBodyMdRegular,
+                            color = ElementTheme.colors.textSecondary,
+                        )
+                        is AsyncData.Failure -> Text(
+                            text = stringResource(id = CommonStrings.screen_notifications_push_server_health_error),
+                            style = ElementTheme.typography.fontBodyMdRegular,
+                            color = ElementTheme.colors.textCriticalPrimary,
+                        )
+                        AsyncData.Uninitialized -> Unit
+                    }
+                }
+            }
+        }
+        item {
+            TextButton(
+                text = stringResource(id = CommonStrings.screen_notifications_push_server_reset_to_default),
+                onClick = { eventSink(NotificationSettingsEvent.ResetSelfPushServer) },
+                enabled = selfPushServer.customServer != null,
+            )
+        }
+        if (selfPushServer.saveFailed) {
+            item {
+                Text(
+                    text = stringResource(id = CommonStrings.screen_notifications_push_server_save_failed),
+                    style = ElementTheme.typography.fontBodyMdRegular,
+                    color = ElementTheme.colors.textCriticalPrimary,
+                    modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
+                )
+            }
+        }
+    }
 }
 
 @Composable

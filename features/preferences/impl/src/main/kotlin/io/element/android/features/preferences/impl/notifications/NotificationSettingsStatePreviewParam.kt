@@ -74,6 +74,36 @@ open class NotificationSettingsStatePreviewParam : PreviewParameterProvider<Noti
                 callRingtoneDisplayName = "Pixel ringtone",
                 showCallRingtoneDialog = true,
             ),
+            aValidNotificationSettingsState(
+                currentPushDistributor = AsyncData.Success(aDistributor("Built-in push", "app.self")),
+                availablePushDistributors = listOf(
+                    aDistributor("Firebase"),
+                    aDistributor("Built-in push", "app.self"),
+                ),
+                selfPushServer = aSelfPushServerState(),
+            ),
+            aValidNotificationSettingsState(
+                currentPushDistributor = AsyncData.Success(aDistributor("Built-in push", "app.self")),
+                availablePushDistributors = listOf(
+                    aDistributor("Firebase"),
+                    aDistributor("Built-in push", "app.self"),
+                ),
+                selfPushServer = aSelfPushServerState(
+                    customServer = "https://push.example.com",
+                    showDialog = true,
+                ),
+            ),
+            aValidNotificationSettingsState(
+                currentPushDistributor = AsyncData.Success(aDistributor("Built-in push", "app.self")),
+                availablePushDistributors = listOf(
+                    aDistributor("Firebase"),
+                    aDistributor("Built-in push", "app.self"),
+                ),
+                selfPushServer = aSelfPushServerState(
+                    showDialog = true,
+                    saveFailed = true,
+                ),
+            ),
         )
 }
 
@@ -101,6 +131,7 @@ fun aValidNotificationSettingsState(
     showCallRingtoneDialog: Boolean = false,
     pendingMessageSoundPickerLaunch: Int = 0,
     pendingCallRingtonePickerLaunch: Int = 0,
+    selfPushServer: NotificationSettingsState.SelfPushServerState? = null,
     eventSink: (NotificationSettingsEvent) -> Unit = {},
 ) = NotificationSettingsState(
     matrixSettings = NotificationSettingsState.MatrixSettings.Valid(
@@ -133,6 +164,7 @@ fun aValidNotificationSettingsState(
     showCallRingtoneDialog = showCallRingtoneDialog,
     pendingMessageSoundPickerLaunch = pendingMessageSoundPickerLaunch,
     pendingCallRingtonePickerLaunch = pendingCallRingtonePickerLaunch,
+    selfPushServer = selfPushServer,
     eventSink = eventSink,
 )
 
@@ -166,7 +198,24 @@ fun aInvalidNotificationSettingsState(
     showCallRingtoneDialog = false,
     pendingMessageSoundPickerLaunch = 0,
     pendingCallRingtonePickerLaunch = 0,
+    selfPushServer = null,
     eventSink = eventSink,
+)
+
+fun aSelfPushServerState(
+    customServer: String? = null,
+    effectiveServer: String = customServer ?: "https://ntfy.sh",
+    showDialog: Boolean = false,
+    healthCheck: AsyncData<Unit> = AsyncData.Uninitialized,
+    healthCheckServer: String? = null,
+    saveFailed: Boolean = false,
+) = NotificationSettingsState.SelfPushServerState(
+    customServer = customServer,
+    effectiveServer = effectiveServer,
+    showDialog = showDialog,
+    healthCheck = healthCheck,
+    healthCheckServer = healthCheckServer,
+    saveFailed = saveFailed,
 )
 
 fun aDistributor(

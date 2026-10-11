@@ -42,6 +42,11 @@ data class NotificationSettingsState(
      * auto-opens on screen entry.
      */
     val pendingCallRingtonePickerLaunch: Int,
+    /**
+     * Built-in push server configuration, non-null only when the current push distributor is the
+     * app itself. Null hides the whole "Push server" row.
+     */
+    val selfPushServer: SelfPushServerState?,
     val eventSink: (NotificationSettingsEvent) -> Unit,
 ) {
     sealed interface MatrixSettings {
@@ -72,6 +77,21 @@ data class NotificationSettingsState(
         val sound: NotificationSound,
         val displayName: String,
         val copyError: Boolean,
+    )
+
+    /**
+     * UI state for the built-in push server row and its edit dialog. [healthCheck] is the result
+     * of the last on-demand check, keyed by [healthCheckServer] so the dialog can ignore results
+     * for an URL that is no longer in the text field. [saveFailed] is set when persisting or
+     * re-registering after a server change failed; the dialog stays open and shows an error.
+     */
+    data class SelfPushServerState(
+        val customServer: String?,
+        val effectiveServer: String,
+        val showDialog: Boolean,
+        val healthCheck: AsyncData<Unit>,
+        val healthCheckServer: String?,
+        val saveFailed: Boolean,
     )
 
     /**

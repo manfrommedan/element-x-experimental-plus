@@ -10,12 +10,14 @@ package io.element.android.features.preferences.impl.notifications
 
 import com.google.common.truth.Truth.assertThat
 import io.element.android.libraries.architecture.AsyncData
+import io.element.android.libraries.core.meta.BuildMeta
 import io.element.android.libraries.fullscreenintent.api.FullScreenIntentPermissionsState
 import io.element.android.libraries.fullscreenintent.api.aFullScreenIntentPermissionsState
 import io.element.android.libraries.matrix.api.MatrixClient
 import io.element.android.libraries.matrix.api.room.RoomNotificationMode
 import io.element.android.libraries.matrix.test.AN_EXCEPTION
 import io.element.android.libraries.matrix.test.FakeMatrixClient
+import io.element.android.libraries.matrix.test.core.aBuildMeta
 import io.element.android.libraries.matrix.test.notificationsettings.FakeNotificationSettingsService
 import io.element.android.libraries.preferences.api.store.AppPreferencesStore
 import io.element.android.libraries.preferences.api.store.NotificationSound
@@ -30,10 +32,13 @@ import io.element.android.libraries.push.test.notifications.sound.FakeNotificati
 import io.element.android.libraries.pushproviders.api.Distributor
 import io.element.android.libraries.pushproviders.api.PushProvider
 import io.element.android.libraries.pushproviders.test.FakePushProvider
+import io.element.android.libraries.pushproviders.unifiedpush.selfpush.SelfPushRegistration
+import io.element.android.libraries.pushproviders.unifiedpush.selfpush.SelfPushStore
 import io.element.android.libraries.pushstore.test.userpushstore.FakeUserPushStoreFactory
 import io.element.android.services.toolbox.test.strings.FakeStringProvider
 import io.element.android.tests.testutils.awaitLastSequentialItem
 import io.element.android.tests.testutils.consumeItemsUntilPredicate
+import io.element.android.tests.testutils.lambda.any
 import io.element.android.tests.testutils.lambda.lambdaRecorder
 import io.element.android.tests.testutils.lambda.value
 import io.element.android.tests.testutils.test
@@ -42,6 +47,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
+import okhttp3.OkHttpClient
 import org.junit.Test
 import kotlin.time.Duration.Companion.milliseconds
 
@@ -342,6 +348,140 @@ class NotificationSettingsPresenterTest {
             assertThat(withNewProvider.currentPushDistributor).isInstanceOf(AsyncData.Loading::class.java)
             val lastItem = awaitItem()
             assertThat(lastItem.currentPushDistributor).isInstanceOf(AsyncData.Failure::class.java)
+        }
+    }
+
+    private fun createBuiltInPushService(
+        registerWithLambda: (MatrixClient, PushProvider, Distributor) -> Result<Unit> = { _, _, _ ->
+            Result.success(Unit)
+        }
+    ): PushService {
+        val selfDistributor = Distributor(value = SELF_APPLICATION_ID, name = "Built-in push")
+        val pushProvider = FakePushProvider(
+            index = 0,
+            name = "aFakePushProvider",
+            distributors = listOf(selfDistributor),
+        )
+        return FakePushService(
+            availablePushProviders = listOf(pushProvider),
+            registerWithLambda = registerWithLambda,
+        )
+    }
+
+    @Test
+    fun `present - self push server row is shown when the built-in distributor is current`() = runTest {
+        val presenter = createNotificationSettingsPresenter(
+            pushService = createBuiltInPushService(),
+        )
+        presenter.test {
+            val state = consumeItemsUntilPredicate { it.selfPushServer != null }.last()
+            assertThat(state.selfPushServer?.customServer).isNull()
+            assertThat(state.selfPushServer?.effectiveServer).isEqualTo(DEFAULT_SELF_PUSH_SERVER)
+            assertThat(state.selfPushServer?.showDialog).isFalse()
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `present - self push server row is hidden when an external distributor is current`() = runTest {
+        val presenter = createNotificationSettingsPresenter(
+            pushService = createFakePushService(),
+        )
+        presenter.test {
+            val state = awaitLastSequentialItem()
+            assertThat(state.currentPushDistributor.dataOrNull()?.value).isEqualTo("aDistributorValue0")
+            assertThat(state.selfPushServer).isNull()
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    @Test
+    fun `present - saving a self push server persists it and re-registers the built-in distributor`() = runTest {
+        val registerRecorder = lambdaRecorder<MatrixClient, PushProvider, Distributor, Result<Unit>> { _, _, _ ->
+            Result.success(Unit)
+        }
+        val selfPushStore = FakeSelfPushStore()
+        val presenter = createNotificationSettingsPresenter(
+            pushService = createBuiltInPushService(registerWithLambda = { client, provider, distributor ->
+                registerRecorder(client, provider, distributor)
+            }),
+            selfPushStore = selfPushStore,
+        )
+        presenter.test {
+            val initial = consumeItemsUntilPredicate { it.selfPushServer != null }.last()
+            initial.eventSink(NotificationSettingsEvent.ShowSelfPushServerDialog)
+            val shown = consumeItemsUntilPredicate { it.selfPushServer?.showDialog == true }.last()
+            shown.eventSink(NotificationSettingsEvent.SaveSelfPushServer("https://push.example.com"))
+            val saved = consumeItemsUntilPredicate {
+                it.selfPushServer?.customServer == "https://push.example.com" && it.selfPushServer?.showDialog == false
+            }.last()
+            advanceUntilIdle()
+            assertThat(selfPushStore.getCustomServer()).isEqualTo("https://push.example.com")
+            assertThat(saved.selfPushServer?.effectiveServer).isEqualTo("https://push.example.com")
+            assertThat(saved.selfPushServer?.saveFailed).isFalse()
+            registerRecorder.assertions().isCalledOnce().with(
+                any(),
+                any(),
+                value(Distributor(value = SELF_APPLICATION_ID, name = "Built-in push")),
+            )
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    @Test
+    fun `present - saving an invalid self push server URL does not persist it`() = runTest {
+        val registerRecorder = lambdaRecorder<MatrixClient, PushProvider, Distributor, Result<Unit>> { _, _, _ ->
+            Result.success(Unit)
+        }
+        val selfPushStore = FakeSelfPushStore()
+        val presenter = createNotificationSettingsPresenter(
+            pushService = createBuiltInPushService(registerWithLambda = { client, provider, distributor ->
+                registerRecorder(client, provider, distributor)
+            }),
+            selfPushStore = selfPushStore,
+        )
+        presenter.test {
+            val initial = consumeItemsUntilPredicate { it.selfPushServer != null }.last()
+            initial.eventSink(NotificationSettingsEvent.ShowSelfPushServerDialog)
+            val shown = consumeItemsUntilPredicate { it.selfPushServer?.showDialog == true }.last()
+            shown.eventSink(NotificationSettingsEvent.SaveSelfPushServer("http://push.example.com/"))
+            val failed = consumeItemsUntilPredicate { it.selfPushServer?.saveFailed == true }.last()
+            advanceUntilIdle()
+            assertThat(selfPushStore.getCustomServer()).isNull()
+            // The dialog stays open so the user can fix the URL.
+            assertThat(failed.selfPushServer?.showDialog).isTrue()
+            registerRecorder.assertions().isNeverCalled()
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    @Test
+    fun `present - resetting the self push server clears it and re-registers`() = runTest {
+        val registerRecorder = lambdaRecorder<MatrixClient, PushProvider, Distributor, Result<Unit>> { _, _, _ ->
+            Result.success(Unit)
+        }
+        val selfPushStore = FakeSelfPushStore()
+        selfPushStore.setCustomServer("https://push.example.com")
+        val presenter = createNotificationSettingsPresenter(
+            pushService = createBuiltInPushService(registerWithLambda = { client, provider, distributor ->
+                registerRecorder(client, provider, distributor)
+            }),
+            selfPushStore = selfPushStore,
+        )
+        presenter.test {
+            val initial = consumeItemsUntilPredicate {
+                it.selfPushServer?.customServer == "https://push.example.com"
+            }.last()
+            initial.eventSink(NotificationSettingsEvent.ResetSelfPushServer)
+            val reset = consumeItemsUntilPredicate { it.selfPushServer?.customServer == null }.last()
+            advanceUntilIdle()
+            assertThat(selfPushStore.getCustomServer()).isNull()
+            assertThat(reset.selfPushServer?.effectiveServer).isEqualTo(DEFAULT_SELF_PUSH_SERVER)
+            registerRecorder.assertions().isCalledOnce()
+            cancelAndIgnoreRemainingEvents()
         }
     }
 
@@ -1116,6 +1256,9 @@ class NotificationSettingsPresenterTest {
             NotificationSoundCopier.CopyResult.Success(source, source)
         }),
         soundDisplayNameResolver: FakeSoundDisplayNameResolver = FakeSoundDisplayNameResolver(),
+        selfPushStore: SelfPushStore = FakeSelfPushStore(),
+        buildMeta: BuildMeta = aBuildMeta(applicationId = SELF_APPLICATION_ID),
+        okHttpClient: OkHttpClient = OkHttpClient(),
     ): NotificationSettingsPresenter {
         val matrixClient = FakeMatrixClient(notificationSettingsService = notificationSettingsService)
         return NotificationSettingsPresenter(
@@ -1130,7 +1273,44 @@ class NotificationSettingsPresenterTest {
             notificationSoundCopier = notificationSoundCopier,
             soundDisplayNameResolver = soundDisplayNameResolver,
             stringProvider = FakeStringProvider(),
+            selfPushStore = selfPushStore,
+            buildMeta = buildMeta,
+            okHttpClient = okHttpClient,
             sessionCoroutineScope = backgroundScope,
         )
+    }
+
+    private class FakeSelfPushStore : SelfPushStore {
+        private val registrations = mutableMapOf<String, SelfPushRegistration>()
+        private var customServer: String? = null
+        private var readToken: String? = null
+
+        override fun getRegistration(clientSecret: String): SelfPushRegistration? = registrations[clientSecret]
+
+        override fun storeRegistration(clientSecret: String, registration: SelfPushRegistration) {
+            registrations[clientSecret] = registration
+        }
+
+        override fun removeRegistration(clientSecret: String) {
+            registrations.remove(clientSecret)
+        }
+
+        override fun getAllRegistrations(): Map<String, SelfPushRegistration> = registrations.toMap()
+
+        override fun getCustomServer(): String? = customServer
+
+        override fun setCustomServer(server: String?) {
+            customServer = server
+        }
+
+        override fun getReadToken(): String? = readToken
+
+        override fun setReadToken(token: String?) {
+            readToken = token
+        }
+    }
+
+    companion object {
+        private const val SELF_APPLICATION_ID = "app.self"
     }
 }

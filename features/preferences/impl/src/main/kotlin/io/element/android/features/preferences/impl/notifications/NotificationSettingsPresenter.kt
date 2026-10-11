@@ -27,6 +27,7 @@ import io.element.android.libraries.architecture.AsyncData
 import io.element.android.libraries.architecture.Presenter
 import io.element.android.libraries.architecture.runUpdatingStateNoSuccess
 import io.element.android.libraries.core.extensions.runCatchingExceptions
+import io.element.android.libraries.core.meta.BuildMeta
 import io.element.android.libraries.di.annotations.SessionCoroutineScope
 import io.element.android.libraries.fullscreenintent.api.FullScreenIntentPermissionsState
 import io.element.android.libraries.matrix.api.MatrixClient
@@ -42,11 +43,13 @@ import io.element.android.libraries.push.api.notifications.sound.NotificationSou
 import io.element.android.libraries.push.api.notifications.sound.NotificationSoundCopier.SoundSlot
 import io.element.android.libraries.pushproviders.api.Distributor
 import io.element.android.libraries.pushproviders.api.PushProvider
+import io.element.android.libraries.pushproviders.unifiedpush.selfpush.SelfPushStore
 import io.element.android.libraries.pushstore.api.UserPushStore
 import io.element.android.libraries.pushstore.api.UserPushStoreFactory
 import io.element.android.services.toolbox.api.strings.StringProvider
 import kotlinx.collections.immutable.toImmutableList
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.first
@@ -55,7 +58,11 @@ import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
+import okhttp3.OkHttpClient
+import okhttp3.Request
 import timber.log.Timber
+import java.io.IOException
 import kotlin.time.Duration.Companion.seconds
 
 @Inject
@@ -71,6 +78,9 @@ class NotificationSettingsPresenter(
     private val notificationSoundCopier: NotificationSoundCopier,
     private val soundDisplayNameResolver: SoundDisplayNameResolver,
     private val stringProvider: StringProvider,
+    private val selfPushStore: SelfPushStore,
+    private val buildMeta: BuildMeta,
+    private val okHttpClient: OkHttpClient,
     @SessionCoroutineScope
     private val sessionCoroutineScope: CoroutineScope,
 ) : Presenter<NotificationSettingsState> {
@@ -136,6 +146,12 @@ class NotificationSettingsPresenter(
 
         var showChangePushProviderDialog by remember { mutableStateOf(false) }
 
+        var showSelfPushServerDialog by remember { mutableStateOf(false) }
+        var selfPushServerRefresh by remember { mutableIntStateOf(0) }
+        var selfPushServerHealth by remember { mutableStateOf<AsyncData<Unit>>(AsyncData.Uninitialized) }
+        var selfPushServerHealthServer by remember { mutableStateOf<String?>(null) }
+        var selfPushServerSaveFailed by remember { mutableStateOf(false) }
+
         val messageSound by remember { appPreferencesStore.getMessageSoundFlow() }.collectAsState(initial = NotificationSound.SystemDefault)
         val callRingtone by remember { appPreferencesStore.getCallRingtoneFlow() }.collectAsState(initial = NotificationSound.SystemDefault)
         val persistedMessageSoundTitle by remember { appPreferencesStore.getMessageSoundDisplayNameFlow() }.collectAsState(initial = null)
@@ -194,6 +210,51 @@ class NotificationSettingsPresenter(
                         currentDistributor = AsyncData.Failure(it)
                     }
                 )
+        }
+
+        // Re-registers the built-in distributor after the push server changed so the homeserver
+        // pusher and the local subscriber agree on the new server.
+        fun CoroutineScope.reregisterSelfPush() = launch {
+            val selfRegistration = distributors.firstOrNull { it.second.value == buildMeta.applicationId }
+            if (selfRegistration == null) {
+                Timber.w("Built-in distributor not found, cannot re-register after push server change")
+                selfPushServerSaveFailed = true
+                return@launch
+            }
+            pushService.registerWith(
+                matrixClient = matrixClient,
+                pushProvider = selfRegistration.first,
+                distributor = selfRegistration.second,
+            ).fold(
+                onSuccess = {
+                    selfPushServerSaveFailed = false
+                    showSelfPushServerDialog = false
+                    refreshPushProvider++
+                },
+                onFailure = {
+                    Timber.w(it, "Failed to re-register built-in push after server change")
+                    selfPushServerSaveFailed = true
+                },
+            )
+        }
+
+        fun CoroutineScope.checkSelfPushServerHealth(server: String) = launch {
+            selfPushServerHealthServer = server
+            selfPushServerHealth = AsyncData.Loading()
+            val result = runCatchingExceptions {
+                withContext(Dispatchers.IO) {
+                    okHttpClient.newCall(Request.Builder().url("$server/v1/health").build()).execute().use { response ->
+                        if (!response.isSuccessful) throw IOException("Health check failed with HTTP ${response.code}")
+                    }
+                }
+            }
+            // Drop the result if a newer check superseded this one or the dialog was reopened.
+            if (selfPushServerHealthServer == server) {
+                selfPushServerHealth = result.fold(
+                    onSuccess = { AsyncData.Success(Unit) },
+                    onFailure = { AsyncData.Failure(it) },
+                )
+            }
         }
 
         fun handleEvent(event: NotificationSettingsEvent) {
@@ -276,7 +337,51 @@ class NotificationSettingsPresenter(
                 NotificationSettingsEvent.DismissCallRingtoneCopyError -> {
                     callRingtoneCopyError = false
                 }
+                NotificationSettingsEvent.ShowSelfPushServerDialog -> {
+                    selfPushServerHealth = AsyncData.Uninitialized
+                    selfPushServerHealthServer = null
+                    selfPushServerSaveFailed = false
+                    showSelfPushServerDialog = true
+                }
+                NotificationSettingsEvent.DismissSelfPushServerDialog -> showSelfPushServerDialog = false
+                is NotificationSettingsEvent.SaveSelfPushServer -> {
+                    val url = event.url.trim()
+                    if (isValidSelfPushServerUrl(url)) {
+                        selfPushStore.setCustomServer(url)
+                        selfPushServerRefresh++
+                        localCoroutineScope.reregisterSelfPush()
+                    } else {
+                        Timber.w("Rejected invalid built-in push server URL")
+                        selfPushServerSaveFailed = true
+                    }
+                }
+                NotificationSettingsEvent.ResetSelfPushServer -> {
+                    selfPushStore.setCustomServer(null)
+                    selfPushServerRefresh++
+                    localCoroutineScope.reregisterSelfPush()
+                }
+                is NotificationSettingsEvent.CheckSelfPushServerHealth -> {
+                    localCoroutineScope.checkSelfPushServerHealth(event.url.trim().trimEnd('/'))
+                }
             }
+        }
+
+        val isBuiltInDistributor = (currentDistributor as? AsyncData.Success)?.data?.value == buildMeta.applicationId
+        val selfPushServer = if (isBuiltInDistributor) {
+            // Key on the refresh counter so persisting a server re-reads the store.
+            key(selfPushServerRefresh) {
+                val customServer = selfPushStore.getCustomServer()
+                NotificationSettingsState.SelfPushServerState(
+                    customServer = customServer,
+                    effectiveServer = customServer ?: DEFAULT_SELF_PUSH_SERVER,
+                    showDialog = showSelfPushServerDialog,
+                    healthCheck = selfPushServerHealth,
+                    healthCheckServer = selfPushServerHealthServer,
+                    saveFailed = selfPushServerSaveFailed,
+                )
+            }
+        } else {
+            null
         }
 
         return NotificationSettingsState(
@@ -304,6 +409,7 @@ class NotificationSettingsPresenter(
             showCallRingtoneDialog = showCallRingtoneDialog,
             pendingMessageSoundPickerLaunch = pendingMessageSoundPickerLaunch,
             pendingCallRingtonePickerLaunch = pendingCallRingtonePickerLaunch,
+            selfPushServer = selfPushServer,
             eventSink = ::handleEvent,
         )
     }
