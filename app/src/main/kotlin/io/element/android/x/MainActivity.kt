@@ -13,20 +13,16 @@ import android.os.Bundle
 import android.os.SystemClock
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.core.view.postDelayed
@@ -49,7 +45,6 @@ import io.element.android.libraries.designsystem.utils.snackbar.LocalSnackbarDis
 import io.element.android.services.analytics.compose.LocalAnalyticsService
 import io.element.android.x.di.AppBindings
 import io.element.android.x.intent.SafeUriHandler
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import timber.log.Timber
 
@@ -69,12 +64,6 @@ private const val MIN_SPLASH_SCREEN_DURATION_MS = 2_000L
 /** Grace period after the deadline before a frame is forced to re-evaluate the keep condition. */
 private const val SPLASH_RELEASE_GRACE_MS = 50L
 
-/** How long the content entrance plays once the system splash lifts. */
-private const val CONTENT_ENTRANCE_MS = 350
-
-/** The content starts imperceptibly smaller and settles to full size during the entrance. */
-private const val CONTENT_ENTRANCE_SCALE_FROM = 0.97f
-
 open class MainActivity : NodeActivity() {
     private lateinit var mainNode: MainNode
     private lateinit var appBindings: AppBindings
@@ -82,11 +71,7 @@ open class MainActivity : NodeActivity() {
     private var splashScreenDeadline = 0L
     private var splashScreenMinDeadline = 0L
 
-    /** False on warm starts (process alive, activity recreated): no splash, no handoff overlay. */
-    private var isColdStart = true
-
     override fun onCreate(savedInstanceState: Bundle?) {
-        isColdStart = savedInstanceState == null
         Timber.tag(loggerTag.value).d("onCreate, with savedInstanceState: ${savedInstanceState != null}")
         splashScreenDeadline = SystemClock.elapsedRealtime() + MAX_SPLASH_SCREEN_DURATION_MS
         splashScreenMinDeadline = SystemClock.elapsedRealtime() + MIN_SPLASH_SCREEN_DURATION_MS
@@ -157,31 +142,10 @@ open class MainActivity : NodeActivity() {
                 LocalAnalyticsService provides appBindings.analyticsService(),
                 io.element.android.libraries.designsystem.components.media.LocalAutoLoadMedia provides autoLoadMedia,
             ) {
-                // The system splash covers the startup; when it lifts, the content plays its own
-                // entrance so the handoff never reads as a hard cut. Cold starts only.
-                val contentEntrance = remember { Animatable(if (isColdStart) 0f else 1f) }
-                if (isColdStart) {
-                    LaunchedEffect(Unit) {
-                        while (true) {
-                            val ready = isMigrationScreenDisplayed ||
-                                ::mainNode.isInitialized && !mainNode.isShowingSplashScreen()
-                            if (ready && SystemClock.elapsedRealtime() >= splashScreenMinDeadline) break
-                            delay(100)
-                        }
-                        contentEntrance.animateTo(1f, animationSpec = tween(CONTENT_ENTRANCE_MS))
-                    }
-                }
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
-                        .background(ElementTheme.colors.bgCanvasDefault)
-                        .graphicsLayer {
-                            alpha = contentEntrance.value
-                            val scale = CONTENT_ENTRANCE_SCALE_FROM +
-                                (1f - CONTENT_ENTRANCE_SCALE_FROM) * contentEntrance.value
-                            scaleX = scale
-                            scaleY = scale
-                        },
+                        .background(ElementTheme.colors.bgCanvasDefault),
                 ) {
                     if (migrationState.migrationAction.isSuccess()) {
                         Timber.tag(loggerTag.value).d("rendering MainNodeHost (migration success)")
