@@ -10,6 +10,7 @@ package io.element.android.x
 
 import android.content.Intent
 import android.os.Bundle
+import android.os.SystemClock
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.background
@@ -17,12 +18,14 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
+import androidx.core.view.postDelayed
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
@@ -47,14 +50,27 @@ import timber.log.Timber
 
 private val loggerTag = LoggerTag("MainActivity")
 
+/**
+ * Safety net: never keep the system splash screen longer than this, whatever the state of the app.
+ */
+private const val MAX_SPLASH_SCREEN_DURATION_MS = 5_000L
+
+/** Grace period after the deadline before a frame is forced to re-evaluate the keep condition. */
+private const val SPLASH_RELEASE_GRACE_MS = 50L
+
 open class MainActivity : NodeActivity() {
     private lateinit var mainNode: MainNode
     private lateinit var appBindings: AppBindings
+    private var isMigrationScreenDisplayed = false
+    private var splashScreenDeadline = 0L
 
     override fun onCreate(savedInstanceState: Bundle?) {
         Timber.tag(loggerTag.value).d("onCreate, with savedInstanceState: ${savedInstanceState != null}")
-        installSplashScreen()
+        splashScreenDeadline = SystemClock.elapsedRealtime() + MAX_SPLASH_SCREEN_DURATION_MS
+        installSplashScreen().setKeepOnScreenCondition(::shouldKeepSplashScreen)
         super.onCreate(savedInstanceState)
+        // The condition is only evaluated when a frame is about to be drawn, so make sure one is requested once the deadline is over.
+        window.decorView.postDelayed(MAX_SPLASH_SCREEN_DURATION_MS + SPLASH_RELEASE_GRACE_MS) { window.decorView.invalidate() }
         appBindings = bindings()
         setupLockManagement(appBindings.lockScreenService(), appBindings.lockScreenEntryPoint())
         enableEdgeToEdge()
@@ -70,9 +86,25 @@ open class MainActivity : NodeActivity() {
         }
     }
 
+    /**
+     * Keep the system splash screen until the session is restored, instead of drawing an empty screen
+     * between the first frame and the first real screen.
+     */
+    private fun shouldKeepSplashScreen(): Boolean {
+        return when {
+            SystemClock.elapsedRealtime() > splashScreenDeadline -> false
+            isMigrationScreenDisplayed -> false
+            ::mainNode.isInitialized -> mainNode.isShowingSplashScreen()
+            else -> true
+        }
+    }
+
     @Composable
     private fun MainContent(appBindings: AppBindings) {
         val migrationState = appBindings.migrationEntryPoint().present()
+        SideEffect {
+            isMigrationScreenDisplayed = migrationState.migrationAction.isLoading() || migrationState.migrationAction.isFailure()
+        }
         Timber.tag(loggerTag.value).d(
             "migrationAction=${migrationState.migrationAction::class.simpleName} " +
                 "isSuccess=${migrationState.migrationAction.isSuccess()}"

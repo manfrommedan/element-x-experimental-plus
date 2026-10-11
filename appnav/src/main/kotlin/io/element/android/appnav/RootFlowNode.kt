@@ -23,6 +23,7 @@ import com.bumble.appyx.core.plugin.Plugin
 import com.bumble.appyx.core.state.MutableSavedStateMap
 import com.bumble.appyx.core.state.SavedStateMap
 import com.bumble.appyx.navmodel.backstack.BackStack
+import com.bumble.appyx.navmodel.backstack.active
 import com.bumble.appyx.navmodel.backstack.operation.pop
 import com.bumble.appyx.navmodel.backstack.operation.push
 import com.bumble.appyx.navmodel.backstack.transitionhandler.rememberBackstackFader
@@ -115,6 +116,12 @@ class RootFlowNode(
      * login params, whatever the order in which the intent and the first nav state emission are processed.
      */
     private var pendingLoginParams: LoginParams? = null
+
+    /**
+     * True while the session is being restored and only an empty node is displayed.
+     * Used to keep the system splash screen on screen instead of showing a blank screen.
+     */
+    fun isShowingSplashScreen(): Boolean = backstack.active?.key?.navTarget is NavTarget.SplashScreen
 
     override fun onBuilt() {
         analyticsColdStartWatcher.start()

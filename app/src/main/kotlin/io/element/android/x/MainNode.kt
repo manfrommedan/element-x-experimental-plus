@@ -14,6 +14,7 @@ import android.os.Parcelable
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.lifecycleScope
+import com.bumble.appyx.core.children.nodeOrNull
 import com.bumble.appyx.core.composable.Children
 import com.bumble.appyx.core.modality.BuildContext
 import com.bumble.appyx.core.navigation.model.permanent.PermanentNavModel
@@ -55,6 +56,14 @@ class MainNode(
         lifecycleScope.launch {
             waitForChildAttached<RootFlowNode>().handleIntent(intent)
         }
+    }
+
+    /**
+     * True until the [RootFlowNode] has something else than its empty splash node to display.
+     */
+    fun isShowingSplashScreen(): Boolean {
+        val rootFlowNode = children.value.values.firstNotNullOfOrNull { it.nodeOrNull as? RootFlowNode }
+        return rootFlowNode?.isShowingSplashScreen() ?: true
     }
 
     @Parcelize
