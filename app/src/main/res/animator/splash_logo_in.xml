@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?><!--
+  ~ Copyright (c) 2026 Element Creations Ltd.
+  ~
+  ~ SPDX-License-Identifier: AGPL-3.0-only OR LicenseRef-Element-Commercial.
+  ~ Please see LICENSE files in the repository root for full details.
+  -->
+<!--
+  Entrance of the splash screen logo: fades in while scaling up slightly.
+  Kept well under the one second the system gives the splash icon animation.
+-->
+<set xmlns:android="http://schemas.android.com/apk/res/android"
+    android:ordering="together">
+    <objectAnimator
+        android:duration="700"
+        android:interpolator="@android:interpolator/linear_out_slow_in"
+        android:propertyName="alpha"
+        android:valueFrom="0"
+        android:valueTo="1"
+        android:valueType="floatType" />
+    <objectAnimator
+        android:duration="700"
+        android:interpolator="@android:interpolator/linear_out_slow_in"
+        android:propertyName="scaleX"
+        android:valueFrom="0.86"
+        android:valueTo="1"
+        android:valueType="floatType" />
+    <objectAnimator
+        android:duration="700"
+        android:interpolator="@android:interpolator/linear_out_slow_in"
+        android:propertyName="scaleY"
+        android:valueFrom="0.86"
+        android:valueTo="1"
+        android:valueType="floatType" />
+</set>

@@ -14,6 +14,10 @@
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
+    <group
+        android:name="splash_logo"
+        android:pivotX="54"
+        android:pivotY="54">
     <path android:pathData="M54,54m-28.4,0a28.4,28.4 0,1 1,56.8 0a28.4,28.4 0,1 1,-56.8 0">
         <aapt:attr name="android:fillColor">
             <gradient
@@ -51,5 +55,6 @@
         <path
             android:fillColor="#FFFFFFFF"
             android:pathData="M50.8,19.6C52.5673,19.6 54,21.0327 54,22.8C54,34.5821 44.4487,44.1333 32.6667,44.1333C30.8994,44.1333 29.4667,42.7006 29.4667,40.9333C29.4667,39.166 30.8994,37.7333 32.6667,37.7333C40.9141,37.7333 47.6,31.0475 47.6,22.8C47.6,21.0327 49.0327,19.6 50.8,19.6Z" />
+    </group>
     </group>
 </vector>
