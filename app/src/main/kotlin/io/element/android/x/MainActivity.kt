@@ -13,17 +13,31 @@ import android.os.Bundle
 import android.os.SystemClock
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalUriHandler
+import androidx.compose.ui.res.colorResource
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.unit.dp
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.core.view.postDelayed
 import androidx.lifecycle.Lifecycle
@@ -45,6 +59,7 @@ import io.element.android.libraries.designsystem.utils.snackbar.LocalSnackbarDis
 import io.element.android.services.analytics.compose.LocalAnalyticsService
 import io.element.android.x.di.AppBindings
 import io.element.android.x.intent.SafeUriHandler
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import timber.log.Timber
 
@@ -64,6 +79,12 @@ private const val MIN_SPLASH_SCREEN_DURATION_MS = 2_000L
 /** Grace period after the deadline before a frame is forced to re-evaluate the keep condition. */
 private const val SPLASH_RELEASE_GRACE_MS = 50L
 
+/** How long the splash handoff overlay takes to dissolve into the content. */
+private const val SPLASH_HANDOFF_MS = 450
+
+/** Logo size of the handoff overlay, matching the system splash icon closely enough for the crossfade to hide the seam. */
+private const val SPLASH_HANDOFF_LOGO_SIZE_DP = 120
+
 open class MainActivity : NodeActivity() {
     private lateinit var mainNode: MainNode
     private lateinit var appBindings: AppBindings
@@ -71,7 +92,11 @@ open class MainActivity : NodeActivity() {
     private var splashScreenDeadline = 0L
     private var splashScreenMinDeadline = 0L
 
+    /** False on warm starts (process alive, activity recreated): no splash, no handoff overlay. */
+    private var isColdStart = true
+
     override fun onCreate(savedInstanceState: Bundle?) {
+        isColdStart = savedInstanceState == null
         Timber.tag(loggerTag.value).d("onCreate, with savedInstanceState: ${savedInstanceState != null}")
         splashScreenDeadline = SystemClock.elapsedRealtime() + MAX_SPLASH_SCREEN_DURATION_MS
         splashScreenMinDeadline = SystemClock.elapsedRealtime() + MIN_SPLASH_SCREEN_DURATION_MS
@@ -157,8 +182,59 @@ open class MainActivity : NodeActivity() {
                             modifier = Modifier,
                         )
                     }
+                    SplashHandoffOverlay()
                 }
             }
+        }
+    }
+
+    /**
+     * Some firmwares (MIUI most notably) replace the system splash screen with their own
+     * implementation that ignores the animated icon, so the logo entrance never plays there.
+     * This overlay mirrors the splash exactly — same background, same logo — and owns the
+     * handoff effect itself: once the app is ready and the splash minimum has passed, the logo
+     * scales up a touch while the whole layer fades into the content.
+     */
+    @Composable
+    private fun SplashHandoffOverlay() {
+        if (!isColdStart) return
+        var visible by remember { mutableStateOf(true) }
+        if (!visible) return
+
+        val overlayAlpha = remember { Animatable(1f) }
+        val logoScale = remember { Animatable(1f) }
+
+        LaunchedEffect(Unit) {
+            while (true) {
+                val ready = isMigrationScreenDisplayed || ::mainNode.isInitialized && !mainNode.isShowingSplashScreen()
+                if (ready && SystemClock.elapsedRealtime() >= splashScreenMinDeadline) break
+                delay(100)
+            }
+            launch { logoScale.animateTo(1.08f, animationSpec = tween(SPLASH_HANDOFF_MS)) }
+            overlayAlpha.animateTo(0f, animationSpec = tween(SPLASH_HANDOFF_MS))
+            visible = false
+        }
+
+        val splashBackground = colorResource(
+            if (isSystemInDarkTheme()) R.color.splashscreen_bg_dark else R.color.splashscreen_bg_light
+        )
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(splashBackground)
+                .alpha(overlayAlpha.value),
+            contentAlignment = Alignment.Center,
+        ) {
+            Image(
+                painter = painterResource(R.drawable.ic_splash),
+                contentDescription = null,
+                modifier = Modifier
+                    .size(SPLASH_HANDOFF_LOGO_SIZE_DP.dp)
+                    .graphicsLayer {
+                        scaleX = logoScale.value
+                        scaleY = logoScale.value
+                    },
+            )
         }
     }
 
