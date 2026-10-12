@@ -1,281 +1,296 @@
-# Element X Android, experiments fork
+# Element X Android, экспериментальный форк
 
-> **Like Element X, but better.**
+> **Как Element X, только лучше.**
 
-This branch carries experimental UX and platform-stability changes layered on
-top of [upstream `main`](https://github.com/element-hq/element-x-android).
-Everything is opt-in or behind a Labs toggle, so the rest of the app behaves
-exactly like the official Element X release until the switch is flipped.
+В этой ветке собраны экспериментальные правки UX и стабильности
+платформы поверх [апстримного `main`](https://github.com/element-hq/element-x-android).
+Всё либо опционально, либо спрятано за тумблером в Labs, так что без
+явного включения приложение работает точно так же, как официальный
+Element X.
 
-> Russian version: [EXPERIMENTS.ru.md](EXPERIMENTS.ru.md)
+> English version: [EXPERIMENTS.en.md](EXPERIMENTS.en.md)
 
+## ⚠️ Дисклеймер
 
-## ⚠️ Disclaimer
+* **Неофициальный.** Не связан с Element Hq Ltd. и командой Element
+  Call, не получал их одобрения и с ними не координируется.
+* **Экспериментальный.** Сборки делаются из активной ветки, шероховатости
+  возможны.
+* **Как есть, на свой страх и риск.** Никаких гарантий, никакого
+  контракта поддержки, никакого SLA. Бэкапы и проверка работоспособности
+  на тебе.
+* **Не пинать.** Форк нужен чтобы пробовать идеи, не отвлекая команду
+  апстрима. Не открывайте в `element-hq/element-x-android` issue по
+  правкам, сделанным здесь.
 
-* **Unofficial.** Not affiliated with, endorsed by, or coordinated with
-  Element Hq Ltd. or the Element Call team.
-* **Experimental.** Builds are produced from a moving branch; expect rough
-  edges.
-* **As is, at your own risk.** No warranty, no support contract, no SLA.
-  Backups and testing are on you.
-* **Don't kick us.** This fork exists so we can test ideas safely without
-  bothering upstream maintainers, so please don't open issues against
-  `element-hq/element-x-android` for changes that originated here.
+## Что в этой сборке (на базе Element X v26.09.4)
 
-## What's in this build (Element X v26.09.4 base)
+Форк следует за апстримным Element X (сейчас **v26.09.4**) и добавляет фишки
+ниже. Каждая опциональна: если она меняет существующий UI, то спрятана за
+тумблером в Labs, и с выключенными тумблерами приложение ведёт себя ровно как
+официальный Element X.
 
-This fork tracks upstream Element X (currently **v26.09.4**) and adds the
-features below. Each one is optional: where it changes existing UI it sits
-behind a Labs toggle, so with the toggles off the app behaves exactly like
-official Element X.
+* **Phone-style звонки** (Labs → "Phone-style calls", по умолчанию включено).
+  Голосовой звонок выглядит как настоящий телефон: крупный аватар, таймер mm:ss и
+  четыре большие кнопки в стиле iOS. Кнопки голоса и видео есть в шапке любой
+  комнаты, групповой или личной, и больше нет экрана-лобби, который надо
+  протапывать. Синтезированный гудок, звук в ушной динамик и нормальные гудки в
+  групповом звонке делают звонок похожим на WhatsApp или Signal, а не на сетку
+  участников. Выключите тумблер - вернётся обычный Element Call.
 
-* **Phone-style calls** (Labs → "Phone-style calls", on by default). Voice calls
-  look like a real phone: a big avatar, an mm:ss timer and four iOS-style buttons.
-  Voice and video buttons sit in every room header, group or DM, and there is no
-  lobby screen to tap through. Synthesised ringback, earpiece-first audio and
-  proper group-call ringing make a call feel like WhatsApp or Signal rather than
-  a meeting grid. Turn it off for stock Element Call.
+* **mxtr, антицензурный прокси** (Настройки → Антицензурный прокси, по умолчанию
+  выключено). Встроенный прокси тоннелирует трафик Matrix через ваш сервер,
+  поэтому приложение работает даже там, где DPI режет подключение к
+  homeserver'у, и отдельный VPN не нужен. Порт назначает система, а при выключении
+  сразу идёт прямой коннект. Настройки на русском и английском.
 
-* **mxtr anti-censorship proxy** (Settings → Anti-censorship proxy, off by
-  default). An in-app proxy that tunnels your Matrix traffic through your own
-  server, so the app keeps working on networks that block homeservers by DPI, with
-  no separate VPN. It uses an OS-assigned local port and falls straight back to a
-  direct connection when off. Settings in English and Russian.
+* **Множественный выбор сообщений** (Labs → "Multi-select messages", по умолчанию
+  выключено). Долгий тап по сообщению включает выбор, дальше можно массом
+  копировать, переслать или удалить до 30 штук за раз. На медиа долгий тап
+  открывает обычное меню, где есть пункт "Выбрать". Системные события и удалённые
+  сообщения в выбор не попадают, а сам выбор переживает поворот экрана
+  (апстрим-issue #6737). Выделение свайпом было, но его убрали: оно слишком легко
+  срабатывало при обычной прокрутке.
 
-* **Multi-select messages** (Labs → "Multi-select messages", off by default).
-  Long-press a message to start selecting, then bulk copy, forward or delete up to
-  30 at once. Long-press media for its usual menu, where "Select" also starts a
-  selection. System events and deleted messages stay out of the selection, and it
-  survives a rotation (upstream issue #6737). Sweeping a range by dragging was
-  there and got dropped: it fired far too easily during ordinary scrolling.
+* **Отправка пачки фото и видео.** Прикрепить несколько файлов за один заход,
+  до 30 штук, как в WhatsApp и Telegram, можно всегда, это фича форка. Наш экран
+  превью: лента миниатюр, добавление на лету с отсечкой дублей, сжатие
+  настраивается на каждый элемент отдельно, подпись одна на весь блок.
+  Как батч уедет, решают два тумблера. Labs → "Сообщение на каждую картинку"
+  (по умолчанию включён) шлёт по сообщению на файл: так видит любой клиент, и
+  каждую картинку можно удалить или переслать отдельно. Выключи его и включи
+  "Send gallery messages" в режиме разработчика (Настройки, восемь тапов по
+  строке с версией, Developer options, Feature flags), и батч уедет одним
+  галерея-событием, коллажем. Msgtype у коллажа пока нестабильный
+  (`dm.filament.gallery`, MSC4274 не в спеке), так что клиент без поддержки
+  покажет текст вместо картинок; на element-web поддержки нет. И это одно
+  сообщение, поэтому отдельную картинку из набора не удалить и не переслать.
 
-* **Send a batch of photos and videos.** Attaching several files in one trip, up
-  to 30, the way WhatsApp and Telegram do it, is always available; it is a fork
-  feature. The preview screen is ours: a thumbnail strip, adding more on the fly
-  with duplicates skipped, compression chosen per item, one caption for the whole
-  block. Two toggles decide how the batch leaves. Labs → "A message per picture"
-  (on by default) sends one message per file, which every client renders and
-  which lets each picture be deleted or forwarded on its own. Turn it off and
-  turn on "Send gallery messages" in the developer options (Settings, eight taps
-  on the version line, Developer options, Feature flags) and the batch leaves as
-  a single gallery event, a collage. The collage msgtype is still unstable
-  (`dm.filament.gallery`, MSC4274 is not in the spec yet), so a client without
-  support shows text instead of pictures; element-web has none. It is also one
-  message, so a single picture out of the set cannot be deleted or forwarded on
-  its own.
+* **Избранное закреплено сверху** (Labs → "Pin favourites at the top", по
+  умолчанию включено). Избранные комнаты выносятся в отдельную секцию вверху
+  списка чатов, чтобы те, которыми вы реально пользуетесь, были под рукой.
 
-* **Pin favourites at the top** (Labs → "Pin favourites at the top", on by
-  default). Your favourite rooms get their own section at the top of the chat
-  list, so the ones you actually use stay in reach.
+* **Копировать Matrix ID из настроек** (Labs → "Copy Matrix ID from settings", по
+  умолчанию включено). Кнопка копирования рядом с вашим Matrix ID в настройках,
+  чтобы делиться им в один тап.
 
-* **Copy Matrix ID from settings** (Labs → "Copy Matrix ID from settings", on by
-  default). A copy button next to your Matrix ID in settings, so you can share it
-  in one tap.
+* **Скрывать удалённые сообщения** (Настройки → Дополнительные настройки, по
+  умолчанию выключено). Убирает из таймлайна плашки "сообщение удалено", чтобы
+  вычищенная переписка читалась чисто.
 
-* **Hide deleted messages** (Settings → Advanced settings, off by default). Drops
-  the "message deleted" placeholders from the timeline so a tidied-up chat reads
-  cleanly.
+* **Встроенные push-уведомления** (Labs → "Built-in push notifications", по
+  умолчанию выключено; экспериментально). Приложение само становится
+  UnifiedPush-дистрибьютором: отдельное приложение ntfy не нужно. Лёгкий
+  foreground-сервис держит WebSocket- или JSON-stream-подключение к серверу
+  уведомлений (по умолчанию ntfy.sh, можно свой сервер с токеном доступа),
+  догоняет пропущенное при переподключении и переживает перезагрузку, смену
+  сети и агрессивные чистки OEM-прошивок. Управление: Настройки → Уведомления →
+  Дополнительно → Встроенный push: сервер, протокол, исключение из оптимизации
+  батареи и живой статус подключения. Экспериментально: пуши могут приходить с
+  задержкой или теряться; если сообщения критичны, держите приложение ntfy под
+  рукой, а о проблемах пишите в issue нашего репозитория - встроенный отчёт об
+  ошибке уходит в апстрим, который про эту фичу не знает.
 
-* **Built-in push notifications** (Labs → "Built-in push notifications", off by
-  default; experimental). The app can be its own UnifiedPush distributor: no
-  separate ntfy app needed. A lightweight foreground listener holds a WebSocket
-  or JSON-stream connection to the notification server (ntfy.sh by default, or
-  your own server with an access token), replays whatever it missed while
-  reconnecting, and survives reboots, network switches and aggressive OEM task
-  killers. Manage it in Settings → Notifications → Advanced → Built-in push:
-  server, protocol, battery exemption and live connection status. Experimental:
-  pushes may arrive late or not at all; if your messages are critical, keep the
-  ntfy app around, and if it misbehaves please open an issue in this repo - the
-  in-app bug report goes to upstream, who never heard of this feature.
+* **Сплеш-заставка при запуске.** Пока восстанавливается сессия, на экране держится
+  иконка приложения вместо пустой вспышки (спасибо [@OolaaPleur](https://github.com/OolaaPleur)
+  за первоначальную реализацию).
 
-* **Heads-up message notifications.** Noisy messages pop over the current
-  screen the way Telegram and WhatsApp do, instead of landing quietly in the
-  shade. No toggle; silent rooms stay silent, and per-room settings are
-  respected as before.
+* **Всплывающие уведомления о сообщениях.** Важные сообщения всплывают поверх
+  текущего экрана, как в Telegram и WhatsApp, а не падают молча в шторку.
+  Тумблера нет; тихие комнаты остаются тихими, настройки комнат уважаются.
 
-* **Element X+ icon.** The launcher icon mirrors the swirl and trades the black
-  ring for graphite, so the fork is easy to tell apart from stock Element X at
-  a glance.
+* **Иконка Element X+.** Спираль на иконке зеркально отражена, а кольцо
+  вместо чёрного графитовое: форк легко отличить от стокового Element X с
+  первого взгляда.
 
-* **Link previews** (Settings → Advanced settings, shown in unencrypted rooms only
-  by default). A message that contains a link gets a preview card (site name,
-  title, description and image) fetched through your homeserver, with a setting to
-  show previews never, only in unencrypted rooms, or always. Encrypted rooms never
-  fetch a preview unless you pick "always", and only homeserver-proxied images are
-  loaded so a preview does not leak your IP to the linked site. Matrix permalinks
-  and mentions are never previewed. An embedded YouTube player was tried and
-  dropped: keeping a WebView alive per message in the timeline cost more than it
-  was worth, so a link opens in the YouTube app.
+* **Предпросмотр ссылок** (Настройки → Дополнительные настройки, по умолчанию
+  только в незашифрованных комнатах). У сообщения со ссылкой появляется карточка
+  предпросмотра (сайт, заголовок, описание и картинка), которую забирает ваш
+  homeserver; в настройке можно выбрать: не показывать, только в незашифрованных
+  комнатах, или всегда. В зашифрованных комнатах предпросмотр не запрашивается,
+  пока вы явно не выберете "всегда", а картинки грузятся только через homeserver,
+  чтобы предпросмотр не светил ваш IP на сторонний сайт. Матрикс-пермалинки и
+  упоминания не превьюятся. Встроенный плеер YouTube пробовали и убрали: держать
+  WebView на каждое сообщение в ленте оказалось дороже пользы, ссылка открывается
+  в приложении YouTube.
 
-## How this fork differs from upstream
+## Чем форк отличается от апстрима
 
-All of the call-related changes below are gated behind the
-**Labs → "Phone-style calls"** toggle (on by default). Disable it to fall
-back to upstream Element Call behaviour with no visual or functional
-difference.
+Все правки звонков управляются тумблером **Labs → "Phone-style calls"**
+(включён по умолчанию). Если выключить, поведение возвращается к
+апстримному Element Call без визуальных и функциональных отличий.
 
-### Call experience
+### Сам звонок
 
-1. **Calls look like a phone, not a meeting grid.** A voice call renders as a
-   classic phone screen: a centred avatar, an mm:ss timer underneath, and four
-   large iOS Phone style buttons across the bottom (microphone, speaker, camera,
-   hang up), instead of upstream's participant grid with a large remote tile and
-   small bottom controls.
+1. **Звонок выглядит как телефон, а не как сетка совещания.** Голосовой звонок
+   рисуется как обычный телефон: крупный аватар по центру, под ним таймер mm:ss и
+   снизу четыре больших кнопки в духе iOS Phone (микрофон, динамик, камера, отбой),
+   вместо стандартной для Element Call сетки участников с большим тайлом и мелкими
+   кнопками внизу.
 
-2. **Ringback that comes out of the right speaker, and cuts out the instant the
-   call connects.** Outgoing voice calls play a classic ringback rather than
-   looping the upstream mp3, and it stops the moment the peer joins, without the
-   lag of waiting for the LiveKit room to register them. The app plays it on the
-   voice call stream, so it follows the call route from the first pulse instead
-   of starting in the loudspeaker and moving to the earpiece once the call's own
-   audio takes over, which is what web audio in a WebView does on Android.
+2. **Гудки идут в разговорный динамик и смолкают ровно в момент соединения.**
+   Исходящий голосовой проигрывает классический гудок вместо зацикленного mp3 как
+   в апстриме, и обрывается точно когда собеседник принял вызов, без задержки на
+   регистрацию участника в LiveKit. Тон играет само приложение по голосовому
+   каналу, поэтому маршрут верный с первой посылки: звук из вебвью Android считает
+   медиа и до подключения разговора отдаёт в громкоговоритель.
 
-3. **You can tell it is actually ringing.** The timer slot, empty in upstream while
-   the caller waits, now shows a "Ringing…" / "Соединение…" line with a soft
-   opacity pulse that cross-fades into the running mm:ss timer once the peer joins.
+3. **Видно, что идут гудки.** Место под таймер, в апстриме пустое пока инициатор
+   ждёт ответа, теперь показывает надпись "Соединение…" с лёгкой пульсацией
+   прозрачности, которая плавно сменяется на бегущий таймер mm:ss в момент
+   подключения второй стороны.
 
-4. **One tap to call from any room.** Every room header carries both a voice and a
-   video button, groups included. Upstream shows only a video button in groups and
-   a voice button only in DMs.
+4. **Позвонить из любой комнаты в один тап.** В шапке каждой комнаты есть и
+   голосовая, и видео-кнопка, включая группы. Апстрим в группах даёт только видео,
+   а голос только в личке.
 
-5. **No lobby to tap through.** Tapping a header button drops you straight into the
-   call, the WhatsApp and Signal pattern, instead of upstream's lobby preview with
-   a "Join" button on every non-DM call.
+5. **Без экрана-превью перед звонком.** Тап по кнопке в шапке сразу попадает в
+   звонок, как в WhatsApp и Signal, вместо апстримного превью с кнопкой
+   "Присоединиться" перед каждым не-личным звонком.
 
-6. **Group voice calls actually ring.** Upstream's `StartNewCall` intent set
-   neither `waitForCallPickup` nor a ring-type RTC notification, so the caller
-   heard silence and receivers got a mute banner. The fork forwards the same flags
-   upstream uses for DM voice (`waitForCallPickup`, `sendNotificationType=ring`,
-   `autoLeave`), so a group voice call rings like a 1-on-1 one.
+6. **Групповые голосовые реально звонят.** В апстриме намерение `StartNewCall` не
+   выставляло ни `waitForCallPickup`, ни уведомление типа ring, поэтому инициатор
+   слышал тишину, а получатели видели беззвучный баннер. Форк передаёт тот же набор
+   флагов, что апстрим использует для лички (`waitForCallPickup`,
+   `sendNotificationType=ring`, `autoLeave`), так что групповой голосовой звонит как
+   звонок один на один.
 
-7. **The right incoming-call prompt for group voice.** With the RTC notification
-   event pinned to "audio", the receiver gets a "Decline / Answer" pair instead of
-   upstream's "Decline / Video" fallback for groups.
+7. **Правильная плашка входящего для группового голоса.** За счёт
+   `callIntent="audio"` в RTC-уведомлении получатель видит пару "Принять /
+   Отклонить" вместо апстримного "Отклонить / Видео", который подставляется для
+   групп.
 
-8. **The screen shows who you are calling.** While a call waits to be answered the
-   spotlight holds the person being rung, or the room itself when a room is called
-   rather than a person. Upstream picks whichever room member comes first in a map,
-   which in a room of several is nobody in particular.
+8. **На экране тот, кому звонишь.** Пока идёт вызов, в центре собеседник, а если
+   звонок в комнату — сама комната. Апстрим ставит туда участника, который первым
+   попался в списке, что в комнате из нескольких человек не значит ничего.
 
-9. **Tiles on a phone held sideways, and only when asked for.** Turning the phone
-   offers a switch to Element Call's own speaker-and-column layout. Upright there
-   is no room for it, so it is neither offered nor honoured, and a call is never
-   drawn as a grid of one tile showing your own face.
+9. **Плитки в горизонте и только по нажатию.** При повороте появляется переключатель
+   на апстримовскую раскладку «спикер и колонка». В вертикали для неё нет места, так
+   что она не предлагается и не применяется, и звонок никогда не рисуется сеткой из
+   одной плитки с твоим собственным лицом.
 
-10. **The floating window shows the call, not its controls.** Sending the call to
-   the corner leaves the caller on screen and nothing else, as upstream does;
-   a row of controls built for a phone does not fit a window that size.
+10. **В плавающем окне звонок, а не его кнопки.** Свёрнутый в угол звонок показывает
+   собеседника и ничего больше, как и у апстрима: ряд кнопок, свёрстанный под
+   телефон, в окно такого размера не помещается.
 
-11. **No leftover ringtone or "Calling…" badge.** The phone-style layer suppresses
-   upstream's lobby ringtone, large "Calling…" header and earpiece overlay, since
-   its own UI already conveys the same thing.
+11. **Без лишнего рингтона и плашки "Calling…".** Наш слой подавляет lobby-рингтон
+   апстрима, большой заголовок "Calling…" и оверлей наушника, потому что его
+   собственный UI и так передаёт ту же информацию.
 
-### Audio system
+### Аудио
 
-12. **VoIP audio focus claim on call start.** Upstream relies on the
-    system to route focus to us when the call activity opens, which fails
-    on Pixel / AOSP off the back of an incoming-call notification and
-    leaves the call silent. The fork explicitly claims VoIP audio focus,
-    fixing the silent-incoming-call path.
+12. **VoIP-фокус запрашивается явно.** Апстрим рассчитывает что
+    система сама направит на нас фокус когда открывается активити
+    звонка. На Pixel и AOSP при заходе через уведомление о входящем
+    это не работает и звонок остаётся беззвучным. Форк явно
+    запрашивает VoIP audio focus, что и закрывает баг "не слышу
+    собеседника на входящем".
 
-13. **Music auto-resume after the call.** Upstream requests
-    `AUDIOFOCUS_GAIN` (durable), which sends `AUDIOFOCUS_LOSS` to other
-    apps and leaves Spotify, YouTube Music or podcast clients paused
-    after the call ends. The fork uses `AUDIOFOCUS_GAIN_TRANSIENT`, the
-    iOS Phone / WhatsApp behaviour, so the players resume on their own.
+13. **Музыка возобновляется сама после звонка.** Апстрим запрашивает
+    `AUDIOFOCUS_GAIN`, после чего Spotify, YouTube Music и подкаст-
+    клиенты получают `AUDIOFOCUS_LOSS` и остаются на паузе. Форк
+    использует `AUDIOFOCUS_GAIN_TRANSIENT`, как iOS Phone и WhatsApp,
+    и плеер возобновляет воспроизведение автоматически.
 
-14. **Earpiece-first routing for voice.** Upstream starts a voice call
-    on the loudspeaker. The fork prioritises the built-in earpiece for
-    audio-only calls, the way a native dialer does. External devices
-    (Bluetooth, wired headsets) keep their priority either way.
+14. **Голос идёт в ушной динамик, а не в спикер.** Апстрим стартует
+    голосовой звонок через громкую связь. Форк для голосовых вызовов
+    приоритизирует встроенный ушной динамик, как обычная звонилка.
+    Внешние устройства (Bluetooth, проводные гарнитуры) выигрывают в
+    любом случае.
 
-15. **Audible call-stream volume floor.** Upstream leaves the call stream
-    silent if the user had it turned all the way down before the call.
-    The fork bumps it to a usable level at call start while respecting
-    higher user-set volumes.
+15. **Громкость поднимается до слышимого минимума.** Если перед
+    звонком пользователь убавил громкость call-stream до нуля,
+    апстрим оставит звонок беззвучным. Форк поднимает громкость до
+    минимально слышимого уровня на старте, при этом более громкие
+    значения, выставленные пользователем, не трогаются.
 
-### Compatibility
+### Совместимость
 
-16. **`Promise.withResolvers` polyfill.** The embedded Element Call
-    bundle uses `Promise.withResolvers`, available from Chromium 119,
-    which is missing on devices like Huawei phones without Google
-    Services that remain on Chromium 114 or earlier. The fork ships an
-    ESM polyfill so the bundle boots cleanly on those WebViews.
+16. **Полифил `Promise.withResolvers`.** Встроенный bundle Element
+    Call использует `Promise.withResolvers`, доступный с Chromium
+    119. На устройствах без Google Services (например, на телефонах
+    Huawei) WebView застрял на Chromium 114 и ниже, и без полифила
+    звонок там просто белый экран. Форк подключает ESM-полифил, и
+    bundle стартует чисто на этих WebView.
 
-17. **CSS Grid `min/max/minmax` fallback.** The bundle uses Grid with
-    `min/max/minmax` (Chromium 79+), which the fork backs up with a
-    two-step CSS fallback so the call screen renders on older WebViews.
+17. **Запасной CSS Grid `min/max/minmax`.** Bundle использует CSS
+    Grid с `min/max/minmax` (Chromium 79+). Форк подкладывает
+    двухступенчатый запасной CSS, чтобы экран звонка корректно
+    отрисовывался и на старых WebView.
 
-### Timeline card
+### Карточка в таймлайне
 
-18. **Receiver-side call duration.** The duration of a connected call
-    is now persisted on the receiving device too, not just on the
-    caller's. Both ends now show the same number of seconds.
+18. **Длительность звонка сохраняется и у получателя.** Раньше она
+    была только у инициатора, и количество секунд в карточке звонка
+    различалось на двух устройствах. Теперь оно одинаковое.
 
-19. **No duplicate timeline message.** Upstream renders both a
-    "voice call no answer" text message and a structured call card. The
-    fork drops the text message and keeps only the card.
+19. **Без дублирующего сообщения в таймлайне.** Апстрим вешает в чат
+    сначала текст "голосовой вызов нет ответа", а потом ещё и
+    структурную карточку звонка. Форк убирает текст и оставляет
+    только карточку.
 
-### Build and packaging
+### Сборка
 
-20. **Side-by-side install.** The release build uses applicationId
-    `io.element.android.x.plusng` so the fork installs cleanly next to
-    the official Element X without overwriting it. The package id changed
-    from an earlier `.plus`, so if you had that build, uninstall it first
-    - the new one cannot upgrade in place.
+20. **Установка рядом с официальным.** Релизный билд использует
+    `applicationId` `io.element.android.x.plusng`, поэтому форк
+    устанавливается рядом с официальным Element X и не перетирает его.
+    Package id сменился с прежнего `.plus`, так что если стоял старый
+    билд, удалите его перед установкой - обновиться поверх нельзя.
 
-21. **`-PdisableR8` for low-RAM build hosts.** R8 stays enabled in CI
-    (16 GB RAM) for the production size win, but local builds on hosts
-    with under ~10 GB can pass `-PdisableR8` to skip the step rather
-    than running out of memory.
+21. **`-PdisableR8` для слабых хостов.** В CI R8 включён (там 16 ГБ
+    оперативки и нужна минификация), но при локальной сборке на
+    хосте с менее ~10 ГБ можно передать `-PdisableR8` и пропустить
+    шаг минификации, иначе R8 уходит в OOM.
 
 ### CI
 
-22. **Manual dispatch only.** The build workflow runs on
-    `workflow_dispatch` rather than on every push, avoiding wasted CI
-    minutes and a release per commit on a fast-moving branch.
+22. **Только ручной запуск.** Сборка триггерится через
+    `workflow_dispatch`, а не на каждый push, чтобы не плодить
+    релизы при каждом коммите на быстро живущей ветке и не сжигать
+    минуты CI.
 
-23. **Self-pruning releases and runs.** The workflow keeps at most three
-    releases (the current build plus two previous, for rollback) and
-    deletes older completed workflow runs as part of every successful
-    build.
+23. **Чистка релизов и старых прогонов.** Workflow держит максимум
+    три релиза (текущий плюс два предыдущих, на случай отката), а
+    устаревшие successful workflow-runs удаляются как часть каждой
+    успешной сборки.
 
-## Known limitations
+## Известные ограничения
 
-Items the fork knows about but has not addressed yet. Pull requests and
-feedback welcome.
+Что форк осознаёт, но пока не починил. Pull request'ы и обратная
+связь приветствуются.
 
-* **Timeline card does not distinguish answered, declined and missed
-  calls.** Connected calls show a duration, but a call that was
-  declined or never picked up looks the same as a generic call entry
-  with no extra signal. Native dialers use a coloured icon (red for
-  missed, neutral for answered) plus "no answer" / "declined" text.
-  We plan to wire that state through from the call lifecycle into the
-  card composable.
-* **First moment of ringback can leak through the loudspeaker.** The
-  Web Audio context inside the WebView starts emitting before
-  Android's `setCommunicationDevice` finishes pinning the route to the
-  earpiece, so on some devices the very first ~200 ms of dial tone is
-  routed to the speaker before the route flips. Cleanest fix is a
-  native `ToneGenerator(STREAM_VOICE_CALL)` ringback, which we are
-  holding off on so the Web Audio path stays cross-platform.
+* **Карточка в таймлайне не различает принятые, отклонённые и
+  пропущенные звонки.** У состоявшегося звонка показывается
+  длительность, а отклонённый или непринятый выглядит как обычная
+  запись о звонке без дополнительного сигнала. Нативные dialer'ы
+  используют цветной значок (красный для пропущенных, нейтральный
+  для принятых) плюс надпись "нет ответа" / "отклонён". Планируем
+  пробросить это состояние из жизненного цикла звонка в карточку.
+* **Первый момент гудка может уходить в спикер.** Контекст Web Audio
+  внутри WebView начинает воспроизведение раньше, чем Android
+  успевает зафиксировать маршрут через `setCommunicationDevice` на
+  ушном динамике. На некоторых устройствах первые ~200 мс гудка идут
+  через громкую связь, а потом маршрут переключается. Чистое
+  решение, нативный `ToneGenerator(STREAM_VOICE_CALL)`, мы пока не
+  ставим, чтобы оставить Web Audio кросс-платформенным.
 
-## Building
+## Сборка
 
 ```bash
 ./gradlew :app:assembleFdroidRelease -PdisableR8 --no-daemon
 ```
 
-`-PdisableR8` is required on hosts with less than ~16 GB RAM. The bundled
-Element Call assets are committed under `app/src/main/assets/element-call/`,
-so no separate element-call build is needed for a routine APK build.
+`-PdisableR8` нужен на хостах меньше ~16 ГБ ОЗУ. Бандл Element Call
+закоммичен в `app/src/main/assets/element-call/`, отдельная сборка
+element-call для рутинной сборки APK не нужна.
 
-## How to opt out of an experiment
+## Как отключить эксперимент
 
-Open Settings → Advanced settings → Labs and flip the relevant toggle. The
-change applies to the next call placed; in-progress calls are unaffected.
+Settings → Advanced settings → Labs → выключить нужный тумблер.
+Изменение применится к следующему звонку, идущие звонки не
+затрагиваются.
 
-## License
+## Лицензия
 
-Same AGPL-3.0-only / LicenseRef-Element-Commercial dual licensing as
-upstream. See the `LICENSE-*` files in this repository.
+Та же, что и у апстрима: AGPL-3.0-only / LicenseRef-Element-Commercial
+(dual licensing). Подробности в файлах `LICENSE-*` в корне репозитория.

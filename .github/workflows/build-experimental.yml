@@ -194,25 +194,26 @@ jobs:
           fail_on_unmatched_files: true
           generate_release_notes: false
           body: |
-            **Like Element X, but better.**
+            **Как Element X, только лучше.**
 
-            Unofficial experimental build of Element X Android. Not affiliated
-            with Element Hq Ltd. Works as is, at your own risk.
+            Неофициальная экспериментальная сборка Element X Android. Не связана
+            с Element Hq Ltd. Работает как есть, на свой страх и риск.
 
-            Built from commit [`${{ github.sha }}`](https://github.com/${{ github.repository }}/commit/${{ github.sha }}).
-            See [EXPERIMENTS.md](https://github.com/${{ github.repository }}/blob/experiments/phone-layer/docs/EXPERIMENTS.md)
-            for what this build changes versus upstream Element X.
+            Собрано из коммита [`${{ github.sha }}`](https://github.com/${{ github.repository }}/commit/${{ github.sha }}).
+            Чем сборка отличается от апстримного Element X, читайте в
+            [EXPERIMENTS.md](https://github.com/${{ github.repository }}/blob/experiments/phone-layer/docs/EXPERIMENTS.md)
+            ([English version](https://github.com/${{ github.repository }}/blob/experiments/phone-layer/docs/EXPERIMENTS.en.md)).
 
-            ### Pick the right APK
+            ### Какой APK выбрать
 
-            * `element-x-plus-fdroid-${{ steps.meta.outputs.version }}-arm64-v8a.apk` for most modern Android phones (recommended).
-            * `element-x-plus-fdroid-${{ steps.meta.outputs.version }}-armeabi-v7a.apk` for older 32-bit ARM phones.
-            * `element-x-plus-fdroid-${{ steps.meta.outputs.version }}-x86_64.apk` / `element-x-plus-fdroid-${{ steps.meta.outputs.version }}-x86.apk` for emulators or x86 devices.
-            * `element-x-plus-fdroid-${{ steps.meta.outputs.version }}-universal.apk` is a fat APK with every ABI (largest, works everywhere).
+            * `element-x-plus-fdroid-${{ steps.meta.outputs.version }}-arm64-v8a.apk` для большинства современных телефонов (рекомендуется).
+            * `element-x-plus-fdroid-${{ steps.meta.outputs.version }}-armeabi-v7a.apk` для старых 32-битных ARM.
+            * `element-x-plus-fdroid-${{ steps.meta.outputs.version }}-x86_64.apk` / `element-x-plus-fdroid-${{ steps.meta.outputs.version }}-x86.apk` для эмуляторов и x86-устройств.
+            * `element-x-plus-fdroid-${{ steps.meta.outputs.version }}-universal.apk` толстый APK со всеми ABI (самый большой, работает везде).
 
-            The `applicationId` is `io.element.android.x.plusng`, so the build installs
-            side by side with the official Element X without overwriting it. The package id
-            changed from an earlier `.plus`; if you had that build, uninstall it first - the
-            new one cannot upgrade in place.
+            `applicationId` — `io.element.android.x.plusng`, сборка ставится рядом
+            с официальным Element X, ничего не затирая. Package id менялся с
+            `.plus`: если стояла та сборка, сначала удалите её, обновления
+            поверх не будет.
           files: |
             dist/element-x-plus-fdroid-*.apk

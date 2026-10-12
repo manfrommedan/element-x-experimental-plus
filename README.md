@@ -4,7 +4,7 @@
 
 **Element X, только лучше.**
 
-[![база](https://img.shields.io/badge/база-Element%20X%20v26.08.0-1c7c6f)](https://github.com/element-hq/element-x-android)
+[![база](https://img.shields.io/badge/база-Element%20X%20v26.09.4-1c7c6f)](https://github.com/element-hq/element-x-android)
 [![лицензия](https://img.shields.io/badge/лицензия-AGPL--3.0--only-blue)](LICENSE)
 [![сборки](https://img.shields.io/badge/сборки-GitHub%20Releases-24292f)](https://github.com/manfrommedan/element-x-experimental-plus/releases)
 
@@ -45,6 +45,9 @@ APK лежат в [релизах](https://github.com/manfrommedan/element-x-exp
 | **Ссылки** | голый текст | карточка предпросмотра через ваш homeserver, IP на сторонний сайт не утекает |
 | **Избранное** | в общей куче | своя секция сверху |
 | **Сеть под DPI** | нужен внешний VPN | встроенный обфусцированный транспорт до своего сервера |
+| **Уведомления** | нужен отдельный ntfy или Google FCM, тихая строка в шторке | встроенный push-дистрибьютор, ничего ставить не надо (experimental); важные сообщения всплывают поверх экрана, как в Telegram/WhatsApp |
+| **Запуск** | мгновенная вспышка экрана | сплеш-заставка с иконкой, пока поднимается сессия (спасибо [@OolaaPleur](https://github.com/OolaaPleur)) |
+| **Иконка** | спираль на чёрном | зеркальная спираль на графите: не перепутать со стоком |
 
 ## Тумблеры
 
@@ -65,6 +68,7 @@ APK лежат в [релизах](https://github.com/manfrommedan/element-x-exp
 | Автозагрузка медиа только по Wi-Fi | Дополнительные настройки | выкл |
 | Предпросмотр ссылок | Дополнительные настройки | только незашифрованные |
 | Свой ключ Geoapify | Дополнительные настройки | встроенный |
+| Built-in push notifications (experimental) | Labs | выкл |
 
 Сколько файлов можно выбрать за раз, ни один тумблер не ограничивает. Выбор
 влияет только на то, как батч уедет: пачкой обычных сообщений или одним
