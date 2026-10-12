@@ -46,6 +46,25 @@ class NotificationChannelsTest : RobolectricTest() {
     }
 
     @Test
+    @Config(sdk = [Build.VERSION_CODES.TIRAMISU])
+    fun `init - noisy channel pops heads-up and the legacy V2 channel is removed`() {
+        val v2Channel = mockk<android.app.NotificationChannel>(relaxed = true) {
+            every { id } returns "DEFAULT_NOISY_NOTIFICATION_CHANNEL_ID_V2"
+        }
+        val captured = mutableListOf<NotificationChannelCompat>()
+        val notificationManager = mockk<NotificationManagerCompat>(relaxed = true) {
+            every { notificationChannels } returns listOf(v2Channel)
+            every { createNotificationChannel(capture(captured)) } returns Unit
+        }
+
+        createNotificationChannels(notificationManager = notificationManager)
+
+        val noisy = captured.first { it.id == NOISY_NOTIFICATION_CHANNEL_ID_BASE }
+        assertThat(noisy.importance).isEqualTo(NotificationManagerCompat.IMPORTANCE_HIGH)
+        verify { notificationManager.deleteNotificationChannel("DEFAULT_NOISY_NOTIFICATION_CHANNEL_ID_V2") }
+    }
+
+    @Test
     fun `getChannelForIncomingCall - returns the right channel`() {
         val notificationChannels = createNotificationChannels()
 

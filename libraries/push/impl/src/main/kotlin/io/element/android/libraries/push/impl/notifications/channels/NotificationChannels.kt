@@ -44,9 +44,11 @@ import timber.log.Timber
  * IDs for channels
  * ========================================================================================== */
 internal const val SILENT_NOTIFICATION_CHANNEL_ID = "DEFAULT_SILENT_NOTIFICATION_CHANNEL_ID_V2"
-internal const val NOISY_NOTIFICATION_CHANNEL_ID_BASE = "DEFAULT_NOISY_NOTIFICATION_CHANNEL_ID_V2"
+internal const val NOISY_NOTIFICATION_CHANNEL_ID_BASE = "DEFAULT_NOISY_NOTIFICATION_CHANNEL_ID_V3"
 internal const val CALL_NOTIFICATION_CHANNEL_ID = "CALL_NOTIFICATION_CHANNEL_ID_V3"
 internal const val RINGING_CALL_NOTIFICATION_CHANNEL_ID_BASE = "RINGING_CALL_NOTIFICATION_CHANNEL_ID"
+
+private const val NOISY_NOTIFICATION_CHANNEL_ID_V2_BASE = "DEFAULT_NOISY_NOTIFICATION_CHANNEL_ID_V2"
 
 private fun versionedChannelId(base: String, version: Int): String =
     if (version <= 0) base else "${base}_v$version"
@@ -160,11 +162,14 @@ class DefaultNotificationChannels(
                 notificationManager.deleteNotificationChannel(channelId)
             }
         }
+        // The V2 noisy channel was IMPORTANCE_DEFAULT (no heads-up); V3 is IMPORTANCE_HIGH.
+        // Channel importance is locked at creation, so the old id goes away entirely.
+        deleteStaleVersionedChannels(NOISY_NOTIFICATION_CHANNEL_ID_V2_BASE, currentId = "")
         // Drop older versioned channels; only the current one remains.
         deleteStaleVersionedChannels(NOISY_NOTIFICATION_CHANNEL_ID_BASE, currentNoisyChannelId)
         deleteStaleVersionedChannels(RINGING_CALL_NOTIFICATION_CHANNEL_ID_BASE, currentRingingCallChannelId)
 
-        // Default notification importance: shows everywhere, makes noise, but does not visually intrude.
+        // High importance: shows everywhere, makes noise, pops heads-up like other messengers.
         val noisySoundUri = resolveNoisySoundUri(config.messageSound)
         grantSoundUriToSystem(noisySoundUri)
         notificationManager.createNotificationChannel(
@@ -215,8 +220,10 @@ class DefaultNotificationChannels(
         )
     }
 
+    // IMPORTANCE_HIGH, like the messengers users compare us to: messages pop heads-up
+    // over the current screen instead of landing silently in the shade.
     private fun buildNoisyChannel(channelId: String, soundUri: Uri?, accentColor: Int): NotificationChannelCompat {
-        val builder = NotificationChannelCompat.Builder(channelId, NotificationManagerCompat.IMPORTANCE_DEFAULT)
+        val builder = NotificationChannelCompat.Builder(channelId, NotificationManagerCompat.IMPORTANCE_HIGH)
             .setName(stringProvider.getString(R.string.notification_channel_noisy).ifEmpty { "Noisy notifications" })
             .setDescription(stringProvider.getString(R.string.notification_channel_noisy))
             .setVibrationEnabled(true)
