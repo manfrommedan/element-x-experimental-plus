@@ -12,6 +12,8 @@ import dev.zacsweers.metro.AppScope
 import dev.zacsweers.metro.ContributesBinding
 import io.element.android.libraries.core.log.logger.LoggerTag
 import io.element.android.libraries.di.annotations.ApplicationContext
+import io.element.android.libraries.push.impl.battery.BatteryOptimization
+import io.element.android.libraries.push.impl.push.MutableBatteryOptimizationStore
 import io.element.android.libraries.pushproviders.unifiedpush.UnifiedPushGatewayResolver
 import io.element.android.libraries.pushproviders.unifiedpush.UnifiedPushGatewayUrlResolver
 import io.element.android.libraries.pushproviders.unifiedpush.UnifiedPushNewGatewayHandler
@@ -46,6 +48,8 @@ class DefaultSelfPushRegistrar(
     private val unifiedPushGatewayResolver: UnifiedPushGatewayResolver,
     private val unifiedPushGatewayUrlResolver: UnifiedPushGatewayUrlResolver,
     private val newGatewayHandler: UnifiedPushNewGatewayHandler,
+    private val batteryOptimization: BatteryOptimization,
+    private val mutableBatteryOptimizationStore: MutableBatteryOptimizationStore,
 ) : SelfPushRegistrar {
     override suspend fun register(clientSecret: String): Result<Unit> {
         val server = (selfPushStore.getCustomServer() ?: DEFAULT_SELF_PUSH_SERVER).trimEnd('/')
@@ -74,6 +78,12 @@ class DefaultSelfPushRegistrar(
                 unifiedPushStore.storeUpEndpoint(clientSecret, endpoint)
                 selfPushStore.storeRegistration(clientSecret, SelfPushRegistration(server = server, topic = topic))
                 Timber.tag(loggerTag.value).d("Registered the built-in push listener for a session")
+                // ntfy-style persistent banner: the listener lives and dies by background
+                // execution, so ask for the exemption up front. Dismissal is sticky, so
+                // re-registrations do not re-spam it.
+                if (!batteryOptimization.isIgnoringBatteryOptimizations()) {
+                    mutableBatteryOptimizationStore.showBatteryOptimizationBanner()
+                }
                 SelfPushSubscriberService.start(context)
             }
             .onFailure {

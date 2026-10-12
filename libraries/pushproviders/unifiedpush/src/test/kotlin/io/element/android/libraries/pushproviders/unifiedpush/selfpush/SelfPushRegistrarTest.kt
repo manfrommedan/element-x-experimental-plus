@@ -11,6 +11,8 @@ import androidx.test.platform.app.InstrumentationRegistry
 import com.google.common.truth.Truth.assertThat
 import io.element.android.libraries.matrix.test.AN_EXCEPTION
 import io.element.android.libraries.matrix.test.A_SECRET
+import io.element.android.libraries.push.impl.battery.BatteryOptimization
+import io.element.android.libraries.push.impl.push.MutableBatteryOptimizationStore
 import io.element.android.libraries.pushproviders.unifiedpush.FakeUnifiedPushStore
 import io.element.android.libraries.pushproviders.unifiedpush.UnifiedPushGatewayResolver
 import io.element.android.libraries.pushproviders.unifiedpush.UnifiedPushGatewayResolverResult
@@ -157,12 +159,40 @@ class SelfPushRegistrarTest : RobolectricTest() {
         assertThat(selfPushStore.getLastMessageTime(first.topic)).isEqualTo(1000L)
     }
 
+    @Test
+    fun `register asks for the battery exemption banner when the app is not exempt`() = runTest {
+        val bannerStore = FakeMutableBatteryOptimizationStore()
+        val registrar = createRegistrar(
+            batteryOptimization = FakeBatteryOptimization(ignoring = false),
+            mutableBatteryOptimizationStore = bannerStore,
+        )
+
+        registrar.register(A_SECRET)
+
+        assertThat(bannerStore.showCount).isEqualTo(1)
+    }
+
+    @Test
+    fun `register does not ask for the banner when the app is already exempt`() = runTest {
+        val bannerStore = FakeMutableBatteryOptimizationStore()
+        val registrar = createRegistrar(
+            batteryOptimization = FakeBatteryOptimization(ignoring = true),
+            mutableBatteryOptimizationStore = bannerStore,
+        )
+
+        registrar.register(A_SECRET)
+
+        assertThat(bannerStore.showCount).isEqualTo(0)
+    }
+
     private fun createRegistrar(
         selfPushStore: SelfPushStore = FakeSelfPushStore(),
         unifiedPushStore: FakeUnifiedPushStore = defaultUnifiedPushStore(),
         newGatewayHandler: UnifiedPushNewGatewayHandler = object : UnifiedPushNewGatewayHandler {
             override suspend fun handle(endpoint: String, pushGateway: String, clientSecret: String): Result<Unit> = Result.success(Unit)
         },
+        batteryOptimization: BatteryOptimization = FakeBatteryOptimization(),
+        mutableBatteryOptimizationStore: MutableBatteryOptimizationStore = FakeMutableBatteryOptimizationStore(),
     ): DefaultSelfPushRegistrar {
         val context = InstrumentationRegistry.getInstrumentation().context
         return DefaultSelfPushRegistrar(
@@ -180,7 +210,29 @@ class SelfPushRegistrarTest : RobolectricTest() {
                 }
             },
             newGatewayHandler = newGatewayHandler,
+            batteryOptimization = batteryOptimization,
+            mutableBatteryOptimizationStore = mutableBatteryOptimizationStore,
         )
+    }
+
+    private class FakeBatteryOptimization(
+        private val ignoring: Boolean = false,
+    ) : BatteryOptimization {
+        override fun isIgnoringBatteryOptimizations(): Boolean = ignoring
+        override fun requestDisablingBatteryOptimization(): Boolean = true
+    }
+
+    private class FakeMutableBatteryOptimizationStore : MutableBatteryOptimizationStore {
+        var showCount = 0
+            private set
+
+        override suspend fun showBatteryOptimizationBanner() {
+            showCount++
+        }
+
+        override suspend fun onOptimizationBannerDismissed() = Unit
+
+        override suspend fun reset() = Unit
     }
 
     private fun defaultUnifiedPushStore(): FakeUnifiedPushStore {
