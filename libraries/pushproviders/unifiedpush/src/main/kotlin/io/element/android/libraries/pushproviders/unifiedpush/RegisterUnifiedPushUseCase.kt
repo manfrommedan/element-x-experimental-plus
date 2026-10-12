@@ -17,6 +17,7 @@ import io.element.android.libraries.pushproviders.api.Distributor
 import io.element.android.libraries.pushproviders.unifiedpush.registration.EndpointRegistrationHandler
 import io.element.android.libraries.pushproviders.unifiedpush.selfpush.SelfPushAvailability
 import io.element.android.libraries.pushproviders.unifiedpush.selfpush.SelfPushRegistrar
+import io.element.android.libraries.pushproviders.unifiedpush.selfpush.SelfPushStore
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withTimeout
@@ -33,12 +34,18 @@ class DefaultRegisterUnifiedPushUseCase(
     private val endpointRegistrationHandler: EndpointRegistrationHandler,
     private val selfPushAvailability: SelfPushAvailability,
     private val selfPushRegistrar: SelfPushRegistrar,
+    private val selfPushStore: SelfPushStore,
 ) : RegisterUnifiedPushUseCase {
     override suspend fun execute(distributor: Distributor, clientSecret: String, sessionId: SessionId): Result<Unit> {
         // The app itself as the distributor means the built-in listener: the endpoint is
         // made up locally instead of arriving through the UnifiedPush IPC.
         if (distributor.value == context.packageName && selfPushAvailability.isEnabled()) {
             return selfPushRegistrar.register(clientSecret)
+        }
+        // Registering with an external distributor retires a built-in one on the same secret,
+        // otherwise its topic would keep streaming to the listener forever.
+        if (selfPushStore.getRegistration(clientSecret) != null) {
+            selfPushRegistrar.unregister(clientSecret)
         }
         UnifiedPush.saveDistributor(context, distributor.value)
         // This will trigger the callback

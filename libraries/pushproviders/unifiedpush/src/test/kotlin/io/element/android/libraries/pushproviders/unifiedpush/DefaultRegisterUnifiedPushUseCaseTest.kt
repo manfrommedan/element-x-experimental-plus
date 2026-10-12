@@ -18,8 +18,11 @@ import io.element.android.libraries.pushproviders.unifiedpush.registration.Endpo
 import io.element.android.libraries.pushproviders.unifiedpush.registration.RegistrationResult
 import io.element.android.libraries.pushproviders.unifiedpush.selfpush.FakeSelfPushAvailability
 import io.element.android.libraries.pushproviders.unifiedpush.selfpush.FakeSelfPushRegistrar
+import io.element.android.libraries.pushproviders.unifiedpush.selfpush.FakeSelfPushStore
 import io.element.android.libraries.pushproviders.unifiedpush.selfpush.SelfPushAvailability
 import io.element.android.libraries.pushproviders.unifiedpush.selfpush.SelfPushRegistrar
+import io.element.android.libraries.pushproviders.unifiedpush.selfpush.SelfPushRegistration
+import io.element.android.libraries.pushproviders.unifiedpush.selfpush.SelfPushStore
 import io.element.android.tests.testutils.fake.FakeAndroidKeyStore
 import io.element.android.tests.testutils.robolectric.RobolectricTest
 import kotlinx.coroutines.delay
@@ -108,10 +111,48 @@ class DefaultRegisterUnifiedPushUseCaseTest : RobolectricTest() {
         assertThat(selfPushRegistrar.registeredSecrets).isEmpty()
     }
 
+    @Test
+    fun `registration with an external distributor retires a built-in registration on the same secret`() = runTest {
+        val endpointRegistrationHandler = EndpointRegistrationHandler()
+        val selfPushRegistrar = FakeSelfPushRegistrar()
+        val selfPushStore = FakeSelfPushStore()
+        selfPushStore.storeRegistration(A_SECRET, SelfPushRegistration(server = "https://ntfy.sh", topic = "up1234abcd"))
+        val useCase = createDefaultRegisterUnifiedPushUseCase(
+            endpointRegistrationHandler = endpointRegistrationHandler,
+            selfPushRegistrar = selfPushRegistrar,
+            selfPushStore = selfPushStore,
+        )
+        launch {
+            delay(100)
+            endpointRegistrationHandler.registrationDone(RegistrationResult(A_SECRET, Result.success(Unit)))
+        }
+        val result = useCase.execute(Distributor("aValue", "aName"), A_SECRET, A_SESSION_ID)
+        assertThat(result.isSuccess).isTrue()
+        assertThat(selfPushRegistrar.unregisteredSecrets).containsExactly(A_SECRET)
+    }
+
+    @Test
+    fun `registration with an external distributor does not touch the listener when there is nothing to retire`() = runTest {
+        val endpointRegistrationHandler = EndpointRegistrationHandler()
+        val selfPushRegistrar = FakeSelfPushRegistrar()
+        val useCase = createDefaultRegisterUnifiedPushUseCase(
+            endpointRegistrationHandler = endpointRegistrationHandler,
+            selfPushRegistrar = selfPushRegistrar,
+        )
+        launch {
+            delay(100)
+            endpointRegistrationHandler.registrationDone(RegistrationResult(A_SECRET, Result.success(Unit)))
+        }
+        val result = useCase.execute(Distributor("aValue", "aName"), A_SECRET, A_SESSION_ID)
+        assertThat(result.isSuccess).isTrue()
+        assertThat(selfPushRegistrar.unregisteredSecrets).isEmpty()
+    }
+
     private fun TestScope.createDefaultRegisterUnifiedPushUseCase(
         endpointRegistrationHandler: EndpointRegistrationHandler = EndpointRegistrationHandler(),
         selfPushAvailability: SelfPushAvailability = FakeSelfPushAvailability(enabled = false),
         selfPushRegistrar: SelfPushRegistrar = FakeSelfPushRegistrar(),
+        selfPushStore: SelfPushStore = FakeSelfPushStore(),
     ): DefaultRegisterUnifiedPushUseCase {
         val context = InstrumentationRegistry.getInstrumentation().context
         return DefaultRegisterUnifiedPushUseCase(
@@ -119,6 +160,7 @@ class DefaultRegisterUnifiedPushUseCaseTest : RobolectricTest() {
             endpointRegistrationHandler = endpointRegistrationHandler,
             selfPushAvailability = selfPushAvailability,
             selfPushRegistrar = selfPushRegistrar,
+            selfPushStore = selfPushStore,
         )
     }
 }
