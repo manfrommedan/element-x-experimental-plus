@@ -16,6 +16,7 @@ import io.element.android.libraries.fullscreenintent.api.aFullScreenIntentPermis
 import io.element.android.libraries.matrix.api.MatrixClient
 import io.element.android.libraries.matrix.api.room.RoomNotificationMode
 import io.element.android.libraries.matrix.test.AN_EXCEPTION
+import io.element.android.libraries.matrix.test.A_SECRET
 import io.element.android.libraries.matrix.test.FakeMatrixClient
 import io.element.android.libraries.matrix.test.core.aBuildMeta
 import io.element.android.libraries.matrix.test.notificationsettings.FakeNotificationSettingsService
@@ -573,6 +574,28 @@ class NotificationSettingsPresenterTest {
             initial.eventSink(NotificationSettingsEvent.RefreshSystemNotificationsEnabled)
             val refreshed = consumeItemsUntilPredicate { it.batteryOptimizationIgnored }.last()
             assertThat(refreshed.batteryOptimizationIgnored).isTrue()
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    @Test
+    fun `present - listener status reflects the open streams`() = runTest {
+        val selfPushStore = FakeSelfPushStore()
+        selfPushStore.storeRegistration(A_SECRET, SelfPushRegistration("https://ntfy.sh", "upA"))
+        val presenter = createNotificationSettingsPresenter(
+            pushService = createBuiltInPushService(),
+            selfPushStore = selfPushStore,
+        )
+        presenter.test {
+            val disconnected = consumeItemsUntilPredicate { it.selfPushServer != null }.last()
+            assertThat(disconnected.selfPushServer?.listenerConnected).isFalse()
+
+            selfPushStore.setStreamOpen("https://ntfy.sh", true)
+            disconnected.eventSink(NotificationSettingsEvent.RefreshSystemNotificationsEnabled)
+
+            val connected = consumeItemsUntilPredicate { it.selfPushServer?.listenerConnected == true }.last()
+            assertThat(connected.selfPushServer?.listenerConnected).isTrue()
             cancelAndIgnoreRemainingEvents()
         }
     }
@@ -1424,6 +1447,14 @@ class NotificationSettingsPresenterTest {
         override fun removeLastMessageTime(topic: String) {
             lastMessageTimes.remove(topic)
         }
+
+        private val openServers = mutableSetOf<String>()
+
+        override fun setStreamOpen(server: String, open: Boolean) {
+            if (open) openServers += server else openServers -= server
+        }
+
+        override fun getOpenServers(): Set<String> = openServers.toSet()
     }
 
     private class FakeSelfPushStreamRefresher : SelfPushStreamRefresher {

@@ -308,6 +308,7 @@ class NotificationSettingsPresenter(
                 NotificationSettingsEvent.RefreshSystemNotificationsEnabled -> {
                     systemNotificationsEnabled.value = systemNotificationsEnabledProvider.notificationsEnabled()
                     batteryOptimizationIgnored = batteryOptimization.isIgnoringBatteryOptimizations()
+                    selfPushServerRefresh++
                     refreshFullScreenIntentSettings++
                 }
                 NotificationSettingsEvent.ClearNotificationChangeError -> changeNotificationSettingAction.value = AsyncAction.Uninitialized
@@ -412,6 +413,8 @@ class NotificationSettingsPresenter(
             // Key on the refresh counter so persisting a server re-reads the store.
             key(selfPushServerRefresh) {
                 val customServer = selfPushStore.getCustomServer()
+                val registrations = selfPushStore.getAllRegistrations()
+                val openServers = selfPushStore.getOpenServers()
                 NotificationSettingsState.SelfPushServerState(
                     customServer = customServer,
                     effectiveServer = customServer ?: DEFAULT_SELF_PUSH_SERVER,
@@ -421,6 +424,8 @@ class NotificationSettingsPresenter(
                     healthCheckToken = selfPushServerHealthToken,
                     saveFailed = selfPushServerSaveFailed,
                     readToken = selfPushStore.getReadToken(),
+                    listenerConnected = registrations.isNotEmpty() &&
+                        registrations.values.all { it.server in openServers },
                 )
             }
         } else {

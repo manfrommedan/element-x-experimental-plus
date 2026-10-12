@@ -36,5 +36,8 @@
     <string name="screen_notifications_connection_protocol_json_stream">"JSON stream (HTTP)"</string>
     <string name="screen_notifications_battery_optimization_title">"Battery optimization"</string>
     <string name="screen_notifications_battery_optimization_unrestricted">"Not optimized for this app"</string>
-    <string name="screen_notifications_battery_optimization_restricted">"Notifications may be delayed. Tap to allow background activity"</string>
+    <string name="screen_notifications_battery_optimization_restricted">"Notifications may be delayed. Tap to allow background activity (on Xiaomi/MIUI also enable Autostart in the system settings)"</string>
+    <string name="screen_notifications_listener_status_title">"Built-in listener"</string>
+    <string name="screen_notifications_listener_status_connected">"Connected"</string>
+    <string name="screen_notifications_listener_status_connecting">"Connecting..."</string>
 </resources>

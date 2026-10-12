@@ -307,6 +307,24 @@ private fun NotificationSettingsContentView(
                         }
                     )
                 }
+                state.selfPushServer?.let { selfPushServer ->
+                    ListItem(
+                        content = {
+                            Text(text = stringResource(id = CommonStrings.screen_notifications_listener_status_title))
+                        },
+                        supportingContent = {
+                            Text(
+                                text = stringResource(
+                                    id = if (selfPushServer.listenerConnected) {
+                                        CommonStrings.screen_notifications_listener_status_connected
+                                    } else {
+                                        CommonStrings.screen_notifications_listener_status_connecting
+                                    }
+                                )
+                            )
+                        },
+                    )
+                }
                 state.selfPushProtocol?.let { selfPushProtocol ->
                     ListItem(
                         content = {

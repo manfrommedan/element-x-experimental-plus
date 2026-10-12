@@ -237,6 +237,7 @@ fun aSelfPushServerState(
     healthCheckToken: String? = null,
     saveFailed: Boolean = false,
     readToken: String? = null,
+    listenerConnected: Boolean = false,
 ) = NotificationSettingsState.SelfPushServerState(
     customServer = customServer,
     effectiveServer = effectiveServer,
@@ -246,6 +247,7 @@ fun aSelfPushServerState(
     healthCheckToken = healthCheckToken,
     saveFailed = saveFailed,
     readToken = readToken,
+    listenerConnected = listenerConnected,
 )
 
 fun aDistributor(
