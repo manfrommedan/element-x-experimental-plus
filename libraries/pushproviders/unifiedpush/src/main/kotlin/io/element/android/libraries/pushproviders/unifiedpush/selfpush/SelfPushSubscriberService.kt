@@ -40,6 +40,7 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.launch
 import timber.log.Timber
+import java.util.concurrent.atomic.AtomicBoolean
 
 private val loggerTag = LoggerTag("SelfPushSubscriberService", LoggerTag.PushLoggerTag)
 
@@ -72,12 +73,9 @@ class SelfPushSubscriberService : Service() {
         val protocol: SelfPushProtocol,
         val readToken: String?,
         val topics: Set<String>,
-    ) {
-        /** True when the live stream already serves exactly what the store asks for. */
-        fun matches(protocol: SelfPushProtocol, readToken: String?, topics: Set<String>): Boolean {
-            return this.protocol == protocol && this.readToken == readToken && this.topics == topics
-        }
-    }
+        /** Flipped by the client's onOpen: the handshake completed and frames are flowing. */
+        val opened: AtomicBoolean = AtomicBoolean(false),
+    )
 
     /** One streaming job per notification server in use. */
     private val streamJobs = mutableMapOf<String, ActiveStream>()
@@ -103,7 +101,10 @@ class SelfPushSubscriberService : Service() {
 
     @Synchronized
     private fun parkStreams() {
-        streamJobs.values.forEach { it.job.cancel() }
+        streamJobs.forEach { (server, stream) ->
+            stream.job.cancel()
+            selfPushStore.setStreamOpen(server, false)
+        }
         streamJobs.clear()
     }
 
@@ -132,12 +133,8 @@ class SelfPushSubscriberService : Service() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        when (intent?.action) {
-            else -> {
-                restartStreams(force = false)
-                scheduleWatchdog()
-            }
-        }
+        restartStreams(force = false)
+        scheduleWatchdog()
         return START_STICKY
     }
 
@@ -166,46 +163,61 @@ class SelfPushSubscriberService : Service() {
     }
 
     /**
-     * Brings the running streams in line with the store: opens streams for servers that gained
-     * a registration, drops the ones that lost theirs, reopens the ones whose protocol changed
-     * under them, and stops the service entirely when nothing is left to listen to. [force]
-     * reopens everything, for when the network under the sockets may have changed.
+     * Brings the running streams in line with the store, per [planStreams]: opens streams for
+     * servers that gained a registration, drops the ones that lost theirs, reopens the ones
+     * whose protocol, token or topics changed under them, and stops the service entirely when
+     * nothing is left to listen to. [force] reopens everything, for when the network under
+     * the sockets may have changed.
      */
     @Synchronized
     private fun restartStreams(force: Boolean) {
         val registrations = selfPushStore.getAllRegistrations()
-        val registrationsByServer = registrations.entries.groupBy({ it.value.server }) { it.key to it.value.topic }
+        val registrationsByServer = registrations.entries.groupBy({ it.value.server }) { it.value.topic }
         if (registrationsByServer.isEmpty()) {
             Timber.tag(loggerTag.value).d("No registrations left, stopping")
             stopSelf()
             return
         }
 
-        val staleServers = streamJobs.keys - registrationsByServer.keys
-        staleServers.forEach { server ->
-            Timber.tag(loggerTag.value).d("Dropping the stream to $server")
-            streamJobs.remove(server)?.job?.cancel()
-        }
-
         val protocol = selfPushStore.getProtocol()
         val configuredServer = (selfPushStore.getCustomServer() ?: DEFAULT_SELF_PUSH_SERVER).trimEnd('/')
         val storedToken = selfPushStore.getReadToken()
-        for ((server, topics) in registrationsByServer) {
-            // The token belongs to the configured server only; in a mixed state (a failed
-            // migration leaving registrations on two servers) it must not leak to the other one.
+        // The token belongs to the configured server only; in a mixed state (a failed
+        // migration leaving registrations on two servers) it must not leak to the other one.
+        val plan = planStreams(
+            registrationsByServer = registrationsByServer.mapValues { it.value.toSet() },
+            active = streamJobs.mapValues { (_, stream) ->
+                ActiveStreamInfo(stream.protocol, stream.readToken, stream.topics, stream.job.isActive)
+            },
+            protocol = protocol,
+            readTokenFor = { server -> storedToken.takeIf { server == configuredServer } },
+            force = force,
+        )
+
+        plan.toCancel.forEach { server ->
+            Timber.tag(loggerTag.value).d("Dropping the stream to $server")
+            streamJobs.remove(server)?.job?.cancel()
+            selfPushStore.setStreamOpen(server, false)
+        }
+
+        for ((server, topicNames) in plan.toOpen) {
             val readToken = storedToken.takeIf { server == configuredServer }
-            val topicNames = topics.map { it.second }.toSet()
-            // A job that died on a fatal refusal counts as absent, so the watchdog can revive it.
-            val active = streamJobs[server]?.takeIf { it.job.isActive }
-            if (active != null && !force && active.matches(protocol, readToken, topicNames)) continue
-            if (active != null) {
-                Timber.tag(loggerTag.value).d("Reopening the stream to $server")
-                active.job.cancel()
-            }
             Timber.tag(loggerTag.value).d("Opening a $protocol stream to $server for ${topicNames.size} topic(s)")
+            selfPushStore.setStreamOpen(server, false)
+            val opened = AtomicBoolean(false)
             streamJobs[server] = ActiveStream(
                 job = serviceScope.launch {
-                    streamClient.stream(server, topicNames, readToken, protocol, since = { catchUpSince(topicNames) })
+                    streamClient.stream(
+                        server = server,
+                        topics = topicNames,
+                        readToken = readToken,
+                        protocol = protocol,
+                        since = { catchUpSince(topicNames) },
+                        onOpen = {
+                            opened.set(true)
+                            selfPushStore.setStreamOpen(server, true)
+                        },
+                    )
                         .catch { cause ->
                             if (cause is FatalStreamException) {
                                 Timber.tag(loggerTag.value).e(cause, "Stream to $server refused, giving up until the next refresh")
@@ -218,6 +230,7 @@ class SelfPushSubscriberService : Service() {
                 protocol = protocol,
                 readToken = readToken,
                 topics = topicNames,
+                opened = opened,
             )
         }
     }
@@ -268,10 +281,14 @@ class SelfPushSubscriberService : Service() {
         }
     }
 
-    private fun scheduleWatchdog(delayMs: Long = WATCHDOG_INTERVAL_MS) {
+    private fun scheduleWatchdog(delayMs: Long? = null) {
         val alarmManager = getSystemService(AlarmManager::class.java) ?: return
         runCatchingExceptions {
-            val triggerAt = System.currentTimeMillis() + delayMs
+            // A healthy listener does not need a tight leash: the stream heals itself and the
+            // watchdog only revives a frozen process, so back off to hourly while all is well.
+            val healthy = streamJobs.isNotEmpty() && streamJobs.values.all { it.job.isActive && it.opened.get() }
+            val interval = delayMs ?: if (healthy) HEALTHY_WATCHDOG_INTERVAL_MS else WATCHDOG_INTERVAL_MS
+            val triggerAt = System.currentTimeMillis() + interval
             // SCHEDULE_EXACT_ALARM can be revoked on Android 12+; fall back to an inexact
             // alarm instead of losing the watchdog to a SecurityException. The fallback only
             // revives a live process: starting a foreground service from background is an
@@ -318,6 +335,9 @@ class SelfPushSubscriberService : Service() {
 
         /** The stream heals itself between watchdogs; this only revives a frozen process. */
         private const val WATCHDOG_INTERVAL_MS = 15 * 60 * 1000L
+
+        /** Watchdog cadence while every stream is up and flowing. */
+        private const val HEALTHY_WATCHDOG_INTERVAL_MS = 60 * 60 * 1000L
 
         /** How far back the catch-up replay reaches past the last seen push. */
         private const val SINCE_OVERLAP_S = 2L

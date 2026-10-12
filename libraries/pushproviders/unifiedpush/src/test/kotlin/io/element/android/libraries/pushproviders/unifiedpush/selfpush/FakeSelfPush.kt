@@ -44,6 +44,14 @@ class FakeSelfPushStore : SelfPushStore {
         this.protocol = protocol
     }
 
+    private val openServers = mutableSetOf<String>()
+
+    override fun setStreamOpen(server: String, open: Boolean) {
+        if (open) openServers += server else openServers -= server
+    }
+
+    override fun getOpenServers(): Set<String> = openServers.toSet()
+
     override fun getLastMessageTime(topic: String): Long? = lastMessageTimes[topic]
 
     override fun storeLastMessageTime(topic: String, time: Long) {

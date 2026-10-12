@@ -222,6 +222,30 @@ class NtfyStreamClientTest {
     }
 
     @Test
+    fun `onOpen fires once the http stream is up`() = runBlocking {
+        var opens = 0
+        server.enqueue(httpFrames("""{"id":"0","time":1,"event":"open"}"""))
+        server.enqueue(MockResponse().setResponseCode(401))
+
+        client().stream(serverUrl(), setOf("upA"), readToken = null, SelfPushProtocol.JSON_STREAM, onOpen = { opens++ }) { null }
+            .test { awaitError() }
+
+        assertThat(opens).isEqualTo(1)
+    }
+
+    @Test
+    fun `onOpen fires once the websocket stream is up`() = runBlocking {
+        var opens = 0
+        wsServer.enqueue(MiniWebSocketServer.SendFrames())
+        wsServer.enqueue(MiniWebSocketServer.Refuse(401))
+
+        client().stream(wsServer.url, setOf("upA"), readToken = null, SelfPushProtocol.WEBSOCKET, onOpen = { opens++ }) { null }
+            .test { awaitError() }
+
+        assertThat(opens).isEqualTo(1)
+    }
+
+    @Test
     fun `refused stream fails fatally without reconnecting`() = runBlocking {
         val clock = RecordingClock()
         wsServer.enqueue(MiniWebSocketServer.Refuse(403))

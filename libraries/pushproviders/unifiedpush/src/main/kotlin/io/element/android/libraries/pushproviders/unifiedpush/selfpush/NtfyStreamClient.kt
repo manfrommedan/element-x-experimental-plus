@@ -95,10 +95,11 @@ class NtfyStreamClient @Inject constructor(
         topics: Set<String>,
         readToken: String?,
         protocol: SelfPushProtocol,
+        onOpen: () -> Unit = {},
         since: () -> Long?,
     ): Flow<NtfyMessage> {
         require(topics.isNotEmpty()) { "No topics to subscribe to" }
-        return readFrames(server, topics, readToken, protocol, since).retryWhen { cause, attempt ->
+        return readFrames(server, topics, readToken, protocol, since, onOpen).retryWhen { cause, attempt ->
             // Never retry a cancelled collection: the buffered test clocks do not suspend,
             // so without this a cancel during a broken stream would spin reconnects forever.
             if (cause is FatalStreamException || cause is CancellationException) throw cause
@@ -116,14 +117,15 @@ class NtfyStreamClient @Inject constructor(
         readToken: String?,
         protocol: SelfPushProtocol,
         since: () -> Long?,
+        onOpen: () -> Unit,
     ): Flow<NtfyMessage> {
         // The request is built inside the flow so every reconnect re-reads `since` and gets a
         // fresh catch-up window, instead of replaying the first attempt's forever.
         return callbackFlow {
             val request = buildRequest(server, topics, protocol, readToken, since())
             when (protocol) {
-                SelfPushProtocol.WEBSOCKET -> readWebSocketFrames(server, topics, request)
-                SelfPushProtocol.JSON_STREAM -> readHttpFrames(server, topics, request)
+                SelfPushProtocol.WEBSOCKET -> readWebSocketFrames(server, topics, request, onOpen)
+                SelfPushProtocol.JSON_STREAM -> readHttpFrames(server, topics, request, onOpen)
             }
         }
     }
@@ -159,6 +161,7 @@ class NtfyStreamClient @Inject constructor(
         server: String,
         topics: Set<String>,
         request: Request,
+        onOpen: () -> Unit,
     ) {
         val call = httpStreamClient.newCall(request)
         // The blocking read ignores coroutine cancellation on its own: awaitClose cancels the
@@ -177,6 +180,7 @@ class NtfyStreamClient @Inject constructor(
 
                 val source = response.body.source()
                 Timber.tag(loggerTag.value).d("HTTP stream open for ${topics.size} topic(s) on $server")
+                onOpen()
                 while (true) {
                     val line = source.readUtf8Line() ?: throw IOException("Stream closed by the server")
                     parseFrame(line)?.let { trySendBlocking(it) }
@@ -198,12 +202,14 @@ class NtfyStreamClient @Inject constructor(
         server: String,
         topics: Set<String>,
         request: Request,
+        onOpen: () -> Unit,
     ) {
         val lastFrameAt = AtomicLong(System.currentTimeMillis())
         val webSocket = webSocketClient.newWebSocket(request, object : WebSocketListener() {
             override fun onOpen(webSocket: WebSocket, response: Response) {
                 lastFrameAt.set(System.currentTimeMillis())
                 Timber.tag(loggerTag.value).d("WebSocket stream open for ${topics.size} topic(s) on $server")
+                onOpen()
             }
 
             override fun onMessage(webSocket: WebSocket, text: String) {

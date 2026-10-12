@@ -108,6 +108,18 @@ class SelfPushStoreTest {
     }
 
     @Test
+    fun `stream open flags track servers`() {
+        assertThat(store.getOpenServers()).isEmpty()
+
+        store.setStreamOpen("https://ntfy.sh", true)
+        store.setStreamOpen("https://other.example.org", true)
+        assertThat(store.getOpenServers()).containsExactly("https://ntfy.sh", "https://other.example.org")
+
+        store.setStreamOpen("https://ntfy.sh", false)
+        assertThat(store.getOpenServers()).containsExactly("https://other.example.org")
+    }
+
+    @Test
     fun `last message time keeps the max`() {
         assertThat(store.getLastMessageTime("up1")).isNull()
 

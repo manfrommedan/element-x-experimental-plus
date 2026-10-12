@@ -45,6 +45,10 @@ interface SelfPushStore {
     fun getProtocol(): SelfPushProtocol
     fun setProtocol(protocol: SelfPushProtocol)
 
+    /** Which servers currently have an open stream, for the status row in the settings. */
+    fun setStreamOpen(server: String, open: Boolean)
+    fun getOpenServers(): Set<String>
+
     /** Server timestamp of the last push seen on the topic, the base for catch-up replays. */
     fun getLastMessageTime(topic: String): Long?
     fun storeLastMessageTime(topic: String, time: Long)
@@ -114,6 +118,23 @@ class SharedPreferencesSelfPushStore(
         sharedPreferences.edit { putString(PREFS_PROTOCOL, protocol.name) }
     }
 
+    override fun setStreamOpen(server: String, open: Boolean) {
+        sharedPreferences.edit {
+            if (open) {
+                putBoolean(PREFS_STREAM_OPEN + server, true)
+            } else {
+                remove(PREFS_STREAM_OPEN + server)
+            }
+        }
+    }
+
+    override fun getOpenServers(): Set<String> {
+        return sharedPreferences.all.keys
+            .filter { it.startsWith(PREFS_STREAM_OPEN) }
+            .map { it.removePrefix(PREFS_STREAM_OPEN) }
+            .toSet()
+    }
+
     override fun getLastMessageTime(topic: String): Long? {
         val key = PREFS_LAST_MESSAGE_TIME + topic
         return if (sharedPreferences.contains(key)) sharedPreferences.getLong(key, 0L) else null
@@ -137,5 +158,6 @@ class SharedPreferencesSelfPushStore(
         private const val PREFS_READ_TOKEN = "SELF_PUSH_READ_TOKEN"
         private const val PREFS_PROTOCOL = "SELF_PUSH_PROTOCOL"
         private const val PREFS_LAST_MESSAGE_TIME = "SELF_PUSH_LAST_MESSAGE_TIME_"
+        private const val PREFS_STREAM_OPEN = "SELF_PUSH_STREAM_OPEN_"
     }
 }
