@@ -14,6 +14,7 @@ import io.element.android.libraries.fullscreenintent.api.FullScreenIntentPermiss
 import io.element.android.libraries.matrix.api.room.RoomNotificationMode
 import io.element.android.libraries.preferences.api.store.NotificationSound
 import io.element.android.libraries.pushproviders.api.Distributor
+import io.element.android.libraries.pushproviders.unifiedpush.selfpush.SelfPushProtocol
 import kotlinx.collections.immutable.ImmutableList
 
 data class NotificationSettingsState(
@@ -47,6 +48,13 @@ data class NotificationSettingsState(
      * app itself. Null hides the whole "Push server" row.
      */
     val selfPushServer: SelfPushServerState?,
+    /**
+     * Stream protocol for the built-in listener, non-null only when the current push distributor
+     * is the app itself. Null hides the whole "Connection protocol" row.
+     */
+    val selfPushProtocol: SelfPushProtocolState?,
+    /** True when the app is exempt from battery optimizations; drives the advanced row's subtitle. */
+    val batteryOptimizationIgnored: Boolean,
     val eventSink: (NotificationSettingsEvent) -> Unit,
 ) {
     sealed interface MatrixSettings {
@@ -92,6 +100,12 @@ data class NotificationSettingsState(
         val healthCheck: AsyncData<Unit>,
         val healthCheckServer: String?,
         val saveFailed: Boolean,
+    )
+
+    /** UI state for the built-in listener's protocol row and its picker dialog. */
+    data class SelfPushProtocolState(
+        val protocol: SelfPushProtocol,
+        val showDialog: Boolean,
     )
 
     /**

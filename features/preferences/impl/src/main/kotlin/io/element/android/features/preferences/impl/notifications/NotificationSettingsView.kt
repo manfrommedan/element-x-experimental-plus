@@ -70,6 +70,7 @@ import io.element.android.libraries.designsystem.utils.OnLifecycleEvent
 import io.element.android.libraries.fullscreenintent.api.FullScreenIntentPermissionsEvent
 import io.element.android.libraries.matrix.api.room.RoomNotificationMode
 import io.element.android.libraries.preferences.api.store.NotificationSound
+import io.element.android.libraries.pushproviders.unifiedpush.selfpush.SelfPushProtocol
 import io.element.android.libraries.ui.strings.CommonStrings
 import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.toImmutableList
@@ -284,11 +285,51 @@ private fun NotificationSettingsContentView(
                             state.eventSink(NotificationSettingsEvent.ShowSelfPushServerDialog)
                         }
                     )
+                    ListItem(
+                        content = {
+                            Text(text = stringResource(id = CommonStrings.screen_notifications_battery_optimization_title))
+                        },
+                        supportingContent = {
+                            Text(
+                                text = stringResource(
+                                    id = if (state.batteryOptimizationIgnored) {
+                                        CommonStrings.screen_notifications_battery_optimization_unrestricted
+                                    } else {
+                                        CommonStrings.screen_notifications_battery_optimization_restricted
+                                    }
+                                )
+                            )
+                        },
+                        onClick = {
+                            if (!state.batteryOptimizationIgnored) {
+                                state.eventSink(NotificationSettingsEvent.RequestDisableBatteryOptimization)
+                            }
+                        }
+                    )
+                }
+                state.selfPushProtocol?.let { selfPushProtocol ->
+                    ListItem(
+                        content = {
+                            Text(text = stringResource(id = CommonStrings.screen_notifications_connection_protocol_title))
+                        },
+                        supportingContent = {
+                            Text(text = selfPushProtocolLabel(selfPushProtocol.protocol))
+                        },
+                        onClick = {
+                            state.eventSink(NotificationSettingsEvent.ShowSelfPushProtocolDialog)
+                        }
+                    )
                 }
             }
             if (state.selfPushServer?.showDialog == true) {
                 SelfPushServerDialog(
                     selfPushServer = state.selfPushServer,
+                    eventSink = state.eventSink,
+                )
+            }
+            if (state.selfPushProtocol?.showDialog == true) {
+                SelfPushProtocolDialog(
+                    selfPushProtocol = state.selfPushProtocol,
                     eventSink = state.eventSink,
                 )
             }
@@ -447,6 +488,40 @@ private fun CallRingtoneDialog(state: NotificationSettingsState) {
         onDismissRequest = { state.eventSink(NotificationSettingsEvent.DismissCallRingtoneDialog) },
     )
 }
+
+@Composable
+private fun SelfPushProtocolDialog(
+    selfPushProtocol: NotificationSettingsState.SelfPushProtocolState,
+    eventSink: (NotificationSettingsEvent) -> Unit,
+) {
+    SingleSelectionDialog(
+        title = stringResource(id = CommonStrings.screen_notifications_connection_protocol_title),
+        options = persistentListOf(
+            ListOption(title = stringResource(id = CommonStrings.screen_notifications_connection_protocol_websocket)),
+            ListOption(title = stringResource(id = CommonStrings.screen_notifications_connection_protocol_json_stream)),
+        ),
+        initialSelection = when (selfPushProtocol.protocol) {
+            SelfPushProtocol.WEBSOCKET -> 0
+            SelfPushProtocol.JSON_STREAM -> 1
+        },
+        onSelectOption = { index ->
+            val protocol = when (index) {
+                0 -> SelfPushProtocol.WEBSOCKET
+                else -> SelfPushProtocol.JSON_STREAM
+            }
+            eventSink(NotificationSettingsEvent.SetSelfPushProtocol(protocol))
+        },
+        onDismissRequest = { eventSink(NotificationSettingsEvent.DismissSelfPushProtocolDialog) },
+    )
+}
+
+@Composable
+private fun selfPushProtocolLabel(protocol: SelfPushProtocol) = stringResource(
+    id = when (protocol) {
+        SelfPushProtocol.WEBSOCKET -> CommonStrings.screen_notifications_connection_protocol_websocket
+        SelfPushProtocol.JSON_STREAM -> CommonStrings.screen_notifications_connection_protocol_json_stream
+    }
+)
 
 @Composable
 private fun SelfPushServerDialog(

@@ -9,6 +9,7 @@
 package io.element.android.features.preferences.impl.notifications
 
 import io.element.android.libraries.preferences.api.store.NotificationSound
+import io.element.android.libraries.pushproviders.unifiedpush.selfpush.SelfPushProtocol
 
 sealed interface NotificationSettingsEvent {
     data object RefreshSystemNotificationsEnabled : NotificationSettingsEvent
@@ -39,4 +40,8 @@ sealed interface NotificationSettingsEvent {
     data class SaveSelfPushServer(val url: String) : NotificationSettingsEvent
     data object ResetSelfPushServer : NotificationSettingsEvent
     data class CheckSelfPushServerHealth(val url: String) : NotificationSettingsEvent
+    data object ShowSelfPushProtocolDialog : NotificationSettingsEvent
+    data object DismissSelfPushProtocolDialog : NotificationSettingsEvent
+    data class SetSelfPushProtocol(val protocol: SelfPushProtocol) : NotificationSettingsEvent
+    data object RequestDisableBatteryOptimization : NotificationSettingsEvent
 }

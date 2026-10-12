@@ -16,6 +16,7 @@ import io.element.android.libraries.fullscreenintent.api.aFullScreenIntentPermis
 import io.element.android.libraries.matrix.api.room.RoomNotificationMode
 import io.element.android.libraries.preferences.api.store.NotificationSound
 import io.element.android.libraries.pushproviders.api.Distributor
+import io.element.android.libraries.pushproviders.unifiedpush.selfpush.SelfPushProtocol
 import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.toImmutableList
 
@@ -81,6 +82,17 @@ open class NotificationSettingsStatePreviewParam : PreviewParameterProvider<Noti
                     aDistributor("Built-in push", "app.self"),
                 ),
                 selfPushServer = aSelfPushServerState(),
+                selfPushProtocol = aSelfPushProtocolState(),
+            ),
+            aValidNotificationSettingsState(
+                currentPushDistributor = AsyncData.Success(aDistributor("Built-in push", "app.self")),
+                availablePushDistributors = listOf(
+                    aDistributor("Firebase"),
+                    aDistributor("Built-in push", "app.self"),
+                ),
+                selfPushServer = aSelfPushServerState(),
+                selfPushProtocol = aSelfPushProtocolState(showDialog = true),
+                batteryOptimizationIgnored = true,
             ),
             aValidNotificationSettingsState(
                 currentPushDistributor = AsyncData.Success(aDistributor("Built-in push", "app.self")),
@@ -132,6 +144,8 @@ fun aValidNotificationSettingsState(
     pendingMessageSoundPickerLaunch: Int = 0,
     pendingCallRingtonePickerLaunch: Int = 0,
     selfPushServer: NotificationSettingsState.SelfPushServerState? = null,
+    selfPushProtocol: NotificationSettingsState.SelfPushProtocolState? = null,
+    batteryOptimizationIgnored: Boolean = false,
     eventSink: (NotificationSettingsEvent) -> Unit = {},
 ) = NotificationSettingsState(
     matrixSettings = NotificationSettingsState.MatrixSettings.Valid(
@@ -165,6 +179,8 @@ fun aValidNotificationSettingsState(
     pendingMessageSoundPickerLaunch = pendingMessageSoundPickerLaunch,
     pendingCallRingtonePickerLaunch = pendingCallRingtonePickerLaunch,
     selfPushServer = selfPushServer,
+    selfPushProtocol = selfPushProtocol,
+    batteryOptimizationIgnored = batteryOptimizationIgnored,
     eventSink = eventSink,
 )
 
@@ -199,7 +215,17 @@ fun aInvalidNotificationSettingsState(
     pendingMessageSoundPickerLaunch = 0,
     pendingCallRingtonePickerLaunch = 0,
     selfPushServer = null,
+    selfPushProtocol = null,
+    batteryOptimizationIgnored = false,
     eventSink = eventSink,
+)
+
+fun aSelfPushProtocolState(
+    protocol: SelfPushProtocol = SelfPushProtocol.WEBSOCKET,
+    showDialog: Boolean = false,
+) = NotificationSettingsState.SelfPushProtocolState(
+    protocol = protocol,
+    showDialog = showDialog,
 )
 
 fun aSelfPushServerState(

@@ -25,6 +25,7 @@ import io.element.android.libraries.preferences.test.InMemoryAppPreferencesStore
 import io.element.android.libraries.push.api.PushService
 import io.element.android.libraries.push.api.notifications.NotificationSoundUpdater
 import io.element.android.libraries.push.api.notifications.sound.NotificationSoundCopier
+import io.element.android.libraries.push.impl.battery.BatteryOptimization
 import io.element.android.libraries.push.test.FakePushService
 import io.element.android.libraries.push.test.notifications.FakeNotificationSoundUpdater
 import io.element.android.libraries.push.test.notifications.FakeSoundDisplayNameResolver
@@ -32,8 +33,10 @@ import io.element.android.libraries.push.test.notifications.sound.FakeNotificati
 import io.element.android.libraries.pushproviders.api.Distributor
 import io.element.android.libraries.pushproviders.api.PushProvider
 import io.element.android.libraries.pushproviders.test.FakePushProvider
+import io.element.android.libraries.pushproviders.unifiedpush.selfpush.SelfPushProtocol
 import io.element.android.libraries.pushproviders.unifiedpush.selfpush.SelfPushRegistration
 import io.element.android.libraries.pushproviders.unifiedpush.selfpush.SelfPushStore
+import io.element.android.libraries.pushproviders.unifiedpush.selfpush.SelfPushStreamRefresher
 import io.element.android.libraries.pushstore.test.userpushstore.FakeUserPushStoreFactory
 import io.element.android.services.toolbox.test.strings.FakeStringProvider
 import io.element.android.tests.testutils.awaitLastSequentialItem
@@ -481,6 +484,67 @@ class NotificationSettingsPresenterTest {
             assertThat(selfPushStore.getCustomServer()).isNull()
             assertThat(reset.selfPushServer?.effectiveServer).isEqualTo(DEFAULT_SELF_PUSH_SERVER)
             registerRecorder.assertions().isCalledOnce()
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    @Test
+    fun `present - built-in distributor exposes the protocol picker and persists the choice`() = runTest {
+        val selfPushStore = FakeSelfPushStore()
+        val refresher = FakeSelfPushStreamRefresher()
+        val presenter = createNotificationSettingsPresenter(
+            pushService = createBuiltInPushService(),
+            selfPushStore = selfPushStore,
+            selfPushStreamRefresher = refresher,
+        )
+        presenter.test {
+            val initial = consumeItemsUntilPredicate { it.selfPushProtocol != null }.last()
+            assertThat(initial.selfPushProtocol?.protocol).isEqualTo(SelfPushProtocol.WEBSOCKET)
+            initial.eventSink(NotificationSettingsEvent.ShowSelfPushProtocolDialog)
+            val shown = consumeItemsUntilPredicate { it.selfPushProtocol?.showDialog == true }.last()
+            shown.eventSink(NotificationSettingsEvent.SetSelfPushProtocol(SelfPushProtocol.JSON_STREAM))
+            val saved = consumeItemsUntilPredicate {
+                it.selfPushProtocol?.protocol == SelfPushProtocol.JSON_STREAM && it.selfPushProtocol?.showDialog == false
+            }.last()
+            advanceUntilIdle()
+            assertThat(selfPushStore.getProtocol()).isEqualTo(SelfPushProtocol.JSON_STREAM)
+            assertThat(saved.selfPushProtocol?.protocol).isEqualTo(SelfPushProtocol.JSON_STREAM)
+            assertThat(refresher.refreshCount).isEqualTo(1)
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    @Test
+    fun `present - protocol row is hidden for external distributors`() = runTest {
+        val presenter = createNotificationSettingsPresenter()
+        presenter.test {
+            val state = awaitLastSequentialItem()
+            assertThat(state.selfPushProtocol).isNull()
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    @Test
+    fun `present - battery row reflects the system setting and forwards the exemption request`() = runTest {
+        val batteryOptimization = FakeBatteryOptimization()
+        val presenter = createNotificationSettingsPresenter(
+            pushService = createBuiltInPushService(),
+            batteryOptimization = batteryOptimization,
+        )
+        presenter.test {
+            val initial = consumeItemsUntilPredicate { it.selfPushServer != null }.last()
+            assertThat(initial.batteryOptimizationIgnored).isFalse()
+            initial.eventSink(NotificationSettingsEvent.RequestDisableBatteryOptimization)
+            advanceUntilIdle()
+            assertThat(batteryOptimization.requestCount).isEqualTo(1)
+            // The system granted the exemption while the dialog was up; a resume refresh reflects it.
+            batteryOptimization.ignoring = true
+            initial.eventSink(NotificationSettingsEvent.RefreshSystemNotificationsEnabled)
+            val refreshed = consumeItemsUntilPredicate { it.batteryOptimizationIgnored }.last()
+            assertThat(refreshed.batteryOptimizationIgnored).isTrue()
             cancelAndIgnoreRemainingEvents()
         }
     }
@@ -1257,6 +1321,8 @@ class NotificationSettingsPresenterTest {
         }),
         soundDisplayNameResolver: FakeSoundDisplayNameResolver = FakeSoundDisplayNameResolver(),
         selfPushStore: SelfPushStore = FakeSelfPushStore(),
+        selfPushStreamRefresher: SelfPushStreamRefresher = FakeSelfPushStreamRefresher(),
+        batteryOptimization: BatteryOptimization = FakeBatteryOptimization(),
         buildMeta: BuildMeta = aBuildMeta(applicationId = SELF_APPLICATION_ID),
         okHttpClient: OkHttpClient = OkHttpClient(),
     ): NotificationSettingsPresenter {
@@ -1274,6 +1340,8 @@ class NotificationSettingsPresenterTest {
             soundDisplayNameResolver = soundDisplayNameResolver,
             stringProvider = FakeStringProvider(),
             selfPushStore = selfPushStore,
+            selfPushStreamRefresher = selfPushStreamRefresher,
+            batteryOptimization = batteryOptimization,
             buildMeta = buildMeta,
             okHttpClient = okHttpClient,
             sessionCoroutineScope = backgroundScope,
@@ -1282,8 +1350,10 @@ class NotificationSettingsPresenterTest {
 
     private class FakeSelfPushStore : SelfPushStore {
         private val registrations = mutableMapOf<String, SelfPushRegistration>()
+        private val lastMessageTimes = mutableMapOf<String, Long>()
         private var customServer: String? = null
         private var readToken: String? = null
+        private var protocol: SelfPushProtocol = SelfPushProtocol.WEBSOCKET
 
         override fun getRegistration(clientSecret: String): SelfPushRegistration? = registrations[clientSecret]
 
@@ -1292,7 +1362,7 @@ class NotificationSettingsPresenterTest {
         }
 
         override fun removeRegistration(clientSecret: String) {
-            registrations.remove(clientSecret)
+            registrations.remove(clientSecret)?.let { lastMessageTimes.remove(it.topic) }
         }
 
         override fun getAllRegistrations(): Map<String, SelfPushRegistration> = registrations.toMap()
@@ -1307,6 +1377,42 @@ class NotificationSettingsPresenterTest {
 
         override fun setReadToken(token: String?) {
             readToken = token
+        }
+
+        override fun getProtocol(): SelfPushProtocol = protocol
+
+        override fun setProtocol(protocol: SelfPushProtocol) {
+            this.protocol = protocol
+        }
+
+        override fun getLastMessageTime(topic: String): Long? = lastMessageTimes[topic]
+
+        override fun storeLastMessageTime(topic: String, time: Long) {
+            if (time > lastMessageTimes[topic] ?: 0L) {
+                lastMessageTimes[topic] = time
+            }
+        }
+    }
+
+    private class FakeSelfPushStreamRefresher : SelfPushStreamRefresher {
+        var refreshCount = 0
+            private set
+
+        override fun refresh() {
+            refreshCount++
+        }
+    }
+
+    private class FakeBatteryOptimization : BatteryOptimization {
+        var ignoring = false
+        var requestCount = 0
+            private set
+
+        override fun isIgnoringBatteryOptimizations(): Boolean = ignoring
+
+        override fun requestDisablingBatteryOptimization(): Boolean {
+            requestCount++
+            return true
         }
     }
 

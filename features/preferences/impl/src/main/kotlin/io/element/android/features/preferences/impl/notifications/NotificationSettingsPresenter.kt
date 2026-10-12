@@ -41,9 +41,11 @@ import io.element.android.libraries.push.api.notifications.SoundDisplayNameResol
 import io.element.android.libraries.push.api.notifications.sound.NotificationSoundCopier
 import io.element.android.libraries.push.api.notifications.sound.NotificationSoundCopier.CopyResult
 import io.element.android.libraries.push.api.notifications.sound.NotificationSoundCopier.SoundSlot
+import io.element.android.libraries.push.impl.battery.BatteryOptimization
 import io.element.android.libraries.pushproviders.api.Distributor
 import io.element.android.libraries.pushproviders.api.PushProvider
 import io.element.android.libraries.pushproviders.unifiedpush.selfpush.SelfPushStore
+import io.element.android.libraries.pushproviders.unifiedpush.selfpush.SelfPushStreamRefresher
 import io.element.android.libraries.pushstore.api.UserPushStore
 import io.element.android.libraries.pushstore.api.UserPushStoreFactory
 import io.element.android.services.toolbox.api.strings.StringProvider
@@ -79,6 +81,8 @@ class NotificationSettingsPresenter(
     private val soundDisplayNameResolver: SoundDisplayNameResolver,
     private val stringProvider: StringProvider,
     private val selfPushStore: SelfPushStore,
+    private val selfPushStreamRefresher: SelfPushStreamRefresher,
+    private val batteryOptimization: BatteryOptimization,
     private val buildMeta: BuildMeta,
     private val okHttpClient: OkHttpClient,
     @SessionCoroutineScope
@@ -148,6 +152,10 @@ class NotificationSettingsPresenter(
 
         var showSelfPushServerDialog by remember { mutableStateOf(false) }
         var selfPushServerRefresh by remember { mutableIntStateOf(0) }
+        var showSelfPushProtocolDialog by remember { mutableStateOf(false) }
+        var selfPushProtocolRefresh by remember { mutableIntStateOf(0) }
+        // Read eagerly and again on resume: the user changes it in the system settings.
+        var batteryOptimizationIgnored by remember { mutableStateOf(batteryOptimization.isIgnoringBatteryOptimizations()) }
         var selfPushServerHealth by remember { mutableStateOf<AsyncData<Unit>>(AsyncData.Uninitialized) }
         var selfPushServerHealthServer by remember { mutableStateOf<String?>(null) }
         var selfPushServerSaveFailed by remember { mutableStateOf(false) }
@@ -275,6 +283,7 @@ class NotificationSettingsPresenter(
                 NotificationSettingsEvent.FixConfigurationMismatch -> localCoroutineScope.fixConfigurationMismatch(matrixSettings)
                 NotificationSettingsEvent.RefreshSystemNotificationsEnabled -> {
                     systemNotificationsEnabled.value = systemNotificationsEnabledProvider.notificationsEnabled()
+                    batteryOptimizationIgnored = batteryOptimization.isIgnoringBatteryOptimizations()
                     refreshFullScreenIntentSettings++
                 }
                 NotificationSettingsEvent.ClearNotificationChangeError -> changeNotificationSettingAction.value = AsyncAction.Uninitialized
@@ -363,6 +372,17 @@ class NotificationSettingsPresenter(
                 is NotificationSettingsEvent.CheckSelfPushServerHealth -> {
                     localCoroutineScope.checkSelfPushServerHealth(event.url.trim().trimEnd('/'))
                 }
+                NotificationSettingsEvent.ShowSelfPushProtocolDialog -> showSelfPushProtocolDialog = true
+                NotificationSettingsEvent.DismissSelfPushProtocolDialog -> showSelfPushProtocolDialog = false
+                is NotificationSettingsEvent.SetSelfPushProtocol -> {
+                    selfPushStore.setProtocol(event.protocol)
+                    selfPushProtocolRefresh++
+                    showSelfPushProtocolDialog = false
+                    selfPushStreamRefresher.refresh()
+                }
+                NotificationSettingsEvent.RequestDisableBatteryOptimization -> {
+                    batteryOptimization.requestDisablingBatteryOptimization()
+                }
             }
         }
 
@@ -378,6 +398,17 @@ class NotificationSettingsPresenter(
                     healthCheck = selfPushServerHealth,
                     healthCheckServer = selfPushServerHealthServer,
                     saveFailed = selfPushServerSaveFailed,
+                )
+            }
+        } else {
+            null
+        }
+
+        val selfPushProtocol = if (isBuiltInDistributor) {
+            key(selfPushProtocolRefresh) {
+                NotificationSettingsState.SelfPushProtocolState(
+                    protocol = selfPushStore.getProtocol(),
+                    showDialog = showSelfPushProtocolDialog,
                 )
             }
         } else {
@@ -410,6 +441,8 @@ class NotificationSettingsPresenter(
             pendingMessageSoundPickerLaunch = pendingMessageSoundPickerLaunch,
             pendingCallRingtonePickerLaunch = pendingCallRingtonePickerLaunch,
             selfPushServer = selfPushServer,
+            selfPushProtocol = selfPushProtocol,
+            batteryOptimizationIgnored = batteryOptimizationIgnored,
             eventSink = ::handleEvent,
         )
     }

@@ -70,6 +70,7 @@ dependencies {
     implementation(projects.libraries.mediaupload.api)
     implementation(projects.libraries.permissions.api)
     implementation(projects.libraries.push.api)
+    implementation(projects.libraries.push.impl)
     implementation(projects.libraries.pushproviders.api)
     implementation(projects.libraries.pushproviders.unifiedpush)
     implementation(projects.libraries.sessionStorage.api)
