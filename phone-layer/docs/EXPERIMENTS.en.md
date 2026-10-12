@@ -89,7 +89,7 @@ official Element X.
   in-app bug report goes to upstream, who never heard of this feature.
 
 * **Splash screen.** The app icon holds the screen while the session restores,
-  instead of a blank flash (thanks to [@OolaaPleur](https://github.com/OolaaPleur)
+  instead of a blank screen (thanks to [@OolaaPleur](https://github.com/OolaaPleur)
   for the initial implementation).
 
 * **Heads-up message notifications.** Noisy messages pop over the current
