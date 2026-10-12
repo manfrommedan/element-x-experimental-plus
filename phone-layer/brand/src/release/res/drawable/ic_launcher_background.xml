@@ -5,29 +5,15 @@
   ~ Please see LICENSE files in the repository root for full details.
   -->
 <!--
-  Gradient sampled off the B icon artwork: mint at the top fading into deep green.
+  Same near-black plate as the stock release icon: it reads as the ring around the disc.
 -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:aapt="http://schemas.android.com/aapt"
     android:width="108dp"
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
-    <path android:pathData="m0,0h108v108h-108z">
-        <aapt:attr name="android:fillColor">
-            <gradient
-                android:endX="54"
-                android:endY="108"
-                android:startX="54"
-                android:startY="0"
-                android:type="linear">
-                <item
-                    android:color="#FF89DCBB"
-                    android:offset="0" />
-                <item
-                    android:color="#FF013B27"
-                    android:offset="1" />
-            </gradient>
-        </aapt:attr>
-    </path>
+    <path
+        android:fillColor="#010302"
+        android:fillType="evenOdd"
+        android:pathData="m0,0h108v108h-108z" />
 </vector>
