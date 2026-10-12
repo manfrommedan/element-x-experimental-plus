@@ -21,6 +21,8 @@
     <!-- Labs-тумблер: кнопка копирования Matrix ID в шапке настроек. -->
     <string name="screen_labs_enable_share_mxid_shortcut">"Копировать Matrix ID из настроек"</string>
     <string name="screen_labs_enable_share_mxid_shortcut_description">"Кнопка копирования рядом с твоим Matrix ID в шапке настроек, поделиться в одно касание."</string>
+    <string name="screen_labs_enable_builtin_push">"Встроенные push-уведомления"</string>
+    <string name="screen_labs_enable_builtin_push_description">"Пуши в реальном времени через подключение, которое приложение держит с сервером уведомлений само, без отдельного приложения-дистрибьютора вроде ntfy. Сервер, протокол и исключение из оптимизации батареи настраиваются в разделе Настройки, Уведомления, Встроенный push."</string>
     <!-- Labs-тумблер: выбор нескольких сообщений и групповые действия. -->
     <string name="screen_labs_enable_message_multi_select">"Множественный выбор сообщений"</string>
     <string name="screen_labs_enable_message_multi_select_description">"Долгое нажатие на текстовое сообщение начинает выбор, потяните вверх или вниз, чтобы выделить целый диапазон (у краёв список прокручивается сам). Долгое нажатие на медиа открывает меню, где «Выбрать» тоже запускает выбор. Массовое копирование, пересылка и удаление до 30 за раз."</string>

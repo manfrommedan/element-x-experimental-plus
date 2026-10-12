@@ -22,9 +22,9 @@ exactly like the official Element X release until the switch is flipped.
   bothering upstream maintainers, so please don't open issues against
   `element-hq/element-x-android` for changes that originated here.
 
-## What's in this build (Element X v26.08.0 base)
+## What's in this build (Element X v26.09.4 base)
 
-This fork tracks upstream Element X (currently **v26.08.0**) and adds the
+This fork tracks upstream Element X (currently **v26.09.4**) and adds the
 features below. Each one is optional: where it changes existing UI it sits
 behind a Labs toggle, so with the toggles off the app behaves exactly like
 official Element X.
@@ -75,6 +75,27 @@ official Element X.
 * **Hide deleted messages** (Settings → Advanced settings, off by default). Drops
   the "message deleted" placeholders from the timeline so a tidied-up chat reads
   cleanly.
+
+* **Built-in push notifications** (Labs → "Built-in push notifications", off by
+  default; experimental). The app can be its own UnifiedPush distributor: no
+  separate ntfy app needed. A lightweight foreground listener holds a WebSocket
+  or JSON-stream connection to the notification server (ntfy.sh by default, or
+  your own server with an access token), replays whatever it missed while
+  reconnecting, and survives reboots, network switches and aggressive OEM task
+  killers. Manage it in Settings → Notifications → Advanced → Built-in push:
+  server, protocol, battery exemption and live connection status. Experimental:
+  pushes may arrive late or not at all; if your messages are critical, keep the
+  ntfy app around, and if it misbehaves please open an issue in this repo - the
+  in-app bug report goes to upstream, who never heard of this feature.
+
+* **Heads-up message notifications.** Noisy messages pop over the current
+  screen the way Telegram and WhatsApp do, instead of landing quietly in the
+  shade. No toggle; silent rooms stay silent, and per-room settings are
+  respected as before.
+
+* **Element X+ icon.** The launcher icon mirrors the swirl and trades the black
+  ring for graphite, so the fork is easy to tell apart from stock Element X at
+  a glance.
 
 * **Link previews** (Settings → Advanced settings, shown in unencrypted rooms only
   by default). A message that contains a link gets a preview card (site name,

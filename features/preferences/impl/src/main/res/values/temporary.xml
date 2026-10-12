@@ -18,6 +18,8 @@
     <!-- Labs toggle: copy Matrix ID shortcut in settings header. -->
     <string name="screen_labs_enable_share_mxid_shortcut">"Copy Matrix ID from settings"</string>
     <string name="screen_labs_enable_share_mxid_shortcut_description">"Adds a copy button next to your Matrix ID in the settings header so you can share it in one tap."</string>
+    <string name="screen_labs_enable_builtin_push">"Built-in push notifications"</string>
+    <string name="screen_labs_enable_builtin_push_description">"Receive pushes in real time over a connection the app holds to the notification server itself, without a separate distributor app like ntfy. Manage the server, protocol and battery exemption in Settings, Notifications, Built-in push."</string>
     <!-- Labs toggle: multi-select messages with bulk actions. -->
     <string name="screen_labs_enable_message_multi_select">"Multi-select messages"</string>
     <string name="screen_labs_enable_message_multi_select_description">"Long-press a text message to start selecting, then drag up or down to sweep a whole range (the list auto-scrolls at the edges). Long-press media for its menu, where \"Select\" also starts selection. Bulk copy, forward and delete up to 30 at once."</string>
