@@ -48,6 +48,7 @@ interface SelfPushStore {
     /** Server timestamp of the last push seen on the topic, the base for catch-up replays. */
     fun getLastMessageTime(topic: String): Long?
     fun storeLastMessageTime(topic: String, time: Long)
+    fun removeLastMessageTime(topic: String)
 }
 
 @ContributesBinding(AppScope::class)
@@ -123,6 +124,10 @@ class SharedPreferencesSelfPushStore(
         if (time > sharedPreferences.getLong(key, 0L)) {
             sharedPreferences.edit { putLong(key, time) }
         }
+    }
+
+    override fun removeLastMessageTime(topic: String) {
+        sharedPreferences.edit { remove(PREFS_LAST_MESSAGE_TIME + topic) }
     }
 
     companion object {

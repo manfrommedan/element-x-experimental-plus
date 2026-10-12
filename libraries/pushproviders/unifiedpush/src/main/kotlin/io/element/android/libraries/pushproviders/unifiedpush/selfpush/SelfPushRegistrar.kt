@@ -21,6 +21,9 @@ import java.util.UUID
 
 private val loggerTag = LoggerTag("SelfPushRegistrar", LoggerTag.PushLoggerTag)
 
+/** The stock notification server, shared by the registrar and the listener service. */
+internal const val DEFAULT_SELF_PUSH_SERVER = "https://ntfy.sh"
+
 /**
  * Registers a session for pushes with the app acting as its own distributor.
  *
@@ -45,7 +48,7 @@ class DefaultSelfPushRegistrar(
     private val newGatewayHandler: UnifiedPushNewGatewayHandler,
 ) : SelfPushRegistrar {
     override suspend fun register(clientSecret: String): Result<Unit> {
-        val server = (selfPushStore.getCustomServer() ?: DEFAULT_SERVER).trimEnd('/')
+        val server = (selfPushStore.getCustomServer() ?: DEFAULT_SELF_PUSH_SERVER).trimEnd('/')
         // Re-registering an already registered session keeps its topic: the running stream
         // stays valid and the homeserver pusher does not churn. A fresh topic is only minted
         // for new sessions or when the server changed under the registration.
@@ -53,11 +56,7 @@ class DefaultSelfPushRegistrar(
         val topic = when {
             existing == null -> newTopic()
             existing.server == server -> existing.topic
-            else -> {
-                // The old topic's catch-up timestamp means nothing on the new server.
-                selfPushStore.removeRegistration(clientSecret)
-                newTopic()
-            }
+            else -> newTopic()
         }
         val endpoint = "$server/$topic?up=1"
 
@@ -67,6 +66,11 @@ class DefaultSelfPushRegistrar(
 
         return newGatewayHandler.handle(endpoint, gateway, clientSecret)
             .onSuccess {
+                // Only now that the pusher points at the new endpoint: retire the old topic's
+                // catch-up state. Doing it earlier would kill the live registration on failure.
+                if (existing != null && existing.topic != topic) {
+                    selfPushStore.removeLastMessageTime(existing.topic)
+                }
                 unifiedPushStore.storeUpEndpoint(clientSecret, endpoint)
                 selfPushStore.storeRegistration(clientSecret, SelfPushRegistration(server = server, topic = topic))
                 Timber.tag(loggerTag.value).d("Registered the built-in push listener for a session")
@@ -86,9 +90,5 @@ class DefaultSelfPushRegistrar(
 
     private fun newTopic(): String {
         return "up" + UUID.randomUUID().toString().replace("-", "")
-    }
-
-    private companion object {
-        const val DEFAULT_SERVER = "https://ntfy.sh"
     }
 }

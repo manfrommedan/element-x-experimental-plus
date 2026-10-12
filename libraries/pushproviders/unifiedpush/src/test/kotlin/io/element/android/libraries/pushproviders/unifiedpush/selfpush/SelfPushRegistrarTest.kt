@@ -131,6 +131,32 @@ class SelfPushRegistrarTest : RobolectricTest() {
         assertThat(selfPushStore.getLastMessageTime(first.topic)).isNull()
     }
 
+    @Test
+    fun `failing re-registration after a server change keeps the old registration alive`() = runTest {
+        val selfPushStore = FakeSelfPushStore()
+        val registrar = createRegistrar(selfPushStore = selfPushStore)
+        registrar.register(A_SECRET)
+        val first = selfPushStore.getRegistration(A_SECRET)!!
+        selfPushStore.storeLastMessageTime(first.topic, 1000L)
+
+        selfPushStore.setCustomServer("https://offline.example.org")
+        val failingRegistrar = createRegistrar(
+            selfPushStore = selfPushStore,
+            newGatewayHandler = object : UnifiedPushNewGatewayHandler {
+                override suspend fun handle(endpoint: String, pushGateway: String, clientSecret: String): Result<Unit> {
+                    return Result.failure(AN_EXCEPTION)
+                }
+            },
+        )
+
+        val result = failingRegistrar.register(A_SECRET)
+
+        // The stream on the old server must stay valid until a new pusher is confirmed.
+        assertThat(result.isFailure).isTrue()
+        assertThat(selfPushStore.getRegistration(A_SECRET)).isEqualTo(first)
+        assertThat(selfPushStore.getLastMessageTime(first.topic)).isEqualTo(1000L)
+    }
+
     private fun createRegistrar(
         selfPushStore: SelfPushStore = FakeSelfPushStore(),
         unifiedPushStore: FakeUnifiedPushStore = defaultUnifiedPushStore(),

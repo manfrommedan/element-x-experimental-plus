@@ -98,6 +98,16 @@ class SelfPushStoreTest {
     }
 
     @Test
+    fun `removeLastMessageTime drops only that topic's entry`() {
+        store.storeLastMessageTime("up1", 100L)
+        store.storeLastMessageTime("up2", 200L)
+        store.removeLastMessageTime("up1")
+
+        assertThat(store.getLastMessageTime("up1")).isNull()
+        assertThat(store.getLastMessageTime("up2")).isEqualTo(200L)
+    }
+
+    @Test
     fun `last message time keeps the max`() {
         assertThat(store.getLastMessageTime("up1")).isNull()
 

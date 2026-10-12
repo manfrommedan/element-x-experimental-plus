@@ -163,8 +163,9 @@ class NtfyStreamClient @Inject constructor(
         val call = httpStreamClient.newCall(request)
         // The blocking read ignores coroutine cancellation on its own: awaitClose cancels the
         // call, the socket dies under the reader and its IOException fails the flow cleanly.
-        // Errors leave through close(cause), not by throwing: an uncaught exception in a
-        // child coroutine would crash the whole collection scope instead of ending the flow.
+        // IO errors leave through close(cause) so they end the flow as ordinary stream
+        // failures; anything else thrown here fails the producer scope, which retryWhen
+        // also sees. Cancellation never reaches this catch: it stops the channel first.
         val reader = launch(Dispatchers.IO) {
             try {
                 val response = call.execute()

@@ -51,6 +51,10 @@ class FakeSelfPushStore : SelfPushStore {
             lastMessageTimes[topic] = time
         }
     }
+
+    override fun removeLastMessageTime(topic: String) {
+        lastMessageTimes.remove(topic)
+    }
 }
 
 class FakeSelfPushRegistrar(

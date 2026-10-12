@@ -89,6 +89,22 @@ class SelfPushSubscriberService : Service() {
             // A network switch can leave a socket dead without closing it; restart the streams.
             restartStreams(force = true)
         }
+
+        override fun onLost(network: Network) {
+            // No default route left: park the streams instead of spinning reconnects into
+            // the void; onAvailable brings them back.
+            val connectivityManager = getSystemService(ConnectivityManager::class.java) ?: return
+            if (connectivityManager.activeNetwork == null) {
+                Timber.tag(loggerTag.value).d("No network left, parking the streams")
+                parkStreams()
+            }
+        }
+    }
+
+    @Synchronized
+    private fun parkStreams() {
+        streamJobs.values.forEach { it.job.cancel() }
+        streamJobs.clear()
     }
 
     override fun onBind(intent: Intent?): IBinder? = null
@@ -125,10 +141,26 @@ class SelfPushSubscriberService : Service() {
         return START_STICKY
     }
 
+    override fun onTaskRemoved(rootIntent: Intent?) {
+        // Xiaomi-class OEMs kill the process on a recents swipe; ntfy's answer is the same:
+        // a near-term alarm brings the listener back before the system finishes the teardown.
+        if (selfPushStore.getAllRegistrations().isNotEmpty()) {
+            scheduleWatchdog(QUICK_RESTART_DELAY_MS)
+        }
+        super.onTaskRemoved(rootIntent)
+    }
+
     override fun onDestroy() {
         serviceScope.cancel()
         getSystemService(ConnectivityManager::class.java)?.unregisterNetworkCallback(networkCallback)
-        cancelWatchdog()
+        // START_STICKY covers most kills, but not all OEMs honor it; re-arm the watchdog one
+        // last time if there is still something to listen to. A modest delay, not the quick
+        // one: if the destroy came from a foreground-start failure, a hot loop helps no one.
+        if (selfPushStore.getAllRegistrations().isNotEmpty()) {
+            scheduleWatchdog(DESTROY_RESTART_DELAY_MS)
+        } else {
+            cancelWatchdog()
+        }
         ServiceCompat.stopForeground(this, ServiceCompat.STOP_FOREGROUND_REMOVE)
         super.onDestroy()
     }
@@ -156,8 +188,12 @@ class SelfPushSubscriberService : Service() {
         }
 
         val protocol = selfPushStore.getProtocol()
-        val readToken = selfPushStore.getReadToken()
+        val configuredServer = (selfPushStore.getCustomServer() ?: DEFAULT_SELF_PUSH_SERVER).trimEnd('/')
+        val storedToken = selfPushStore.getReadToken()
         for ((server, topics) in registrationsByServer) {
+            // The token belongs to the configured server only; in a mixed state (a failed
+            // migration leaving registrations on two servers) it must not leak to the other one.
+            val readToken = storedToken.takeIf { server == configuredServer }
             val topicNames = topics.map { it.second }.toSet()
             // A job that died on a fatal refusal counts as absent, so the watchdog can revive it.
             val active = streamJobs[server]?.takeIf { it.job.isActive }
@@ -198,6 +234,13 @@ class SelfPushSubscriberService : Service() {
     }
 
     private suspend fun onPushMessage(server: String, message: NtfyMessage) {
+        // Persisted guard first (survives process death): strictly older than what we stored
+        // means replayed. Same-second pushes pass through to the in-memory dedupe below.
+        val storedTime = selfPushStore.getLastMessageTime(message.topic)
+        if (storedTime != null && message.time < storedTime) {
+            Timber.tag(loggerTag.value).d("Replayed push older than the stored watermark, dropping")
+            return
+        }
         if (!recentMessageIds.addIfNew("$server:${message.id}")) {
             Timber.tag(loggerTag.value).d("Replayed push, dropping")
             return
@@ -225,10 +268,10 @@ class SelfPushSubscriberService : Service() {
         }
     }
 
-    private fun scheduleWatchdog() {
+    private fun scheduleWatchdog(delayMs: Long = WATCHDOG_INTERVAL_MS) {
         val alarmManager = getSystemService(AlarmManager::class.java) ?: return
         runCatchingExceptions {
-            val triggerAt = System.currentTimeMillis() + WATCHDOG_INTERVAL_MS
+            val triggerAt = System.currentTimeMillis() + delayMs
             // SCHEDULE_EXACT_ALARM can be revoked on Android 12+; fall back to an inexact
             // alarm instead of losing the watchdog to a SecurityException. The fallback only
             // revives a live process: starting a foreground service from background is an
@@ -278,6 +321,12 @@ class SelfPushSubscriberService : Service() {
 
         /** How far back the catch-up replay reaches past the last seen push. */
         private const val SINCE_OVERLAP_S = 2L
+
+        /** Swipe-kill re-arm delay. */
+        private const val QUICK_RESTART_DELAY_MS = 1000L
+
+        /** Post-destroy re-arm delay. */
+        private const val DESTROY_RESTART_DELAY_MS = 30_000L
 
         /** Starts (or refreshes) the listener. Safe to call when it is already running. */
         fun start(context: Context) {
