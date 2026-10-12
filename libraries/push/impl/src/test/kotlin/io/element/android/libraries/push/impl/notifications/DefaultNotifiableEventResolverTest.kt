@@ -32,6 +32,7 @@ import io.element.android.libraries.matrix.api.timeline.item.event.StickerMessag
 import io.element.android.libraries.matrix.api.timeline.item.event.TextMessageType
 import io.element.android.libraries.matrix.api.timeline.item.event.VideoMessageType
 import io.element.android.libraries.matrix.api.timeline.item.event.VoiceMessageType
+import io.element.android.libraries.matrix.api.user.MatrixUser
 import io.element.android.libraries.matrix.test.AN_EVENT_ID
 import io.element.android.libraries.matrix.test.AN_EVENT_ID_2
 import io.element.android.libraries.matrix.test.AN_EXCEPTION
@@ -117,6 +118,29 @@ class DefaultNotifiableEventResolverTest : RobolectricTest() {
             aNotifiableMessageEvent(body = "Hello world")
         )
         assertThat(result.getEvent(request)).isEqualTo(Result.success(expectedResult))
+    }
+
+    @Test
+    fun `resolve event message falls back to the sender profile avatar when the payload has none`() = runTest {
+        val sut = createDefaultNotifiableEventResolver(
+            notificationResult = Result.success(
+                mapOf(
+                    AN_EVENT_ID to Result.success(aNotificationData(
+                        content = NotificationContent.MessageLike.RoomMessage(
+                            senderId = A_USER_ID_2,
+                            messageType = TextMessageType(body = "Hello world", formatted = null)
+                        ),
+                    ))
+                )
+            ),
+            matrixClientConfig = {
+                givenGetProfileResult(A_USER_ID_2, Result.success(MatrixUser(A_USER_ID_2, "Bob", "mxc://avatar/2")))
+            },
+        )
+        val request = aPushRequest(A_SESSION_ID, A_ROOM_ID, AN_EVENT_ID, "firebase")
+        val result = sut.resolveEvents(A_SESSION_ID, listOf(request))
+        val event = result.getEvent(request)?.getOrNull() as ResolvedPushEvent.Event
+        assertThat((event.notifiableEvent as NotifiableMessageEvent).senderAvatarPath).isEqualTo("mxc://avatar/2")
     }
 
     @Test
@@ -1060,6 +1084,7 @@ class DefaultNotifiableEventResolverTest : RobolectricTest() {
         notificationResult: Result<Map<EventId, Result<NotificationData>>> = Result.success(emptyMap()),
         callNotificationEventResolver: FakeCallNotificationEventResolver = FakeCallNotificationEventResolver(),
         sessionStore: SessionStore = InMemorySessionStore(),
+        matrixClientConfig: FakeMatrixClient.() -> Unit = {},
     ): DefaultNotifiableEventResolver {
         val context = RuntimeEnvironment.getApplication() as Context
         notificationService?.givenGetNotificationsResult(notificationResult)
@@ -1067,7 +1092,7 @@ class DefaultNotifiableEventResolverTest : RobolectricTest() {
             if (notificationService == null) {
                 Result.failure(IllegalStateException("Client not found"))
             } else {
-                Result.success(FakeMatrixClient(notificationService = notificationService))
+                Result.success(FakeMatrixClient(notificationService = notificationService).apply(matrixClientConfig))
             }
         })
         val notificationMediaRepoFactory = NotificationMediaRepo.Factory {

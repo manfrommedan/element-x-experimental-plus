@@ -31,13 +31,14 @@ fun aNotificationData(
     roomDisplayName: String? = A_ROOM_NAME,
     roomJoinRule: JoinRule? = null,
     isNoisy: Boolean = false,
+    senderAvatarUrl: String? = null,
 ): NotificationData {
     return NotificationData(
         sessionId = A_SESSION_ID,
         eventId = AN_EVENT_ID,
         threadId = threadId,
         roomId = A_ROOM_ID,
-        senderAvatarUrl = null,
+        senderAvatarUrl = senderAvatarUrl,
         senderDisplayName = senderDisplayName,
         senderIsNameAmbiguous = senderIsNameAmbiguous,
         roomAvatarUrl = null,

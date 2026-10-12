@@ -61,6 +61,7 @@ import io.element.android.libraries.sessionstorage.api.SessionStore
 import io.element.android.libraries.ui.strings.CommonStrings
 import io.element.android.services.toolbox.api.strings.StringProvider
 import timber.log.Timber
+import java.util.Collections
 
 private val loggerTag = LoggerTag("DefaultNotifiableEventResolver", LoggerTag.NotificationLoggerTag)
 
@@ -153,6 +154,22 @@ class DefaultNotifiableEventResolver(
         else -> null
     }
 
+    /** Process-wide cache: profile fetches are only needed once per sender per cold start. */
+    private val profileAvatarCache = Collections.synchronizedMap(mutableMapOf<Pair<SessionId, UserId>, String?>())
+
+    /**
+     * The SDK notification payload carries no sender avatar when the member profile has not
+     * been synced yet (cold session), which anonymises the first notification. Fetch the
+     * profile once per sender instead.
+     */
+    private suspend fun senderAvatarFallback(client: MatrixClient, sessionId: SessionId, senderId: UserId): String? {
+        val key = sessionId to senderId
+        if (profileAvatarCache.containsKey(key)) return profileAvatarCache[key]
+        val avatarUrl = client.getProfile(senderId).getOrNull()?.avatarUrl
+        profileAvatarCache[key] = avatarUrl
+        return avatarUrl
+    }
+
     private suspend fun NotificationData.asNotifiableEvent(
         client: MatrixClient,
         userId: SessionId,
@@ -201,7 +218,7 @@ class DefaultNotifiableEventResolver(
                     roomName = roomDisplayName,
                     roomIsDm = isDm,
                     roomAvatarPath = roomAvatarUrl,
-                    senderAvatarPath = senderAvatarUrl,
+                    senderAvatarPath = senderAvatarUrl ?: senderAvatarFallback(client, userId, content.senderId),
                     hasMentionOrReply = hasMention,
                 )
                 ResolvedPushEvent.Event(notifiableMessageEvent)
