@@ -41,7 +41,7 @@ class SelfPushRegistrarTest : RobolectricTest() {
 
         assertThat(result.isSuccess).isTrue()
         // UP-shaped endpoint on the default server, with a fresh topic
-        assertThat(registeredEndpoint).matches("""https://ntfy\.sh/up[0-9a-f]{16}\?up=1""")
+        assertThat(registeredEndpoint).matches("""https://ntfy\.sh/up[0-9a-f]{32}\?up=1""")
         assertThat(unifiedPushStore.getEndpoint(A_SECRET)).isEqualTo(registeredEndpoint)
         val registration = selfPushStore.getRegistration(A_SECRET)
         assertThat(registration).isNotNull()
@@ -98,6 +98,37 @@ class SelfPushRegistrarTest : RobolectricTest() {
         registrar.unregister(A_SECRET)
 
         assertThat(selfPushStore.getRegistration(A_SECRET)).isNull()
+    }
+
+    @Test
+    fun `re-registering the same session keeps its topic`() = runTest {
+        val selfPushStore = FakeSelfPushStore()
+        val registrar = createRegistrar(selfPushStore = selfPushStore)
+
+        registrar.register(A_SECRET)
+        val first = selfPushStore.getRegistration(A_SECRET)
+        registrar.register(A_SECRET)
+        val second = selfPushStore.getRegistration(A_SECRET)
+
+        assertThat(second).isEqualTo(first)
+    }
+
+    @Test
+    fun `changing the server mints a fresh topic and drops the old catch-up state`() = runTest {
+        val selfPushStore = FakeSelfPushStore()
+        val registrar = createRegistrar(selfPushStore = selfPushStore)
+
+        registrar.register(A_SECRET)
+        val first = selfPushStore.getRegistration(A_SECRET)!!
+        selfPushStore.storeLastMessageTime(first.topic, 1000L)
+
+        selfPushStore.setCustomServer("https://ntfy.example.org")
+        registrar.register(A_SECRET)
+        val second = selfPushStore.getRegistration(A_SECRET)!!
+
+        assertThat(second.server).isEqualTo("https://ntfy.example.org")
+        assertThat(second.topic).isNotEqualTo(first.topic)
+        assertThat(selfPushStore.getLastMessageTime(first.topic)).isNull()
     }
 
     private fun createRegistrar(

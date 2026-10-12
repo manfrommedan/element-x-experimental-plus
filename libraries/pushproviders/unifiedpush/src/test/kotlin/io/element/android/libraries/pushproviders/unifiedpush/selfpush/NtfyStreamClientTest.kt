@@ -10,10 +10,14 @@ package io.element.android.libraries.pushproviders.unifiedpush.selfpush
 import app.cash.turbine.test
 import com.google.common.truth.Truth.assertThat
 import io.element.android.libraries.core.extensions.runCatchingExceptions
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withTimeout
 import okhttp3.OkHttpClient
 import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer
+import okhttp3.mockwebserver.SocketPolicy
 import org.junit.After
 import org.junit.Before
 import org.junit.Test
@@ -26,9 +30,11 @@ import java.security.MessageDigest
 import java.util.Base64
 import java.util.concurrent.ArrayBlockingQueue
 import java.util.concurrent.CopyOnWriteArrayList
+import java.util.concurrent.TimeUnit
 import kotlin.concurrent.thread
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.seconds
 
 class NtfyStreamClientTest {
     private val server = MockWebServer()
@@ -174,6 +180,45 @@ class NtfyStreamClientTest {
             }
 
         assertThat(clock.reconnects).isEqualTo(1)
+    }
+
+    @Test
+    fun `rate limited stream reconnects instead of dying`() = runBlocking {
+        val clock = RecordingClock()
+        server.enqueue(MockResponse().setResponseCode(429))
+        server.enqueue(MockResponse().setResponseCode(401))
+
+        client(clock).stream(serverUrl(), setOf("upA"), readToken = null, SelfPushProtocol.JSON_STREAM) { null }
+            .test {
+                assertThat(awaitError()).isInstanceOf(FatalStreamException::class.java)
+            }
+
+        // 429 retried (then the terminal 401 ended the flow), so one reconnect happened.
+        assertThat(clock.reconnects).isEqualTo(1)
+    }
+
+    @Test
+    fun `http stream releases the connection when the collector is cancelled`() = runBlocking {
+        // A keepalive-only stream that never ends on its own.
+        server.enqueue(
+            MockResponse()
+                .setBody("""{"id":"0","time":1,"event":"open"}""" + "\n")
+                .setSocketPolicy(SocketPolicy.KEEP_OPEN)
+        )
+
+        val job = launch {
+            client().stream(serverUrl(), setOf("upA"), readToken = null, SelfPushProtocol.JSON_STREAM) { null }
+                .collect { }
+        }
+        // Let the stream connect and settle into the blocking read, then cancel.
+        // (No takeRequest here: it would block the runBlocking loop before collect even runs.)
+        delay(500)
+        job.cancel()
+
+        // Without the call cancellation the collector would hang on the socket forever.
+        withTimeout(2.seconds) { job.join() }
+        assertThat(job.isCancelled).isTrue()
+        assertThat(server.takeRequest(2, TimeUnit.SECONDS)).isNotNull()
     }
 
     @Test

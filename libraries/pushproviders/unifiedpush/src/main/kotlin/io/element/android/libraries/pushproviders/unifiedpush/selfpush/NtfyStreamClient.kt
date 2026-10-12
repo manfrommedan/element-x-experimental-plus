@@ -10,12 +10,15 @@ package io.element.android.libraries.pushproviders.unifiedpush.selfpush
 import dev.zacsweers.metro.Inject
 import io.element.android.libraries.core.extensions.runCatchingExceptions
 import io.element.android.libraries.core.log.logger.LoggerTag
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.awaitClose
+import kotlinx.coroutines.channels.trySendBlocking
+import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
-import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.retryWhen
 import kotlinx.coroutines.isActive
@@ -96,7 +99,10 @@ class NtfyStreamClient @Inject constructor(
     ): Flow<NtfyMessage> {
         require(topics.isNotEmpty()) { "No topics to subscribe to" }
         return readFrames(server, topics, readToken, protocol, since).retryWhen { cause, attempt ->
-            if (cause is FatalStreamException) throw cause
+            // Never retry a cancelled collection: the buffered test clocks do not suspend,
+            // so without this a cancel during a broken stream would spin reconnects forever.
+            if (cause is FatalStreamException || cause is CancellationException) throw cause
+            currentCoroutineContext().ensureActive()
             val backoff = clock.backoff(attempt)
             Timber.tag(loggerTag.value).w("Stream broke (${cause.message}), reconnecting in $backoff")
             clock.delay(backoff)
@@ -113,12 +119,11 @@ class NtfyStreamClient @Inject constructor(
     ): Flow<NtfyMessage> {
         // The request is built inside the flow so every reconnect re-reads `since` and gets a
         // fresh catch-up window, instead of replaying the first attempt's forever.
-        return when (protocol) {
-            SelfPushProtocol.WEBSOCKET -> callbackFlow {
-                readWebSocketFrames(server, topics, buildRequest(server, topics, protocol, readToken, since()))
-            }
-            SelfPushProtocol.JSON_STREAM -> flow {
-                readHttpFrames(server, topics, buildRequest(server, topics, protocol, readToken, since()))
+        return callbackFlow {
+            val request = buildRequest(server, topics, protocol, readToken, since())
+            when (protocol) {
+                SelfPushProtocol.WEBSOCKET -> readWebSocketFrames(server, topics, request)
+                SelfPushProtocol.JSON_STREAM -> readHttpFrames(server, topics, request)
             }
         }
     }
@@ -150,22 +155,41 @@ class NtfyStreamClient @Inject constructor(
         }
     }
 
-    private suspend fun kotlinx.coroutines.flow.FlowCollector<NtfyMessage>.readHttpFrames(
+    private suspend fun kotlinx.coroutines.channels.ProducerScope<NtfyMessage>.readHttpFrames(
         server: String,
         topics: Set<String>,
         request: Request,
     ) {
-        val response = httpStreamClient.newCall(request).execute()
-        if (!response.isSuccessful) {
-            response.close()
-            throw refusalOrFailure(response.code)
-        }
+        val call = httpStreamClient.newCall(request)
+        // The blocking read ignores coroutine cancellation on its own: awaitClose cancels the
+        // call, the socket dies under the reader and its IOException fails the flow cleanly.
+        // Errors leave through close(cause), not by throwing: an uncaught exception in a
+        // child coroutine would crash the whole collection scope instead of ending the flow.
+        val reader = launch(Dispatchers.IO) {
+            try {
+                val response = call.execute()
+                if (!response.isSuccessful) {
+                    response.close()
+                    close(refusalOrFailure(response.code))
+                    return@launch
+                }
 
-        val source = response.body.source()
-        Timber.tag(loggerTag.value).d("HTTP stream open for ${topics.size} topic(s) on $server")
-        while (true) {
-            val line = source.readUtf8Line() ?: throw IOException("Stream closed by the server")
-            parseFrame(line)?.let { emit(it) }
+                val source = response.body.source()
+                Timber.tag(loggerTag.value).d("HTTP stream open for ${topics.size} topic(s) on $server")
+                while (true) {
+                    val line = source.readUtf8Line() ?: throw IOException("Stream closed by the server")
+                    parseFrame(line)?.let { trySendBlocking(it) }
+                }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: IOException) {
+                close(e)
+            }
+        }
+        try {
+            awaitClose { call.cancel() }
+        } finally {
+            reader.cancel()
         }
     }
 
@@ -183,7 +207,9 @@ class NtfyStreamClient @Inject constructor(
 
             override fun onMessage(webSocket: WebSocket, text: String) {
                 lastFrameAt.set(System.currentTimeMillis())
-                parseFrame(text)?.let { trySend(it) }
+                // Blocking when the buffer is full beats dropping the frame: catch-up replays
+                // can outrun the collector, and those are exactly the pushes since= exists to save.
+                parseFrame(text)?.let { trySendBlocking(it) }
             }
 
             override fun onClosing(webSocket: WebSocket, code: Int, reason: String) {
@@ -220,15 +246,15 @@ class NtfyStreamClient @Inject constructor(
     }
 
     private fun Throwable.toStreamException(response: Response?): Exception {
-        return if (response != null && response.code in 400..499) {
-            refusalOrFailure(response.code)
-        } else {
-            IOException("Stream failed", this)
+        return when {
+            response == null -> IOException("Stream failed", this)
+            else -> refusalOrFailure(response.code)
         }
     }
 
     private fun refusalOrFailure(code: Int): Exception {
-        return if (code in 400..499) {
+        // 429 is the server asking to slow down, not a refusal: retry with the usual backoff.
+        return if (code in 400..499 && code != 429) {
             FatalStreamException("Stream refused by the server: HTTP $code")
         } else {
             IOException("Stream failed: HTTP $code")

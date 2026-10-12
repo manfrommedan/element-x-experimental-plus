@@ -67,9 +67,15 @@ class SelfPushSubscriberService : Service() {
 
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
-    private data class ActiveStream(val job: Job, val protocol: SelfPushProtocol, val readToken: String?) {
-        fun matches(protocol: SelfPushProtocol, readToken: String?): Boolean {
-            return this.protocol == protocol && this.readToken == readToken
+    private data class ActiveStream(
+        val job: Job,
+        val protocol: SelfPushProtocol,
+        val readToken: String?,
+        val topics: Set<String>,
+    ) {
+        /** True when the live stream already serves exactly what the store asks for. */
+        fun matches(protocol: SelfPushProtocol, readToken: String?, topics: Set<String>): Boolean {
+            return this.protocol == protocol && this.readToken == readToken && this.topics == topics
         }
     }
 
@@ -111,10 +117,6 @@ class SelfPushSubscriberService : Service() {
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         when (intent?.action) {
-            ACTION_STOP -> {
-                Timber.tag(loggerTag.value).d("Stopped on request")
-                stopSelf()
-            }
             else -> {
                 restartStreams(force = false)
                 scheduleWatchdog()
@@ -156,14 +158,14 @@ class SelfPushSubscriberService : Service() {
         val protocol = selfPushStore.getProtocol()
         val readToken = selfPushStore.getReadToken()
         for ((server, topics) in registrationsByServer) {
+            val topicNames = topics.map { it.second }.toSet()
             // A job that died on a fatal refusal counts as absent, so the watchdog can revive it.
             val active = streamJobs[server]?.takeIf { it.job.isActive }
-            if (active != null && !force && active.matches(protocol, readToken)) continue
+            if (active != null && !force && active.matches(protocol, readToken, topicNames)) continue
             if (active != null) {
                 Timber.tag(loggerTag.value).d("Reopening the stream to $server")
                 active.job.cancel()
             }
-            val topicNames = topics.map { it.second }.toSet()
             Timber.tag(loggerTag.value).d("Opening a $protocol stream to $server for ${topicNames.size} topic(s)")
             streamJobs[server] = ActiveStream(
                 job = serviceScope.launch {
@@ -179,6 +181,7 @@ class SelfPushSubscriberService : Service() {
                 },
                 protocol = protocol,
                 readToken = readToken,
+                topics = topicNames,
             )
         }
     }
@@ -227,7 +230,10 @@ class SelfPushSubscriberService : Service() {
         runCatchingExceptions {
             val triggerAt = System.currentTimeMillis() + WATCHDOG_INTERVAL_MS
             // SCHEDULE_EXACT_ALARM can be revoked on Android 12+; fall back to an inexact
-            // alarm instead of losing the watchdog to a SecurityException.
+            // alarm instead of losing the watchdog to a SecurityException. The fallback only
+            // revives a live process: starting a foreground service from background is an
+            // exact-alarm exemption, so with the permission revoked a dead process relies on
+            // the sticky restart, the boot receiver and the app-startup hook.
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && !alarmManager.canScheduleExactAlarms()) {
                 alarmManager.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerAt, watchdogIntent())
             } else {
@@ -266,7 +272,6 @@ class SelfPushSubscriberService : Service() {
     companion object {
         private const val ACTION_REFRESH = "io.element.android.libraries.pushproviders.unifiedpush.selfpush.action.REFRESH"
         private const val ACTION_WATCHDOG = "io.element.android.libraries.pushproviders.unifiedpush.selfpush.action.WATCHDOG"
-        private const val ACTION_STOP = "io.element.android.libraries.pushproviders.unifiedpush.selfpush.action.STOP"
 
         /** The stream heals itself between watchdogs; this only revives a frozen process. */
         private const val WATCHDOG_INTERVAL_MS = 15 * 60 * 1000L
@@ -280,10 +285,6 @@ class SelfPushSubscriberService : Service() {
             runCatchingExceptions {
                 ContextCompat.startForegroundService(context, intent)
             }.onFailure { Timber.tag(loggerTag.value).w(it, "Could not start the listener now") }
-        }
-
-        fun stop(context: Context) {
-            context.startService(Intent(context, SelfPushSubscriberService::class.java).setAction(ACTION_STOP))
         }
     }
 }

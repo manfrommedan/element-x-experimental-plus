@@ -46,7 +46,19 @@ class DefaultSelfPushRegistrar(
 ) : SelfPushRegistrar {
     override suspend fun register(clientSecret: String): Result<Unit> {
         val server = (selfPushStore.getCustomServer() ?: DEFAULT_SERVER).trimEnd('/')
-        val topic = "up" + UUID.randomUUID().toString().replace("-", "").take(TOPIC_ID_LENGTH)
+        // Re-registering an already registered session keeps its topic: the running stream
+        // stays valid and the homeserver pusher does not churn. A fresh topic is only minted
+        // for new sessions or when the server changed under the registration.
+        val existing = selfPushStore.getRegistration(clientSecret)
+        val topic = when {
+            existing == null -> newTopic()
+            existing.server == server -> existing.topic
+            else -> {
+                // The old topic's catch-up timestamp means nothing on the new server.
+                selfPushStore.removeRegistration(clientSecret)
+                newTopic()
+            }
+        }
         val endpoint = "$server/$topic?up=1"
 
         val gateway = unifiedPushGatewayResolver.getGateway(endpoint)
@@ -72,8 +84,11 @@ class DefaultSelfPushRegistrar(
         SelfPushSubscriberService.start(context)
     }
 
+    private fun newTopic(): String {
+        return "up" + UUID.randomUUID().toString().replace("-", "")
+    }
+
     private companion object {
         const val DEFAULT_SERVER = "https://ntfy.sh"
-        const val TOPIC_ID_LENGTH = 16
     }
 }
