@@ -39,7 +39,7 @@ sealed interface NotificationSettingsEvent {
     data object DismissSelfPushServerDialog : NotificationSettingsEvent
     data class SaveSelfPushServer(val url: String, val readToken: String?) : NotificationSettingsEvent
     data object ResetSelfPushServer : NotificationSettingsEvent
-    data class CheckSelfPushServerHealth(val url: String) : NotificationSettingsEvent
+    data class CheckSelfPushServerHealth(val url: String, val readToken: String?) : NotificationSettingsEvent
     data object ShowSelfPushProtocolDialog : NotificationSettingsEvent
     data object DismissSelfPushProtocolDialog : NotificationSettingsEvent
     data class SetSelfPushProtocol(val protocol: SelfPushProtocol) : NotificationSettingsEvent

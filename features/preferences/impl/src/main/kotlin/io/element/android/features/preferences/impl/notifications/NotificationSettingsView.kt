@@ -574,7 +574,7 @@ private fun SelfPushServerDialog(
             ) {
                 TextButton(
                     text = stringResource(id = CommonStrings.screen_notifications_push_server_check_health),
-                    onClick = { eventSink(NotificationSettingsEvent.CheckSelfPushServerHealth(trimmedUrl)) },
+                    onClick = { eventSink(NotificationSettingsEvent.CheckSelfPushServerHealth(trimmedUrl, readToken)) },
                     enabled = trimmedUrl.isNotEmpty(),
                 )
                 // Only surface a result that was produced for the URL currently in the field.

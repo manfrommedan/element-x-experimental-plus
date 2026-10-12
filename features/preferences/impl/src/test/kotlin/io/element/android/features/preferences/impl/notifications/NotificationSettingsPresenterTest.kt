@@ -464,6 +464,30 @@ class NotificationSettingsPresenterTest {
 
     @OptIn(ExperimentalCoroutinesApi::class)
     @Test
+    fun `present - failing re-registration after a server change rolls the store back`() = runTest {
+        val selfPushStore = FakeSelfPushStore()
+        val presenter = createNotificationSettingsPresenter(
+            pushService = createBuiltInPushService(registerWithLambda = { _, _, _ ->
+                Result.failure(AN_EXCEPTION)
+            }),
+            selfPushStore = selfPushStore,
+        )
+        presenter.test {
+            val initial = consumeItemsUntilPredicate { it.selfPushServer != null }.last()
+            initial.eventSink(NotificationSettingsEvent.ShowSelfPushServerDialog)
+            val shown = consumeItemsUntilPredicate { it.selfPushServer?.showDialog == true }.last()
+            shown.eventSink(NotificationSettingsEvent.SaveSelfPushServer("https://push.example.com", "tk_new"))
+            consumeItemsUntilPredicate { it.selfPushServer?.saveFailed == true }
+            advanceUntilIdle()
+            // The store never advertises a server the live registration does not use.
+            assertThat(selfPushStore.getCustomServer()).isNull()
+            assertThat(selfPushStore.getReadToken()).isNull()
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    @Test
     fun `present - resetting the self push server clears it and re-registers`() = runTest {
         val registerRecorder = lambdaRecorder<MatrixClient, PushProvider, Distributor, Result<Unit>> { _, _, _ ->
             Result.success(Unit)

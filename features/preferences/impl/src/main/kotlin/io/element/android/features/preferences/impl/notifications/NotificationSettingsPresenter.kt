@@ -221,8 +221,9 @@ class NotificationSettingsPresenter(
         }
 
         // Re-registers the built-in distributor after the push server changed so the homeserver
-        // pusher and the local subscriber agree on the new server.
-        fun CoroutineScope.reregisterSelfPush() = launch {
+        // pusher and the local subscriber agree on the new server. On failure the store is rolled
+        // back so it never advertises a server the live registration does not use.
+        fun CoroutineScope.reregisterSelfPush(previousServer: String?, previousReadToken: String?) = launch {
             val selfRegistration = distributors.firstOrNull { it.second.value == buildMeta.applicationId }
             if (selfRegistration == null) {
                 Timber.w("Built-in distributor not found, cannot re-register after push server change")
@@ -241,17 +242,25 @@ class NotificationSettingsPresenter(
                 },
                 onFailure = {
                     Timber.w(it, "Failed to re-register built-in push after server change")
+                    selfPushStore.setCustomServer(previousServer)
+                    selfPushStore.setReadToken(previousReadToken)
+                    selfPushServerRefresh++
                     selfPushServerSaveFailed = true
                 },
             )
         }
 
-        fun CoroutineScope.checkSelfPushServerHealth(server: String) = launch {
+        fun CoroutineScope.checkSelfPushServerHealth(server: String, readToken: String?) = launch {
             selfPushServerHealthServer = server
             selfPushServerHealth = AsyncData.Loading()
             val result = runCatchingExceptions {
                 withContext(Dispatchers.IO) {
-                    okHttpClient.newCall(Request.Builder().url("$server/v1/health").build()).execute().use { response ->
+                    val request = Request.Builder().url("$server/v1/health").apply {
+                        // Token-protected servers answer 401 without it, which is not "unreachable".
+                        val token = readToken?.trim()?.takeUnless { it.isEmpty() }
+                        if (token != null) header("Authorization", "Bearer $token")
+                    }.build()
+                    okHttpClient.newCall(request).execute().use { response ->
                         if (!response.isSuccessful) throw IOException("Health check failed with HTTP ${response.code}")
                     }
                 }
@@ -356,23 +365,27 @@ class NotificationSettingsPresenter(
                 is NotificationSettingsEvent.SaveSelfPushServer -> {
                     val url = event.url.trim()
                     if (isValidSelfPushServerUrl(url)) {
+                        val previousServer = selfPushStore.getCustomServer()
+                        val previousToken = selfPushStore.getReadToken()
                         selfPushStore.setCustomServer(url)
                         selfPushStore.setReadToken(event.readToken?.trim()?.takeUnless { it.isEmpty() })
                         selfPushServerRefresh++
-                        localCoroutineScope.reregisterSelfPush()
+                        localCoroutineScope.reregisterSelfPush(previousServer, previousToken)
                     } else {
                         Timber.w("Rejected invalid built-in push server URL")
                         selfPushServerSaveFailed = true
                     }
                 }
                 NotificationSettingsEvent.ResetSelfPushServer -> {
+                    val previousServer = selfPushStore.getCustomServer()
+                    val previousToken = selfPushStore.getReadToken()
                     selfPushStore.setCustomServer(null)
                     selfPushStore.setReadToken(null)
                     selfPushServerRefresh++
-                    localCoroutineScope.reregisterSelfPush()
+                    localCoroutineScope.reregisterSelfPush(previousServer, previousToken)
                 }
                 is NotificationSettingsEvent.CheckSelfPushServerHealth -> {
-                    localCoroutineScope.checkSelfPushServerHealth(event.url.trim().trimEnd('/'))
+                    localCoroutineScope.checkSelfPushServerHealth(event.url.trim().trimEnd('/'), event.readToken)
                 }
                 NotificationSettingsEvent.ShowSelfPushProtocolDialog -> showSelfPushProtocolDialog = true
                 NotificationSettingsEvent.DismissSelfPushProtocolDialog -> showSelfPushProtocolDialog = false
