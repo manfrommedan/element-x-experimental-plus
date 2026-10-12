@@ -234,6 +234,7 @@ fun aSelfPushServerState(
     showDialog: Boolean = false,
     healthCheck: AsyncData<Unit> = AsyncData.Uninitialized,
     healthCheckServer: String? = null,
+    healthCheckToken: String? = null,
     saveFailed: Boolean = false,
     readToken: String? = null,
 ) = NotificationSettingsState.SelfPushServerState(
@@ -242,6 +243,7 @@ fun aSelfPushServerState(
     showDialog = showDialog,
     healthCheck = healthCheck,
     healthCheckServer = healthCheckServer,
+    healthCheckToken = healthCheckToken,
     saveFailed = saveFailed,
     readToken = readToken,
 )

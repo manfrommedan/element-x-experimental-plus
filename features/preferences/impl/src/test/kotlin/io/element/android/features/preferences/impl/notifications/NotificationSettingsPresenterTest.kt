@@ -1420,6 +1420,10 @@ class NotificationSettingsPresenterTest {
                 lastMessageTimes[topic] = time
             }
         }
+
+        override fun removeLastMessageTime(topic: String) {
+            lastMessageTimes.remove(topic)
+        }
     }
 
     private class FakeSelfPushStreamRefresher : SelfPushStreamRefresher {

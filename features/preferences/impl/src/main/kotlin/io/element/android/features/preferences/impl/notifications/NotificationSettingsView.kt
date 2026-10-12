@@ -577,8 +577,10 @@ private fun SelfPushServerDialog(
                     onClick = { eventSink(NotificationSettingsEvent.CheckSelfPushServerHealth(trimmedUrl, readToken)) },
                     enabled = trimmedUrl.isNotEmpty(),
                 )
-                // Only surface a result that was produced for the URL currently in the field.
-                if (selfPushServer.healthCheckServer == trimmedUrl.trimEnd('/')) {
+                // Only surface a result that was produced for the URL and token in the dialog.
+                if (selfPushServer.healthCheckServer == trimmedUrl.trimEnd('/') &&
+                    selfPushServer.healthCheckToken == readToken.trim().takeUnless { it.isEmpty() }
+                ) {
                     when (selfPushServer.healthCheck) {
                         is AsyncData.Loading -> CircularProgressIndicator(
                             modifier = Modifier

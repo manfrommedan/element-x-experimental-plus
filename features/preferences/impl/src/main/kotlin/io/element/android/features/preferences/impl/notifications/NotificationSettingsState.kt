@@ -99,6 +99,7 @@ data class NotificationSettingsState(
         val showDialog: Boolean,
         val healthCheck: AsyncData<Unit>,
         val healthCheckServer: String?,
+        val healthCheckToken: String?,
         val saveFailed: Boolean,
         /** Bearer token for servers behind auth, null when the server is open. */
         val readToken: String?,

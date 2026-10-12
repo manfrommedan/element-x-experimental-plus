@@ -96,6 +96,10 @@ class NotificationSettingsPresenter(
     private val messageSoundLock = Mutex()
     private val callRingtoneLock = Mutex()
 
+    // Serializes server/token save + re-register + rollback; two rapid changes must not
+    // interleave or the loser's rollback would clobber the winner's server.
+    private val selfPushServerLock = Mutex()
+
     @Composable
     override fun present(): NotificationSettingsState {
         val userPushStore = remember { userPushStoreFactory.getOrCreate(matrixClient.sessionId) }
@@ -158,6 +162,7 @@ class NotificationSettingsPresenter(
         var batteryOptimizationIgnored by remember { mutableStateOf(batteryOptimization.isIgnoringBatteryOptimizations()) }
         var selfPushServerHealth by remember { mutableStateOf<AsyncData<Unit>>(AsyncData.Uninitialized) }
         var selfPushServerHealthServer by remember { mutableStateOf<String?>(null) }
+        var selfPushServerHealthToken by remember { mutableStateOf<String?>(null) }
         var selfPushServerSaveFailed by remember { mutableStateOf(false) }
 
         val messageSound by remember { appPreferencesStore.getMessageSoundFlow() }.collectAsState(initial = NotificationSound.SystemDefault)
@@ -220,38 +225,48 @@ class NotificationSettingsPresenter(
                 )
         }
 
-        // Re-registers the built-in distributor after the push server changed so the homeserver
-        // pusher and the local subscriber agree on the new server. On failure the store is rolled
-        // back so it never advertises a server the live registration does not use.
-        fun CoroutineScope.reregisterSelfPush(previousServer: String?, previousReadToken: String?) = launch {
-            val selfRegistration = distributors.firstOrNull { it.second.value == buildMeta.applicationId }
-            if (selfRegistration == null) {
-                Timber.w("Built-in distributor not found, cannot re-register after push server change")
-                selfPushServerSaveFailed = true
-                return@launch
-            }
-            pushService.registerWith(
-                matrixClient = matrixClient,
-                pushProvider = selfRegistration.first,
-                distributor = selfRegistration.second,
-            ).fold(
-                onSuccess = {
-                    selfPushServerSaveFailed = false
-                    showSelfPushServerDialog = false
-                    refreshPushProvider++
-                },
-                onFailure = {
-                    Timber.w(it, "Failed to re-register built-in push after server change")
-                    selfPushStore.setCustomServer(previousServer)
-                    selfPushStore.setReadToken(previousReadToken)
-                    selfPushServerRefresh++
+        // Applies the push server change and re-registers the built-in distributor so the
+        // homeserver pusher and the local subscriber agree on the new server. The store write,
+        // the registration and the rollback all happen under the lock, and on failure the store
+        // is rolled back so it never advertises a server the live registration does not use.
+        fun CoroutineScope.applySelfPushServer(newServer: String?, newReadToken: String?) = launch {
+            selfPushServerLock.withLock {
+                val previousServer = selfPushStore.getCustomServer()
+                val previousToken = selfPushStore.getReadToken()
+                selfPushStore.setCustomServer(newServer)
+                selfPushStore.setReadToken(newReadToken)
+                selfPushServerRefresh++
+
+                val selfRegistration = distributors.firstOrNull { it.second.value == buildMeta.applicationId }
+                if (selfRegistration == null) {
+                    Timber.w("Built-in distributor not found, cannot re-register after push server change")
                     selfPushServerSaveFailed = true
-                },
-            )
+                    return@withLock
+                }
+                pushService.registerWith(
+                    matrixClient = matrixClient,
+                    pushProvider = selfRegistration.first,
+                    distributor = selfRegistration.second,
+                ).fold(
+                    onSuccess = {
+                        selfPushServerSaveFailed = false
+                        showSelfPushServerDialog = false
+                        refreshPushProvider++
+                    },
+                    onFailure = {
+                        Timber.w(it, "Failed to re-register built-in push after server change")
+                        selfPushStore.setCustomServer(previousServer)
+                        selfPushStore.setReadToken(previousToken)
+                        selfPushServerRefresh++
+                        selfPushServerSaveFailed = true
+                    },
+                )
+            }
         }
 
         fun CoroutineScope.checkSelfPushServerHealth(server: String, readToken: String?) = launch {
             selfPushServerHealthServer = server
+            selfPushServerHealthToken = readToken?.trim()?.takeUnless { it.isEmpty() }
             selfPushServerHealth = AsyncData.Loading()
             val result = runCatchingExceptions {
                 withContext(Dispatchers.IO) {
@@ -266,7 +281,7 @@ class NotificationSettingsPresenter(
                 }
             }
             // Drop the result if a newer check superseded this one or the dialog was reopened.
-            if (selfPushServerHealthServer == server) {
+            if (selfPushServerHealthServer == server && selfPushServerHealthToken == readToken?.trim()?.takeUnless { it.isEmpty() }) {
                 selfPushServerHealth = result.fold(
                     onSuccess = { AsyncData.Success(Unit) },
                     onFailure = { AsyncData.Failure(it) },
@@ -358,6 +373,7 @@ class NotificationSettingsPresenter(
                 NotificationSettingsEvent.ShowSelfPushServerDialog -> {
                     selfPushServerHealth = AsyncData.Uninitialized
                     selfPushServerHealthServer = null
+                    selfPushServerHealthToken = null
                     selfPushServerSaveFailed = false
                     showSelfPushServerDialog = true
                 }
@@ -365,24 +381,14 @@ class NotificationSettingsPresenter(
                 is NotificationSettingsEvent.SaveSelfPushServer -> {
                     val url = event.url.trim()
                     if (isValidSelfPushServerUrl(url)) {
-                        val previousServer = selfPushStore.getCustomServer()
-                        val previousToken = selfPushStore.getReadToken()
-                        selfPushStore.setCustomServer(url)
-                        selfPushStore.setReadToken(event.readToken?.trim()?.takeUnless { it.isEmpty() })
-                        selfPushServerRefresh++
-                        localCoroutineScope.reregisterSelfPush(previousServer, previousToken)
+                        localCoroutineScope.applySelfPushServer(url, event.readToken?.trim()?.takeUnless { it.isEmpty() })
                     } else {
                         Timber.w("Rejected invalid built-in push server URL")
                         selfPushServerSaveFailed = true
                     }
                 }
                 NotificationSettingsEvent.ResetSelfPushServer -> {
-                    val previousServer = selfPushStore.getCustomServer()
-                    val previousToken = selfPushStore.getReadToken()
-                    selfPushStore.setCustomServer(null)
-                    selfPushStore.setReadToken(null)
-                    selfPushServerRefresh++
-                    localCoroutineScope.reregisterSelfPush(previousServer, previousToken)
+                    localCoroutineScope.applySelfPushServer(null, null)
                 }
                 is NotificationSettingsEvent.CheckSelfPushServerHealth -> {
                     localCoroutineScope.checkSelfPushServerHealth(event.url.trim().trimEnd('/'), event.readToken)
@@ -412,6 +418,7 @@ class NotificationSettingsPresenter(
                     showDialog = showSelfPushServerDialog,
                     healthCheck = selfPushServerHealth,
                     healthCheckServer = selfPushServerHealthServer,
+                    healthCheckToken = selfPushServerHealthToken,
                     saveFailed = selfPushServerSaveFailed,
                     readToken = selfPushStore.getReadToken(),
                 )
