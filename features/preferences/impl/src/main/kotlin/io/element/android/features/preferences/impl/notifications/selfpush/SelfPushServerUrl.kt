@@ -8,11 +8,6 @@
 package io.element.android.features.preferences.impl.notifications.selfpush
 
 /**
- * The stock notification server the built-in listener talks to unless the user overrides it.
- */
-internal const val DEFAULT_SELF_PUSH_SERVER = "https://ntfy.sh"
-
-/**
  * Valid means: https, no trailing slash, parseable host. http is rejected on purpose: the push
  * content would cross the network unencrypted.
  */

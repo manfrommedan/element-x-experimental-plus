@@ -8,6 +8,7 @@
 package io.element.android.features.preferences.impl.notifications.selfpush
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableIntStateOf
@@ -25,6 +26,7 @@ import io.element.android.libraries.push.api.PushService
 import io.element.android.libraries.push.impl.battery.BatteryOptimization
 import io.element.android.libraries.pushproviders.api.Distributor
 import io.element.android.libraries.pushproviders.api.PushProvider
+import io.element.android.libraries.pushproviders.unifiedpush.selfpush.DEFAULT_SELF_PUSH_SERVER
 import io.element.android.libraries.pushproviders.unifiedpush.selfpush.SelfPushStore
 import io.element.android.libraries.pushproviders.unifiedpush.selfpush.SelfPushStreamRefresher
 import kotlinx.coroutines.CoroutineScope
@@ -60,7 +62,7 @@ class SelfPushSettingsPresenter(
         var statusRefresh by remember { mutableIntStateOf(0) }
         var refreshDistributor by remember { mutableIntStateOf(0) }
 
-        androidx.compose.runtime.LaunchedEffect(refreshDistributor) {
+        LaunchedEffect(refreshDistributor) {
             val provider = pushService.getCurrentPushProvider(matrixClient.sessionId)
             isActive = provider?.getCurrentDistributor(matrixClient.sessionId)?.value == buildMeta.applicationId
         }

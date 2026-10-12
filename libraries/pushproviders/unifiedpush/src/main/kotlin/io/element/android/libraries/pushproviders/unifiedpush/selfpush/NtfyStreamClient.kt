@@ -214,8 +214,8 @@ class NtfyStreamClient @Inject constructor(
 
             override fun onMessage(webSocket: WebSocket, text: String) {
                 lastFrameAt.set(System.currentTimeMillis())
-                // Blocking when the buffer is full beats dropping the frame: catch-up replays
-                // can outrun the collector, and those are exactly the pushes since= exists to save.
+                // Backpressure, not drops: catch-up replays can outrun the collector,
+                // and those are exactly the pushes since= exists to save.
                 parseFrame(text)?.let { trySendBlocking(it) }
             }
 

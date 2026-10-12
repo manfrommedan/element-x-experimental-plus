@@ -13,6 +13,7 @@ import io.element.android.libraries.matrix.test.AN_EXCEPTION
 import io.element.android.libraries.matrix.test.A_SECRET
 import io.element.android.libraries.push.impl.battery.BatteryOptimization
 import io.element.android.libraries.push.impl.push.MutableBatteryOptimizationStore
+import io.element.android.libraries.pushproviders.test.FakeSelfPushStore
 import io.element.android.libraries.pushproviders.unifiedpush.FakeUnifiedPushStore
 import io.element.android.libraries.pushproviders.unifiedpush.UnifiedPushGatewayResolver
 import io.element.android.libraries.pushproviders.unifiedpush.UnifiedPushGatewayResolverResult

@@ -36,7 +36,7 @@ class DefaultSelfPushAvailability(
 
     init {
         appCoroutineScope.launch {
-            featureFlagService.isFeatureEnabledFlow(FeatureFlags.EmbeddedPush).collect { enabled = it }
+            featureFlagService.isFeatureEnabledFlow(FeatureFlags.BuiltInPush).collect { enabled = it }
         }
     }
 

@@ -16,8 +16,8 @@ import io.element.android.libraries.matrix.test.A_SECRET
 import io.element.android.libraries.matrix.test.FakeMatrixClient
 import io.element.android.libraries.push.test.FakePusherSubscriber
 import io.element.android.libraries.pushproviders.api.PusherSubscriber
-import io.element.android.libraries.pushproviders.unifiedpush.selfpush.FakeSelfPushRegistrar
-import io.element.android.libraries.pushproviders.unifiedpush.selfpush.FakeSelfPushStore
+import io.element.android.libraries.pushproviders.test.FakeSelfPushRegistrar
+import io.element.android.libraries.pushproviders.test.FakeSelfPushStore
 import io.element.android.libraries.pushproviders.unifiedpush.selfpush.SelfPushRegistrar
 import io.element.android.libraries.pushproviders.unifiedpush.selfpush.SelfPushRegistration
 import io.element.android.libraries.pushproviders.unifiedpush.selfpush.SelfPushStore

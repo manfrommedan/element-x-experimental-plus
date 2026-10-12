@@ -36,6 +36,8 @@ import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
+// runBlocking, not runTest, on purpose: the streams do real socket IO off the test scheduler,
+// and virtual time would starve them.
 class NtfyStreamClientTest {
     private val server = MockWebServer()
     private val wsServer = MiniWebSocketServer()

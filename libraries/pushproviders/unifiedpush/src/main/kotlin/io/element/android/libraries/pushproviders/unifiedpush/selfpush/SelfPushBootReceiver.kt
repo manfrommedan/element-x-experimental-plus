@@ -11,17 +11,20 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import io.element.android.libraries.core.extensions.runCatchingExceptions
+import io.element.android.libraries.core.log.logger.LoggerTag
 import timber.log.Timber
 
 /**
  * Restarts the built-in push listener after a reboot. The service stops itself at once
  * when there is nothing to listen to, so this can fire unconditionally.
  */
+private val loggerTag = LoggerTag("SelfPushBootReceiver", LoggerTag.PushLoggerTag)
+
 class SelfPushBootReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent?) {
         if (intent?.action != Intent.ACTION_BOOT_COMPLETED) return
         runCatchingExceptions {
             SelfPushSubscriberService.start(context)
-        }.onFailure { Timber.w(it, "Could not restart the built-in push listener on boot") }
+        }.onFailure { Timber.tag(loggerTag.value).w(it, "Could not restart the built-in push listener on boot") }
     }
 }

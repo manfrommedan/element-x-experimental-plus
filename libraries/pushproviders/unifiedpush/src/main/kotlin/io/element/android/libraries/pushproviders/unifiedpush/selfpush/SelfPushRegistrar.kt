@@ -23,16 +23,13 @@ import java.util.UUID
 
 private val loggerTag = LoggerTag("SelfPushRegistrar", LoggerTag.PushLoggerTag)
 
-/** The stock notification server, shared by the registrar and the listener service. */
-internal const val DEFAULT_SELF_PUSH_SERVER = "https://ntfy.sh"
-
 /**
  * Registers a session for pushes with the app acting as its own distributor.
  *
  * Where an external distributor would come back with an endpoint through the UnifiedPush
  * IPC, here the endpoint is made up locally: a fresh random topic on the configured
  * notification server, served in the UnifiedPush format (`?up=1`). From there the flow is
- * the stock one — gateway discovery, pusher registration on the homeserver — and the
+ * the stock one (gateway discovery, pusher registration on the homeserver) and the
  * listener service picks the topic up.
  */
 interface SelfPushRegistrar {

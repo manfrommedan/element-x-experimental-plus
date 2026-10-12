@@ -268,8 +268,8 @@ private fun NotificationSettingsContentView(
                                 text = stringResource(
                                     id = when {
                                         !selfPushEntry.active -> CommonStrings.common_off
-                                        selfPushEntry.listenerConnected -> CommonStrings.screen_notifications_listener_status_connected
-                                        else -> CommonStrings.screen_notifications_listener_status_connecting
+                                        selfPushEntry.listenerConnected -> CommonStrings.screen_selfpush_settings_listener_status_connected
+                                        else -> CommonStrings.screen_selfpush_settings_listener_status_connecting
                                     }
                                 )
                             )

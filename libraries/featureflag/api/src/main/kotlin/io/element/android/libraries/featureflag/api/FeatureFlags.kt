@@ -180,8 +180,8 @@ enum class FeatureFlags(
         isFinished = false,
         isInLabs = true,
     ),
-    EmbeddedPush(
-        key = "feature.embedded_push",
+    BuiltInPush(
+        key = "feature.built_in_push",
         title = "Built-in push notifications",
         description = "Receive pushes in real time over a connection the app holds to the notification server itself," +
             " without a separate distributor app like ntfy. The server is configurable in the notification settings." +

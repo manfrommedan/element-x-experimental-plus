@@ -101,7 +101,7 @@ class LabsPresenter(
             FeatureFlags.ShareMxidShortcut.key,
             FeatureFlags.MessageMultiSelect.key,
             FeatureFlags.FavoritesPinnedToTop.key,
-            FeatureFlags.EmbeddedPush.key,
+            FeatureFlags.BuiltInPush.key,
         )
         val calls = mutableListOf<FeatureUiModel>()
         val ours = mutableListOf<FeatureUiModel>()
@@ -147,7 +147,7 @@ class LabsPresenter(
                         stringProvider.getString(R.string.screen_labs_enable_answer_call_on_lock_screen)
                     FeatureFlags.SendGalleryMessages -> stringProvider.getString(R.string.screen_labs_enable_gallery)
                     FeatureFlags.Knock -> stringProvider.getString(R.string.screen_labs_enable_knocking)
-                    FeatureFlags.EmbeddedPush -> stringProvider.getString(R.string.screen_labs_enable_builtin_push)
+                    FeatureFlags.BuiltInPush -> stringProvider.getString(R.string.screen_labs_enable_builtin_push)
                     else -> enabledFeature.feature.title
                 }
                 val description = when (enabledFeature.feature) {
@@ -170,7 +170,7 @@ class LabsPresenter(
                         stringProvider.getString(R.string.screen_labs_enable_answer_call_on_lock_screen_description)
                     FeatureFlags.SendGalleryMessages -> stringProvider.getString(R.string.screen_labs_enable_gallery_separate_note)
                     FeatureFlags.Knock -> stringProvider.getString(R.string.screen_labs_enable_knocking_description)
-                    FeatureFlags.EmbeddedPush -> stringProvider.getString(R.string.screen_labs_enable_builtin_push_description)
+                    FeatureFlags.BuiltInPush -> stringProvider.getString(R.string.screen_labs_enable_builtin_push_description)
                     else -> enabledFeature.feature.description
                 }
                 val icon = when (enabledFeature.feature) {
@@ -185,7 +185,7 @@ class LabsPresenter(
                     FeatureFlags.SendMediaAsSeparateMessages -> CompoundIcons.Image()
                     FeatureFlags.SendGalleryMessages -> CompoundIcons.Image()
                     FeatureFlags.Knock -> CompoundIcons.AskToJoin()
-                    FeatureFlags.EmbeddedPush -> CompoundIcons.NotificationsSolid()
+                    FeatureFlags.BuiltInPush -> CompoundIcons.NotificationsSolid()
                     else -> null
                 }
                 remember(enabledFeature) {

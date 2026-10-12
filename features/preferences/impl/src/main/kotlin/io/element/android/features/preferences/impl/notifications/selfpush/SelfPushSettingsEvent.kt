@@ -10,7 +10,7 @@ package io.element.android.features.preferences.impl.notifications.selfpush
 import io.element.android.libraries.pushproviders.unifiedpush.selfpush.SelfPushProtocol
 
 sealed interface SelfPushSettingsEvent {
-    /** Periodic re-read of the store-backed status (listener state, battery exemption). */
+    /** Re-read the store-backed status (listener state, battery exemption) on screen resume. */
     data object RefreshStatus : SelfPushSettingsEvent
 
     /** Switches the current session to the built-in distributor. */

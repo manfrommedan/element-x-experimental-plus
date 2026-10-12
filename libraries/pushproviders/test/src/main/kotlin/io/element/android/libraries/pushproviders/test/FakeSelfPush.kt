@@ -5,7 +5,14 @@
  * Please see LICENSE files in the repository root for full details.
  */
 
-package io.element.android.libraries.pushproviders.unifiedpush.selfpush
+package io.element.android.libraries.pushproviders.test
+
+import io.element.android.libraries.pushproviders.unifiedpush.selfpush.SelfPushAvailability
+import io.element.android.libraries.pushproviders.unifiedpush.selfpush.SelfPushProtocol
+import io.element.android.libraries.pushproviders.unifiedpush.selfpush.SelfPushRegistrar
+import io.element.android.libraries.pushproviders.unifiedpush.selfpush.SelfPushRegistration
+import io.element.android.libraries.pushproviders.unifiedpush.selfpush.SelfPushStore
+import io.element.android.libraries.pushproviders.unifiedpush.selfpush.SelfPushStreamRefresher
 
 class FakeSelfPushStore : SelfPushStore {
     private val registrations = mutableMapOf<String, SelfPushRegistration>()
@@ -78,6 +85,15 @@ class FakeSelfPushRegistrar(
 
     override fun unregister(clientSecret: String) {
         unregisteredSecrets += clientSecret
+    }
+}
+
+class FakeSelfPushStreamRefresher : SelfPushStreamRefresher {
+    var refreshCount = 0
+        private set
+
+    override fun refresh() {
+        refreshCount++
     }
 }
 

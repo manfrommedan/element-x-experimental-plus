@@ -53,7 +53,7 @@ private const val WATCHDOG_REQUEST_CODE = 42
  * covering every registered session's topic.
  *
  * Modeled on the ntfy subscriber service: foreground, sticky, restarted on boot and on
- * network change, with a watchdog alarm poking it in case the system froze the process
+ * network change, with a watchdog alarm reviving it in case the system froze the process
  * between those events. Reconnects replay what the server cached while the stream was down
  * (the `since` parameter), so pushes landing in a reconnect window are not lost. The ongoing
  * notification sits on a minimum-importance channel the user can hide from the system
@@ -111,6 +111,7 @@ class SelfPushSubscriberService : Service() {
     override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onCreate() {
+        super.onCreate()
         if (!this::selfPushStore.isInitialized) {
             bindings<SelfPushSubscriberServiceBindings>().inject(this)
         }
@@ -129,7 +130,6 @@ class SelfPushSubscriberService : Service() {
         }
         getSystemService(ConnectivityManager::class.java)?.registerDefaultNetworkCallback(networkCallback)
         scheduleWatchdog()
-        super.onCreate()
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -152,7 +152,7 @@ class SelfPushSubscriberService : Service() {
         getSystemService(ConnectivityManager::class.java)?.unregisterNetworkCallback(networkCallback)
         // START_STICKY covers most kills, but not all OEMs honor it; re-arm the watchdog one
         // last time if there is still something to listen to. A modest delay, not the quick
-        // one: if the destroy came from a foreground-start failure, a hot loop helps no one.
+        // one: a destroy caused by a foreground-start failure must not retry in a tight loop.
         if (selfPushStore.getAllRegistrations().isNotEmpty()) {
             scheduleWatchdog(DESTROY_RESTART_DELAY_MS)
         } else {
@@ -284,7 +284,7 @@ class SelfPushSubscriberService : Service() {
     private fun scheduleWatchdog(delayMs: Long? = null) {
         val alarmManager = getSystemService(AlarmManager::class.java) ?: return
         runCatchingExceptions {
-            // A healthy listener does not need a tight leash: the stream heals itself and the
+            // A healthy listener needs no tight cadence: the stream heals itself and the
             // watchdog only revives a frozen process, so back off to hourly while all is well.
             val healthy = streamJobs.isNotEmpty() && streamJobs.values.all { it.job.isActive && it.opened.get() }
             val interval = delayMs ?: if (healthy) HEALTHY_WATCHDOG_INTERVAL_MS else WATCHDOG_INTERVAL_MS

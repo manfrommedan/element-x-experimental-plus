@@ -13,6 +13,9 @@ import dev.zacsweers.metro.AppScope
 import dev.zacsweers.metro.ContributesBinding
 import io.element.android.libraries.core.extensions.runCatchingExceptions
 
+/** The stock notification server the built-in listener talks to unless the user overrides it. */
+const val DEFAULT_SELF_PUSH_SERVER = "https://ntfy.sh"
+
 /** Where a session's pushes are picked up from: the ntfy server and the topic on it. */
 data class SelfPushRegistration(
     val server: String,

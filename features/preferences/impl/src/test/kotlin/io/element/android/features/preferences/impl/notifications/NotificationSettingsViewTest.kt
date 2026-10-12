@@ -50,6 +50,27 @@ class NotificationSettingsViewTest : RobolectricTest() {
 
     @Config(qualifiers = "h1280dp")
     @Test
+    fun `clicking on the built-in push entry invokes the callback`() = runAndroidComposeUiTest {
+        val eventsRecorder = EventsRecorder<NotificationSettingsEvent>()
+        ensureCalledOnce { callback ->
+            setNotificationSettingsView(
+                state = aValidNotificationSettingsState(
+                    availablePushDistributors = listOf(
+                        aDistributor("Firebase"),
+                        aDistributor("Built-in push", "app.self"),
+                    ),
+                    selfPushEntry = aSelfPushEntryState(),
+                    eventSink = eventsRecorder,
+                ),
+                onOpenSelfPushSettings = callback,
+            )
+            clickOn(CommonStrings.common_built_in_push)
+        }
+        eventsRecorder.assertSingle(NotificationSettingsEvent.RefreshSystemNotificationsEnabled)
+    }
+
+    @Config(qualifiers = "h1280dp")
+    @Test
     fun `clicking on troubleshoot notification invokes the expected callback`() = runAndroidComposeUiTest {
         val eventsRecorder = EventsRecorder<NotificationSettingsEvent>()
         ensureCalledOnce {

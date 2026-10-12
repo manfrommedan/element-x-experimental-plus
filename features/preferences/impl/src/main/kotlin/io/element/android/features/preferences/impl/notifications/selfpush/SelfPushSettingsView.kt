@@ -43,6 +43,7 @@ import io.element.android.libraries.designsystem.theme.components.ListItem
 import io.element.android.libraries.designsystem.theme.components.Text
 import io.element.android.libraries.designsystem.theme.components.TextButton
 import io.element.android.libraries.designsystem.utils.OnLifecycleEvent
+import io.element.android.libraries.pushproviders.unifiedpush.selfpush.DEFAULT_SELF_PUSH_SERVER
 import io.element.android.libraries.pushproviders.unifiedpush.selfpush.SelfPushProtocol
 import io.element.android.libraries.ui.strings.CommonStrings
 import kotlinx.collections.immutable.persistentListOf
@@ -55,7 +56,7 @@ fun SelfPushSettingsView(
 ) {
     OnLifecycleEvent { _, event ->
         when (event) {
-            Lifecycle.Event.ON_RESUME -> state.eventSink.invoke(SelfPushSettingsEvent.RefreshStatus)
+            Lifecycle.Event.ON_RESUME -> state.eventSink(SelfPushSettingsEvent.RefreshStatus)
             else -> Unit
         }
     }
@@ -67,15 +68,15 @@ fun SelfPushSettingsView(
         PreferenceCategory {
             ListItem(
                 content = {
-                    Text(text = stringResource(id = CommonStrings.screen_notifications_listener_status_title))
+                    Text(text = stringResource(id = CommonStrings.screen_selfpush_settings_listener_status_title))
                 },
                 supportingContent = {
                     Text(
                         text = stringResource(
                             id = if (state.listenerConnected) {
-                                CommonStrings.screen_notifications_listener_status_connected
+                                CommonStrings.screen_selfpush_settings_listener_status_connected
                             } else {
-                                CommonStrings.screen_notifications_listener_status_connecting
+                                CommonStrings.screen_selfpush_settings_listener_status_connecting
                             }
                         )
                     )
@@ -84,7 +85,7 @@ fun SelfPushSettingsView(
             if (!state.isActive) {
                 ListItem(
                     content = {
-                        Text(text = stringResource(id = CommonStrings.screen_notifications_builtin_push_enable))
+                        Text(text = stringResource(id = CommonStrings.screen_selfpush_settings_enable))
                     },
                     onClick = { state.eventSink(SelfPushSettingsEvent.UseBuiltInPush) },
                 )
@@ -93,13 +94,13 @@ fun SelfPushSettingsView(
         PreferenceCategory(title = stringResource(id = CommonStrings.common_advanced_settings)) {
             ListItem(
                 content = {
-                    Text(text = stringResource(id = CommonStrings.screen_notifications_push_server_title))
+                    Text(text = stringResource(id = CommonStrings.screen_selfpush_settings_push_server_title))
                 },
                 supportingContent = {
                     Text(
                         text = state.server.customServer
                             ?: stringResource(
-                                id = CommonStrings.screen_notifications_push_server_default_subtitle,
+                                id = CommonStrings.screen_selfpush_settings_push_server_default_subtitle,
                                 state.server.effectiveServer,
                             )
                     )
@@ -108,7 +109,7 @@ fun SelfPushSettingsView(
             )
             ListItem(
                 content = {
-                    Text(text = stringResource(id = CommonStrings.screen_notifications_connection_protocol_title))
+                    Text(text = stringResource(id = CommonStrings.screen_selfpush_settings_connection_protocol_title))
                 },
                 supportingContent = {
                     Text(text = protocolLabel(state.protocol.protocol))
@@ -117,23 +118,23 @@ fun SelfPushSettingsView(
             )
             ListItem(
                 content = {
-                    Text(text = stringResource(id = CommonStrings.screen_notifications_battery_optimization_title))
+                    Text(text = stringResource(id = CommonStrings.screen_selfpush_settings_battery_optimization_title))
                 },
                 supportingContent = {
                     Text(
                         text = stringResource(
                             id = if (state.batteryOptimizationIgnored) {
-                                CommonStrings.screen_notifications_battery_optimization_unrestricted
+                                CommonStrings.screen_selfpush_settings_battery_optimization_unrestricted
                             } else {
-                                CommonStrings.screen_notifications_battery_optimization_restricted
+                                CommonStrings.screen_selfpush_settings_battery_optimization_restricted
                             }
                         )
                     )
                 },
-                onClick = {
-                    if (!state.batteryOptimizationIgnored) {
-                        state.eventSink(SelfPushSettingsEvent.RequestDisableBatteryOptimization)
-                    }
+                onClick = if (state.batteryOptimizationIgnored) {
+                    null
+                } else {
+                    { state.eventSink(SelfPushSettingsEvent.RequestDisableBatteryOptimization) }
                 },
             )
         }
@@ -149,8 +150,8 @@ fun SelfPushSettingsView(
 @Composable
 private fun protocolLabel(protocol: SelfPushProtocol) = stringResource(
     id = when (protocol) {
-        SelfPushProtocol.WEBSOCKET -> CommonStrings.screen_notifications_connection_protocol_websocket
-        SelfPushProtocol.JSON_STREAM -> CommonStrings.screen_notifications_connection_protocol_json_stream
+        SelfPushProtocol.WEBSOCKET -> CommonStrings.screen_selfpush_settings_connection_protocol_websocket
+        SelfPushProtocol.JSON_STREAM -> CommonStrings.screen_selfpush_settings_connection_protocol_json_stream
     }
 )
 
@@ -160,10 +161,10 @@ private fun ProtocolDialog(
     eventSink: (SelfPushSettingsEvent) -> Unit,
 ) {
     SingleSelectionDialog(
-        title = stringResource(id = CommonStrings.screen_notifications_connection_protocol_title),
+        title = stringResource(id = CommonStrings.screen_selfpush_settings_connection_protocol_title),
         options = persistentListOf(
-            ListOption(title = stringResource(id = CommonStrings.screen_notifications_connection_protocol_websocket)),
-            ListOption(title = stringResource(id = CommonStrings.screen_notifications_connection_protocol_json_stream)),
+            ListOption(title = stringResource(id = CommonStrings.screen_selfpush_settings_connection_protocol_websocket)),
+            ListOption(title = stringResource(id = CommonStrings.screen_selfpush_settings_connection_protocol_json_stream)),
         ),
         initialSelection = when (protocol.protocol) {
             SelfPushProtocol.WEBSOCKET -> 0
@@ -190,7 +191,7 @@ private fun ServerDialog(
     val trimmedUrl = serverUrl.trim()
     val isValid = isValidSelfPushServerUrl(trimmedUrl)
     ListDialog(
-        title = stringResource(id = CommonStrings.screen_notifications_push_server_dialog_title),
+        title = stringResource(id = CommonStrings.screen_selfpush_settings_push_server_dialog_title),
         submitText = stringResource(CommonStrings.action_save),
         onSubmit = { eventSink(SelfPushSettingsEvent.SaveServer(trimmedUrl, readToken)) },
         onDismissRequest = { eventSink(SelfPushSettingsEvent.DismissServerDialog) },
@@ -202,7 +203,7 @@ private fun ServerDialog(
                 text = serverUrl,
                 onTextChange = { serverUrl = it },
                 error = if (serverUrl.isNotEmpty() && !isValid) {
-                    stringResource(id = CommonStrings.screen_notifications_push_server_invalid_url)
+                    stringResource(id = CommonStrings.screen_selfpush_settings_push_server_invalid_url)
                 } else {
                     null
                 },
@@ -217,7 +218,7 @@ private fun ServerDialog(
                 placeholder = "tk_...",
                 text = readToken,
                 onTextChange = { readToken = it },
-                label = stringResource(id = CommonStrings.screen_notifications_push_server_token_label),
+                label = stringResource(id = CommonStrings.screen_selfpush_settings_push_server_token_label),
                 keyboardOptions = KeyboardOptions(
                     keyboardType = KeyboardType.Password,
                     imeAction = ImeAction.Done,
@@ -230,7 +231,7 @@ private fun ServerDialog(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 TextButton(
-                    text = stringResource(id = CommonStrings.screen_notifications_push_server_check_health),
+                    text = stringResource(id = CommonStrings.screen_selfpush_settings_push_server_check_health),
                     onClick = { eventSink(SelfPushSettingsEvent.CheckServerHealth(trimmedUrl, readToken)) },
                     enabled = trimmedUrl.isNotEmpty(),
                 )
@@ -246,12 +247,12 @@ private fun ServerDialog(
                             strokeWidth = 2.dp,
                         )
                         is AsyncData.Success -> Text(
-                            text = stringResource(id = CommonStrings.screen_notifications_push_server_health_ok),
+                            text = stringResource(id = CommonStrings.screen_selfpush_settings_push_server_health_ok),
                             style = ElementTheme.typography.fontBodyMdRegular,
                             color = ElementTheme.colors.textSecondary,
                         )
                         is AsyncData.Failure -> Text(
-                            text = stringResource(id = CommonStrings.screen_notifications_push_server_health_error),
+                            text = stringResource(id = CommonStrings.screen_selfpush_settings_push_server_health_error),
                             style = ElementTheme.typography.fontBodyMdRegular,
                             color = ElementTheme.colors.textCriticalPrimary,
                         )
@@ -262,7 +263,7 @@ private fun ServerDialog(
         }
         item {
             TextButton(
-                text = stringResource(id = CommonStrings.screen_notifications_push_server_reset_to_default),
+                text = stringResource(id = CommonStrings.screen_selfpush_settings_push_server_reset_to_default),
                 onClick = { eventSink(SelfPushSettingsEvent.ResetServer) },
                 enabled = server.customServer != null,
             )
@@ -270,7 +271,7 @@ private fun ServerDialog(
         if (server.saveFailed) {
             item {
                 Text(
-                    text = stringResource(id = CommonStrings.screen_notifications_push_server_save_failed),
+                    text = stringResource(id = CommonStrings.screen_selfpush_settings_push_server_save_failed),
                     style = ElementTheme.typography.fontBodyMdRegular,
                     color = ElementTheme.colors.textCriticalPrimary,
                     modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },

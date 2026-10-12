@@ -14,11 +14,11 @@ import io.element.android.libraries.matrix.test.AN_EXCEPTION
 import io.element.android.libraries.matrix.test.A_SECRET
 import io.element.android.libraries.matrix.test.A_SESSION_ID
 import io.element.android.libraries.pushproviders.api.Distributor
+import io.element.android.libraries.pushproviders.test.FakeSelfPushAvailability
+import io.element.android.libraries.pushproviders.test.FakeSelfPushRegistrar
+import io.element.android.libraries.pushproviders.test.FakeSelfPushStore
 import io.element.android.libraries.pushproviders.unifiedpush.registration.EndpointRegistrationHandler
 import io.element.android.libraries.pushproviders.unifiedpush.registration.RegistrationResult
-import io.element.android.libraries.pushproviders.unifiedpush.selfpush.FakeSelfPushAvailability
-import io.element.android.libraries.pushproviders.unifiedpush.selfpush.FakeSelfPushRegistrar
-import io.element.android.libraries.pushproviders.unifiedpush.selfpush.FakeSelfPushStore
 import io.element.android.libraries.pushproviders.unifiedpush.selfpush.SelfPushAvailability
 import io.element.android.libraries.pushproviders.unifiedpush.selfpush.SelfPushRegistrar
 import io.element.android.libraries.pushproviders.unifiedpush.selfpush.SelfPushRegistration

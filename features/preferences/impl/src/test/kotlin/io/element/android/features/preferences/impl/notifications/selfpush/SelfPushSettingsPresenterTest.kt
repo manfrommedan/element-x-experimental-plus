@@ -20,6 +20,9 @@ import io.element.android.libraries.push.test.FakePushService
 import io.element.android.libraries.pushproviders.api.Distributor
 import io.element.android.libraries.pushproviders.api.PushProvider
 import io.element.android.libraries.pushproviders.test.FakePushProvider
+import io.element.android.libraries.pushproviders.test.FakeSelfPushStore
+import io.element.android.libraries.pushproviders.test.FakeSelfPushStreamRefresher
+import io.element.android.libraries.pushproviders.unifiedpush.selfpush.DEFAULT_SELF_PUSH_SERVER
 import io.element.android.libraries.pushproviders.unifiedpush.selfpush.SelfPushProtocol
 import io.element.android.libraries.pushproviders.unifiedpush.selfpush.SelfPushRegistration
 import io.element.android.libraries.pushproviders.unifiedpush.selfpush.SelfPushStore
@@ -270,72 +273,6 @@ class SelfPushSettingsPresenterTest {
             buildMeta = buildMeta,
             okHttpClient = OkHttpClient(),
         )
-    }
-
-    private class FakeSelfPushStore : SelfPushStore {
-        private val registrations = mutableMapOf<String, SelfPushRegistration>()
-        private val lastMessageTimes = mutableMapOf<String, Long>()
-        private val openServers = mutableSetOf<String>()
-        private var customServer: String? = null
-        private var readToken: String? = null
-        private var protocol: SelfPushProtocol = SelfPushProtocol.WEBSOCKET
-
-        override fun getRegistration(clientSecret: String): SelfPushRegistration? = registrations[clientSecret]
-
-        override fun storeRegistration(clientSecret: String, registration: SelfPushRegistration) {
-            registrations[clientSecret] = registration
-        }
-
-        override fun removeRegistration(clientSecret: String) {
-            registrations.remove(clientSecret)?.let { lastMessageTimes.remove(it.topic) }
-        }
-
-        override fun getAllRegistrations(): Map<String, SelfPushRegistration> = registrations.toMap()
-
-        override fun getCustomServer(): String? = customServer
-
-        override fun setCustomServer(server: String?) {
-            customServer = server
-        }
-
-        override fun getReadToken(): String? = readToken
-
-        override fun setReadToken(token: String?) {
-            readToken = token
-        }
-
-        override fun getProtocol(): SelfPushProtocol = protocol
-
-        override fun setProtocol(protocol: SelfPushProtocol) {
-            this.protocol = protocol
-        }
-
-        override fun setStreamOpen(server: String, open: Boolean) {
-            if (open) openServers += server else openServers -= server
-        }
-
-        override fun getOpenServers(): Set<String> = openServers.toSet()
-
-        override fun getLastMessageTime(topic: String): Long? = lastMessageTimes[topic]
-
-        override fun storeLastMessageTime(topic: String, time: Long) {
-            if (time > lastMessageTimes[topic] ?: 0L) {
-                lastMessageTimes[topic] = time
-            }
-        }
-
-        override fun removeLastMessageTime(topic: String) {
-            lastMessageTimes.remove(topic)
-        }
-    }
-
-    private class FakeSelfPushStreamRefresher : SelfPushStreamRefresher {
-        var refreshCount = 0
-            private set
-
-        override fun refresh() {
-            refreshCount++
-        }
     }
 
     private class FakeBatteryOptimization : BatteryOptimization {
