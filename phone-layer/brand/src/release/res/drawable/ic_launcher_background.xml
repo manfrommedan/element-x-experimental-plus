@@ -5,7 +5,8 @@
   ~ Please see LICENSE files in the repository root for full details.
   -->
 <!--
-  Same near-black plate as the stock release icon: it reads as the ring around the disc.
+  Graphite plate: reads as the ring around the disc and sets the flavor apart from
+  the stock near-black (#010302) at a glance.
 -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="108dp"
@@ -13,7 +14,7 @@
     android:viewportWidth="108"
     android:viewportHeight="108">
     <path
-        android:fillColor="#010302"
+        android:fillColor="#24272D"
         android:fillType="evenOdd"
         android:pathData="m0,0h108v108h-108z" />
 </vector>
