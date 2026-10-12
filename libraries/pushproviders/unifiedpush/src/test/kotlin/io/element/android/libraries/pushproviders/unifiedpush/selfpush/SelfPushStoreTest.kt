@@ -32,6 +32,15 @@ class SelfPushStoreTest {
     }
 
     @Test
+    fun `removeRegistration drops the topic's last message time`() {
+        store.storeRegistration("secret1", SelfPushRegistration("https://ntfy.example.org", "up1"))
+        store.storeLastMessageTime("up1", 100L)
+        store.removeRegistration("secret1")
+
+        assertThat(store.getLastMessageTime("up1")).isNull()
+    }
+
+    @Test
     fun `partial registration reads as absent`() {
         val prefs = InMemorySharedPreferences()
         prefs.edit().putString("SELF_PUSH_TOPIC_secret1", "up1").apply()
@@ -68,6 +77,36 @@ class SelfPushStoreTest {
 
         assertThat(store.getCustomServer()).isNull()
         assertThat(store.getReadToken()).isNull()
+    }
+
+    @Test
+    fun `protocol defaults to websocket and round trips`() {
+        assertThat(store.getProtocol()).isEqualTo(SelfPushProtocol.WEBSOCKET)
+
+        store.setProtocol(SelfPushProtocol.JSON_STREAM)
+
+        assertThat(store.getProtocol()).isEqualTo(SelfPushProtocol.JSON_STREAM)
+    }
+
+    @Test
+    fun `unknown stored protocol falls back to websocket`() {
+        val prefs = InMemorySharedPreferences()
+        prefs.edit().putString("SELF_PUSH_PROTOCOL", "carrier_pigeon").apply()
+        val store = SharedPreferencesSelfPushStore(prefs)
+
+        assertThat(store.getProtocol()).isEqualTo(SelfPushProtocol.WEBSOCKET)
+    }
+
+    @Test
+    fun `last message time keeps the max`() {
+        assertThat(store.getLastMessageTime("up1")).isNull()
+
+        store.storeLastMessageTime("up1", 100L)
+        store.storeLastMessageTime("up1", 90L)
+        assertThat(store.getLastMessageTime("up1")).isEqualTo(100L)
+
+        store.storeLastMessageTime("up1", 110L)
+        assertThat(store.getLastMessageTime("up1")).isEqualTo(110L)
     }
 }
 

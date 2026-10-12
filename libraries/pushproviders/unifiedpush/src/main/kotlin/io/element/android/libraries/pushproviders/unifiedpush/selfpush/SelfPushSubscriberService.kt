@@ -53,8 +53,10 @@ private const val WATCHDOG_REQUEST_CODE = 42
  *
  * Modeled on the ntfy subscriber service: foreground, sticky, restarted on boot and on
  * network change, with a watchdog alarm poking it in case the system froze the process
- * between those events. The ongoing notification sits on a minimum-importance channel the
- * user can hide from the system settings, the same as the ntfy app's own.
+ * between those events. Reconnects replay what the server cached while the stream was down
+ * (the `since` parameter), so pushes landing in a reconnect window are not lost. The ongoing
+ * notification sits on a minimum-importance channel the user can hide from the system
+ * settings, the same as the ntfy app's own.
  */
 class SelfPushSubscriberService : Service() {
     @Inject lateinit var selfPushStore: SelfPushStore
@@ -65,13 +67,17 @@ class SelfPushSubscriberService : Service() {
 
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
+    private data class ActiveStream(val job: Job, val protocol: SelfPushProtocol)
+
     /** One streaming job per notification server in use. */
-    private val streamJobs = mutableMapOf<String, Job>()
+    private val streamJobs = mutableMapOf<String, ActiveStream>()
+
+    private val recentMessageIds = RecentMessageIds()
 
     private val networkCallback = object : ConnectivityManager.NetworkCallback() {
         override fun onAvailable(network: Network) {
             // A network switch can leave a socket dead without closing it; restart the streams.
-            restartStreams()
+            restartStreams(force = true)
         }
     }
 
@@ -106,7 +112,7 @@ class SelfPushSubscriberService : Service() {
                 stopSelf()
             }
             else -> {
-                restartStreams()
+                restartStreams(force = false)
                 scheduleWatchdog()
             }
         }
@@ -123,11 +129,12 @@ class SelfPushSubscriberService : Service() {
 
     /**
      * Brings the running streams in line with the store: opens streams for servers that gained
-     * a registration, drops the ones that lost theirs, and stops the service entirely when
-     * nothing is left to listen to.
+     * a registration, drops the ones that lost theirs, reopens the ones whose protocol changed
+     * under them, and stops the service entirely when nothing is left to listen to. [force]
+     * reopens everything, for when the network under the sockets may have changed.
      */
     @Synchronized
-    private fun restartStreams() {
+    private fun restartStreams(force: Boolean) {
         val registrations = selfPushStore.getAllRegistrations()
         val registrationsByServer = registrations.entries.groupBy({ it.value.server }) { it.key to it.value.topic }
         if (registrationsByServer.isEmpty()) {
@@ -139,28 +146,56 @@ class SelfPushSubscriberService : Service() {
         val staleServers = streamJobs.keys - registrationsByServer.keys
         staleServers.forEach { server ->
             Timber.tag(loggerTag.value).d("Dropping the stream to $server")
-            streamJobs.remove(server)?.cancel()
+            streamJobs.remove(server)?.job?.cancel()
         }
 
+        val protocol = selfPushStore.getProtocol()
         val readToken = selfPushStore.getReadToken()
         for ((server, topics) in registrationsByServer) {
-            if (streamJobs.containsKey(server)) continue
-            Timber.tag(loggerTag.value).d("Opening a stream to $server for ${topics.size} topic(s)")
-            streamJobs[server] = serviceScope.launch {
-                streamClient.stream(server, topics.map { it.second }.toSet(), readToken)
-                    .catch { cause ->
-                        if (cause is FatalStreamException) {
-                            Timber.tag(loggerTag.value).e(cause, "Stream to $server refused, giving up until the next refresh")
-                        } else {
-                            throw cause
-                        }
-                    }
-                    .collect { message -> onPushMessage(server, message) }
+            // A job that died on a fatal refusal counts as absent, so the watchdog can revive it.
+            val active = streamJobs[server]?.takeIf { it.job.isActive }
+            if (active != null && !force && active.protocol == protocol) continue
+            if (active != null) {
+                Timber.tag(loggerTag.value).d("Reopening the stream to $server")
+                active.job.cancel()
             }
+            val topicNames = topics.map { it.second }.toSet()
+            Timber.tag(loggerTag.value).d("Opening a $protocol stream to $server for ${topicNames.size} topic(s)")
+            streamJobs[server] = ActiveStream(
+                job = serviceScope.launch {
+                    streamClient.stream(server, topicNames, readToken, protocol, since = { catchUpSince(topicNames) })
+                        .catch { cause ->
+                            if (cause is FatalStreamException) {
+                                Timber.tag(loggerTag.value).e(cause, "Stream to $server refused, giving up until the next refresh")
+                            } else {
+                                throw cause
+                            }
+                        }
+                        .collect { message -> onPushMessage(server, message) }
+                },
+                protocol = protocol,
+            )
         }
     }
 
+    /**
+     * The oldest push timestamp seen across the server's topics, minus a small overlap:
+     * replays everything the server cached since then, and [recentMessageIds] filters the
+     * overlap back out.
+     */
+    private fun catchUpSince(topics: Set<String>): Long? {
+        return topics.mapNotNull { selfPushStore.getLastMessageTime(it) }
+            .minOrNull()
+            ?.let { it - SINCE_OVERLAP_S }
+    }
+
     private suspend fun onPushMessage(server: String, message: NtfyMessage) {
+        if (!recentMessageIds.addIfNew("$server:${message.id}")) {
+            Timber.tag(loggerTag.value).d("Replayed push, dropping")
+            return
+        }
+        selfPushStore.storeLastMessageTime(message.topic, message.time)
+
         val clientSecret = selfPushStore.getAllRegistrations().entries
             .firstOrNull { it.value.server == server && it.value.topic == message.topic }
             ?.key
@@ -227,6 +262,9 @@ class SelfPushSubscriberService : Service() {
 
         /** The stream heals itself between watchdogs; this only revives a frozen process. */
         private const val WATCHDOG_INTERVAL_MS = 15 * 60 * 1000L
+
+        /** How far back the catch-up replay reaches past the last seen push. */
+        private const val SINCE_OVERLAP_S = 2L
 
         /** Starts (or refreshes) the listener. Safe to call when it is already running. */
         fun start(context: Context) {

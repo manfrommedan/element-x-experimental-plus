@@ -9,8 +9,10 @@ package io.element.android.libraries.pushproviders.unifiedpush.selfpush
 
 class FakeSelfPushStore : SelfPushStore {
     private val registrations = mutableMapOf<String, SelfPushRegistration>()
+    private val lastMessageTimes = mutableMapOf<String, Long>()
     private var customServer: String? = null
     private var readToken: String? = null
+    private var protocol: SelfPushProtocol = SelfPushProtocol.WEBSOCKET
 
     override fun getRegistration(clientSecret: String): SelfPushRegistration? = registrations[clientSecret]
 
@@ -19,7 +21,7 @@ class FakeSelfPushStore : SelfPushStore {
     }
 
     override fun removeRegistration(clientSecret: String) {
-        registrations.remove(clientSecret)
+        registrations.remove(clientSecret)?.let { lastMessageTimes.remove(it.topic) }
     }
 
     override fun getAllRegistrations(): Map<String, SelfPushRegistration> = registrations.toMap()
@@ -34,6 +36,20 @@ class FakeSelfPushStore : SelfPushStore {
 
     override fun setReadToken(token: String?) {
         readToken = token
+    }
+
+    override fun getProtocol(): SelfPushProtocol = protocol
+
+    override fun setProtocol(protocol: SelfPushProtocol) {
+        this.protocol = protocol
+    }
+
+    override fun getLastMessageTime(topic: String): Long? = lastMessageTimes[topic]
+
+    override fun storeLastMessageTime(topic: String, time: Long) {
+        if (time > lastMessageTimes[topic] ?: 0L) {
+            lastMessageTimes[topic] = time
+        }
     }
 }
 

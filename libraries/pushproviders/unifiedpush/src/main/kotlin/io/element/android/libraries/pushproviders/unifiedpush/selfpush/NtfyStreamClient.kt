@@ -11,27 +11,38 @@ import dev.zacsweers.metro.Inject
 import io.element.android.libraries.core.extensions.runCatchingExceptions
 import io.element.android.libraries.core.log.logger.LoggerTag
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.channels.awaitClose
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.retryWhen
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import okhttp3.Response
+import okhttp3.WebSocket
+import okhttp3.WebSocketListener
 import timber.log.Timber
 import java.io.IOException
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicLong
 import kotlin.random.Random
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
 
 private val loggerTag = LoggerTag("NtfyStreamClient", LoggerTag.PushLoggerTag)
 
-/** A pushed message off the stream: the topic it arrived on and the full POST body it carried. */
+/** A pushed message off the stream: its server-side id, arrival time, topic and the full POST body it carried. */
 data class NtfyMessage(
+    val id: String,
     val topic: String,
     val content: String,
+    val time: Long,
 )
 
 /** The server refused the stream (auth, not found): retrying would loop forever. */
@@ -40,27 +51,51 @@ class FatalStreamException(message: String) : Exception(message)
 /**
  * Holds a streaming connection to an ntfy server and yields the pushes arriving on it.
  *
- * ntfy serves `GET /{topic1,topic2}/json` as an NDJSON stream: one JSON object per line,
- * `event` being `open`, `keepalive` or `message`. Only `message` frames carry a push; the
- * rest double as proof the connection is alive, which is why the read timeout is set just
- * past two keepalive intervals: a socket silent for that long is dead regardless of what
- * the OS thinks, and the flow fails so the caller reconnects.
+ * Both ntfy protocols speak the same JSON frames (`open`, `keepalive`, `message`), one frame
+ * per line over `GET /{topics}/json` or one frame per message over `/{topics}/ws`. Only
+ * `message` frames carry a push; the rest double as proof the connection is alive. The HTTP
+ * protocol encodes that as a read timeout just past two default 45s keepalive intervals; the
+ * WebSocket protocol cannot use read timeouts (OkHttp manages the upgraded socket), so a
+ * monitor closes any socket silent for longer than [Liveness.maxSilence]. Either way the flow
+ * fails and the caller reconnects with a bounded backoff.
+ *
+ * [since] is read fresh on every (re)connect and forwarded as the `since` query parameter, so
+ * a reconnect replays whatever the server cached while the stream was down instead of dropping
+ * those pushes. Replays overlap with what was already seen; the caller dedupes by message id.
  */
 class NtfyStreamClient @Inject constructor(
     okHttpClient: OkHttpClient,
     private val clock: BackoffClock = BackoffClock(),
+    private val liveness: Liveness = Liveness(),
 ) {
-    private val streamClient = okHttpClient.newBuilder()
+    /** Frame silence thresholds, overridable in tests so they do not wait in real time. */
+    data class Liveness(
+        val maxSilence: Duration = 95.seconds,
+        val checkInterval: Duration = 15.seconds,
+    )
+
+    private val webSocketClient = okHttpClient.newBuilder()
         .connectTimeout(CONNECT_TIMEOUT_S, TimeUnit.SECONDS)
-        // Just past two default ntfy keepalive intervals (45s each): doubles as the liveness check.
-        .readTimeout(READ_TIMEOUT_S, TimeUnit.SECONDS)
+        // Keeps the NAT binding warm; frame silence, not missing pongs, declares the socket dead.
+        .pingInterval(PING_INTERVAL_S, TimeUnit.SECONDS)
+        .build()
+
+    private val httpStreamClient = okHttpClient.newBuilder()
+        .connectTimeout(CONNECT_TIMEOUT_S, TimeUnit.SECONDS)
+        .readTimeout(liveness.maxSilence.inWholeMilliseconds, TimeUnit.MILLISECONDS)
         .build()
 
     private val json = Json { ignoreUnknownKeys = true }
 
-    fun stream(server: String, topics: Set<String>, readToken: String?): Flow<NtfyMessage> {
+    fun stream(
+        server: String,
+        topics: Set<String>,
+        readToken: String?,
+        protocol: SelfPushProtocol,
+        since: () -> Long?,
+    ): Flow<NtfyMessage> {
         require(topics.isNotEmpty()) { "No topics to subscribe to" }
-        return readFrames(server, topics, readToken).retryWhen { cause, attempt ->
+        return readFrames(server, topics, readToken, protocol, since).retryWhen { cause, attempt ->
             if (cause is FatalStreamException) throw cause
             val backoff = clock.backoff(attempt)
             Timber.tag(loggerTag.value).w("Stream broke (${cause.message}), reconnecting in $backoff")
@@ -69,45 +104,160 @@ class NtfyStreamClient @Inject constructor(
         }.flowOn(Dispatchers.IO)
     }
 
-    private fun readFrames(server: String, topics: Set<String>, readToken: String?): Flow<NtfyMessage> = flow {
-        val url = "${server.trimEnd('/')}/${topics.joinToString(",")}/json"
-        val request = Request.Builder().url(url).apply {
+    private fun readFrames(
+        server: String,
+        topics: Set<String>,
+        readToken: String?,
+        protocol: SelfPushProtocol,
+        since: () -> Long?,
+    ): Flow<NtfyMessage> {
+        // The request is built inside the flow so every reconnect re-reads `since` and gets a
+        // fresh catch-up window, instead of replaying the first attempt's forever.
+        return when (protocol) {
+            SelfPushProtocol.WEBSOCKET -> callbackFlow {
+                readWebSocketFrames(server, topics, buildRequest(server, topics, protocol, readToken, since()))
+            }
+            SelfPushProtocol.JSON_STREAM -> flow {
+                readHttpFrames(server, topics, buildRequest(server, topics, protocol, readToken, since()))
+            }
+        }
+    }
+
+    private fun buildRequest(
+        server: String,
+        topics: Set<String>,
+        protocol: SelfPushProtocol,
+        readToken: String?,
+        since: Long?,
+    ): Request {
+        return Request.Builder().url(streamUrl(server, topics, protocol, since)).apply {
             if (readToken != null) header("Authorization", "Bearer $readToken")
         }.build()
+    }
 
-        val response = streamClient.newCall(request).execute()
+    private fun streamUrl(server: String, topics: Set<String>, protocol: SelfPushProtocol, since: Long?): String {
+        val suffix = when (protocol) {
+            SelfPushProtocol.WEBSOCKET -> "ws"
+            SelfPushProtocol.JSON_STREAM -> "json"
+        }
+        return buildString {
+            append(server.trimEnd('/'))
+            append('/')
+            append(topics.joinToString(","))
+            append('/')
+            append(suffix)
+            if (since != null) append("?since=").append(since)
+        }
+    }
+
+    private suspend fun kotlinx.coroutines.flow.FlowCollector<NtfyMessage>.readHttpFrames(
+        server: String,
+        topics: Set<String>,
+        request: Request,
+    ) {
+        val response = httpStreamClient.newCall(request).execute()
         if (!response.isSuccessful) {
             response.close()
-            if (response.code in 400..499) {
-                throw FatalStreamException("Stream refused by the server: HTTP ${response.code}")
-            }
-            throw IOException("Stream failed: HTTP ${response.code}")
+            throw refusalOrFailure(response.code)
         }
 
         val source = response.body.source()
-        Timber.tag(loggerTag.value).d("Stream open for ${topics.size} topic(s) on $server")
+        Timber.tag(loggerTag.value).d("HTTP stream open for ${topics.size} topic(s) on $server")
         while (true) {
             val line = source.readUtf8Line() ?: throw IOException("Stream closed by the server")
             parseFrame(line)?.let { emit(it) }
         }
     }
 
-    private fun parseFrame(line: String): NtfyMessage? {
-        if (line.isBlank()) return null
-        val frame = runCatchingExceptions { json.decodeFromString<NtfyFrame>(line) }
+    private suspend fun kotlinx.coroutines.channels.ProducerScope<NtfyMessage>.readWebSocketFrames(
+        server: String,
+        topics: Set<String>,
+        request: Request,
+    ) {
+        val lastFrameAt = AtomicLong(System.currentTimeMillis())
+        val webSocket = webSocketClient.newWebSocket(request, object : WebSocketListener() {
+            override fun onOpen(webSocket: WebSocket, response: Response) {
+                lastFrameAt.set(System.currentTimeMillis())
+                Timber.tag(loggerTag.value).d("WebSocket stream open for ${topics.size} topic(s) on $server")
+            }
+
+            override fun onMessage(webSocket: WebSocket, text: String) {
+                lastFrameAt.set(System.currentTimeMillis())
+                parseFrame(text)?.let { trySend(it) }
+            }
+
+            override fun onClosing(webSocket: WebSocket, code: Int, reason: String) {
+                // OkHttp does not answer a server-initiated close on its own: without this
+                // reply the socket hangs in the closing state and onClosed never fires.
+                webSocket.close(NORMAL_CLOSURE_STATUS, null)
+            }
+
+            override fun onClosed(webSocket: WebSocket, code: Int, reason: String) {
+                close(IOException("Stream closed by the server"))
+            }
+
+            override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) {
+                close(t.toStreamException(response))
+            }
+        })
+
+        val monitor = launch {
+            while (isActive) {
+                delay(liveness.checkInterval)
+                val silence = System.currentTimeMillis() - lastFrameAt.get()
+                if (silence > liveness.maxSilence.inWholeMilliseconds) {
+                    Timber.tag(loggerTag.value).w("No frame for $silence ms, reconnecting")
+                    webSocket.close(NORMAL_CLOSURE_STATUS, "inactive")
+                    break
+                }
+            }
+        }
+
+        awaitClose {
+            monitor.cancel()
+            webSocket.close(NORMAL_CLOSURE_STATUS, null)
+        }
+    }
+
+    private fun Throwable.toStreamException(response: Response?): Exception {
+        return if (response != null && response.code in 400..499) {
+            refusalOrFailure(response.code)
+        } else {
+            IOException("Stream failed", this)
+        }
+    }
+
+    private fun refusalOrFailure(code: Int): Exception {
+        return if (code in 400..499) {
+            FatalStreamException("Stream refused by the server: HTTP $code")
+        } else {
+            IOException("Stream failed: HTTP $code")
+        }
+    }
+
+    private fun parseFrame(text: String): NtfyMessage? {
+        if (text.isBlank()) return null
+        val frame = runCatchingExceptions { json.decodeFromString<NtfyFrame>(text) }
             .onFailure { Timber.tag(loggerTag.value).w("Skipping an unreadable frame") }
             .getOrNull()
             ?: return null
-        return if (frame.event == "message" && frame.topic != null && frame.message != null) {
-            NtfyMessage(topic = frame.topic, content = frame.message)
-        } else {
-            null
-        }
+        return frame.toMessage()
+    }
+
+    private fun NtfyFrame.toMessage(): NtfyMessage? {
+        if (event != "message") return null
+        val id = id ?: return null
+        val time = time ?: return null
+        val topic = topic ?: return null
+        val message = message ?: return null
+        return NtfyMessage(id = id, topic = topic, content = message, time = time)
     }
 
     @Serializable
     private data class NtfyFrame(
         val event: String,
+        val id: String? = null,
+        val time: Long? = null,
         val topic: String? = null,
         val message: String? = null,
     )
@@ -128,7 +278,8 @@ class NtfyStreamClient @Inject constructor(
 
     private companion object {
         const val CONNECT_TIMEOUT_S = 15L
-        const val READ_TIMEOUT_S = 95L
+        const val PING_INTERVAL_S = 30L
         const val BACKOFF_CAP_S = 15L
+        const val NORMAL_CLOSURE_STATUS = 1000
     }
 }
