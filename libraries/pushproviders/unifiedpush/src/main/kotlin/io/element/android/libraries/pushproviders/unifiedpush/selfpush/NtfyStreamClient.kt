@@ -74,10 +74,10 @@ class NtfyStreamClient @Inject constructor(
         val checkInterval: Duration = 15.seconds,
     )
 
+    // No client-side pings: the server's keepalive frames already warm the NAT binding and
+    // feed the silence monitor, and an extra ping every 30s would double the radio wakeups.
     private val webSocketClient = okHttpClient.newBuilder()
         .connectTimeout(CONNECT_TIMEOUT_S, TimeUnit.SECONDS)
-        // Keeps the NAT binding warm; frame silence, not missing pongs, declares the socket dead.
-        .pingInterval(PING_INTERVAL_S, TimeUnit.SECONDS)
         .build()
 
     private val httpStreamClient = okHttpClient.newBuilder()
@@ -278,7 +278,6 @@ class NtfyStreamClient @Inject constructor(
 
     private companion object {
         const val CONNECT_TIMEOUT_S = 15L
-        const val PING_INTERVAL_S = 30L
         const val BACKOFF_CAP_S = 15L
         const val NORMAL_CLOSURE_STATUS = 1000
     }

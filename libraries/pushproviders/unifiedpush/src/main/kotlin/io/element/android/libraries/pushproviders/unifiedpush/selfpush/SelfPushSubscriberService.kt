@@ -67,7 +67,11 @@ class SelfPushSubscriberService : Service() {
 
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
-    private data class ActiveStream(val job: Job, val protocol: SelfPushProtocol)
+    private data class ActiveStream(val job: Job, val protocol: SelfPushProtocol, val readToken: String?) {
+        fun matches(protocol: SelfPushProtocol, readToken: String?): Boolean {
+            return this.protocol == protocol && this.readToken == readToken
+        }
+    }
 
     /** One streaming job per notification server in use. */
     private val streamJobs = mutableMapOf<String, ActiveStream>()
@@ -154,7 +158,7 @@ class SelfPushSubscriberService : Service() {
         for ((server, topics) in registrationsByServer) {
             // A job that died on a fatal refusal counts as absent, so the watchdog can revive it.
             val active = streamJobs[server]?.takeIf { it.job.isActive }
-            if (active != null && !force && active.protocol == protocol) continue
+            if (active != null && !force && active.matches(protocol, readToken)) continue
             if (active != null) {
                 Timber.tag(loggerTag.value).d("Reopening the stream to $server")
                 active.job.cancel()
@@ -174,6 +178,7 @@ class SelfPushSubscriberService : Service() {
                         .collect { message -> onPushMessage(server, message) }
                 },
                 protocol = protocol,
+                readToken = readToken,
             )
         }
     }
@@ -220,11 +225,14 @@ class SelfPushSubscriberService : Service() {
     private fun scheduleWatchdog() {
         val alarmManager = getSystemService(AlarmManager::class.java) ?: return
         runCatchingExceptions {
-            alarmManager.setExactAndAllowWhileIdle(
-                AlarmManager.RTC_WAKEUP,
-                System.currentTimeMillis() + WATCHDOG_INTERVAL_MS,
-                watchdogIntent(),
-            )
+            val triggerAt = System.currentTimeMillis() + WATCHDOG_INTERVAL_MS
+            // SCHEDULE_EXACT_ALARM can be revoked on Android 12+; fall back to an inexact
+            // alarm instead of losing the watchdog to a SecurityException.
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && !alarmManager.canScheduleExactAlarms()) {
+                alarmManager.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerAt, watchdogIntent())
+            } else {
+                alarmManager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerAt, watchdogIntent())
+            }
         }.onFailure { Timber.tag(loggerTag.value).w(it, "Could not schedule the watchdog") }
     }
 
