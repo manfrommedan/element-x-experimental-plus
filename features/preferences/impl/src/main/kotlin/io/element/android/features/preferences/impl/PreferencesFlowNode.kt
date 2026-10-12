@@ -37,6 +37,7 @@ import io.element.android.features.preferences.impl.moderation.ModerationAndSafe
 import io.element.android.features.preferences.impl.mxtr.MxtrSettingsNode
 import io.element.android.features.preferences.impl.notifications.NotificationSettingsNode
 import io.element.android.features.preferences.impl.notifications.edit.EditDefaultNotificationSettingNode
+import io.element.android.features.preferences.impl.notifications.selfpush.SelfPushSettingsNode
 import io.element.android.features.preferences.impl.root.PreferencesRootNode
 import io.element.android.features.preferences.impl.user.editprofile.EditUserProfileNode
 import io.element.android.libraries.architecture.BackstackView
@@ -104,6 +105,9 @@ class PreferencesFlowNode(
 
         @Parcelize
         data object NotificationSettings : NavTarget
+
+        @Parcelize
+        data object SelfPushSettings : NavTarget
 
         @Parcelize
         data object ModerationAndSafety : NavTarget
@@ -274,8 +278,15 @@ class PreferencesFlowNode(
                     override fun navigateToTroubleshootNotifications() {
                         backstack.push(NavTarget.TroubleshootNotifications)
                     }
+
+                    override fun navigateToSelfPushSettings() {
+                        backstack.push(NavTarget.SelfPushSettings)
+                    }
                 }
                 createNode<NotificationSettingsNode>(buildContext, listOf(notificationSettingsCallback))
+            }
+            NavTarget.SelfPushSettings -> {
+                createNode<SelfPushSettingsNode>(buildContext)
             }
             NavTarget.TroubleshootNotifications -> {
                 notificationTroubleShootEntryPoint.createNode(

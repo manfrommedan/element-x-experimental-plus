@@ -319,6 +319,7 @@ private fun AndroidComposeUiTest<ComponentActivity>.setNotificationSettingsView(
     state: NotificationSettingsState,
     onOpenEditDefault: (isOneToOne: Boolean) -> Unit = EnsureNeverCalledWithParam(),
     onTroubleshootNotificationsClick: () -> Unit = EnsureNeverCalled(),
+    onOpenSelfPushSettings: () -> Unit = EnsureNeverCalled(),
     onBackClick: () -> Unit = EnsureNeverCalled(),
 ) {
     setContent {
@@ -326,6 +327,7 @@ private fun AndroidComposeUiTest<ComponentActivity>.setNotificationSettingsView(
             state = state,
             onOpenEditDefault = onOpenEditDefault,
             onTroubleshootNotificationsClick = onTroubleshootNotificationsClick,
+            onOpenSelfPushSettings = onOpenSelfPushSettings,
             onBackClick = onBackClick,
         )
     }

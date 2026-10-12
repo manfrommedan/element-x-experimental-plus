@@ -40,4 +40,7 @@
     <string name="screen_notifications_listener_status_title">"Built-in listener"</string>
     <string name="screen_notifications_listener_status_connected">"Connected"</string>
     <string name="screen_notifications_listener_status_connecting">"Connecting..."</string>
+    <string name="screen_notifications_builtin_push_enable">"Use built-in push"</string>
+    <string name="common_on">"On"</string>
+    <string name="common_off">"Off"</string>
 </resources>

@@ -16,7 +16,6 @@ import io.element.android.libraries.fullscreenintent.api.aFullScreenIntentPermis
 import io.element.android.libraries.matrix.api.MatrixClient
 import io.element.android.libraries.matrix.api.room.RoomNotificationMode
 import io.element.android.libraries.matrix.test.AN_EXCEPTION
-import io.element.android.libraries.matrix.test.A_SECRET
 import io.element.android.libraries.matrix.test.FakeMatrixClient
 import io.element.android.libraries.matrix.test.core.aBuildMeta
 import io.element.android.libraries.matrix.test.notificationsettings.FakeNotificationSettingsService
@@ -26,7 +25,6 @@ import io.element.android.libraries.preferences.test.InMemoryAppPreferencesStore
 import io.element.android.libraries.push.api.PushService
 import io.element.android.libraries.push.api.notifications.NotificationSoundUpdater
 import io.element.android.libraries.push.api.notifications.sound.NotificationSoundCopier
-import io.element.android.libraries.push.impl.battery.BatteryOptimization
 import io.element.android.libraries.push.test.FakePushService
 import io.element.android.libraries.push.test.notifications.FakeNotificationSoundUpdater
 import io.element.android.libraries.push.test.notifications.FakeSoundDisplayNameResolver
@@ -37,12 +35,10 @@ import io.element.android.libraries.pushproviders.test.FakePushProvider
 import io.element.android.libraries.pushproviders.unifiedpush.selfpush.SelfPushProtocol
 import io.element.android.libraries.pushproviders.unifiedpush.selfpush.SelfPushRegistration
 import io.element.android.libraries.pushproviders.unifiedpush.selfpush.SelfPushStore
-import io.element.android.libraries.pushproviders.unifiedpush.selfpush.SelfPushStreamRefresher
 import io.element.android.libraries.pushstore.test.userpushstore.FakeUserPushStoreFactory
 import io.element.android.services.toolbox.test.strings.FakeStringProvider
 import io.element.android.tests.testutils.awaitLastSequentialItem
 import io.element.android.tests.testutils.consumeItemsUntilPredicate
-import io.element.android.tests.testutils.lambda.any
 import io.element.android.tests.testutils.lambda.lambdaRecorder
 import io.element.android.tests.testutils.lambda.value
 import io.element.android.tests.testutils.test
@@ -51,7 +47,6 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
-import okhttp3.OkHttpClient
 import org.junit.Test
 import kotlin.time.Duration.Companion.milliseconds
 
@@ -372,230 +367,26 @@ class NotificationSettingsPresenterTest {
         )
     }
 
+    @OptIn(ExperimentalCoroutinesApi::class)
     @Test
-    fun `present - self push server row is shown when the built-in distributor is current`() = runTest {
+    fun `present - built-in push entry shows when the distributor is offered and reflects the active state`() = runTest {
         val presenter = createNotificationSettingsPresenter(
             pushService = createBuiltInPushService(),
         )
         presenter.test {
-            val state = consumeItemsUntilPredicate { it.selfPushServer != null }.last()
-            assertThat(state.selfPushServer?.customServer).isNull()
-            assertThat(state.selfPushServer?.effectiveServer).isEqualTo(DEFAULT_SELF_PUSH_SERVER)
-            assertThat(state.selfPushServer?.showDialog).isFalse()
-            cancelAndIgnoreRemainingEvents()
-        }
-    }
-
-    @Test
-    fun `present - self push server row is hidden when an external distributor is current`() = runTest {
-        val presenter = createNotificationSettingsPresenter(
-            pushService = createFakePushService(),
-        )
-        presenter.test {
-            val state = awaitLastSequentialItem()
-            assertThat(state.currentPushDistributor.dataOrNull()?.value).isEqualTo("aDistributorValue0")
-            assertThat(state.selfPushServer).isNull()
+            val state = consumeItemsUntilPredicate { it.selfPushEntry?.active == true }.last()
+            assertThat(state.selfPushEntry?.active).isTrue()
             cancelAndIgnoreRemainingEvents()
         }
     }
 
     @OptIn(ExperimentalCoroutinesApi::class)
     @Test
-    fun `present - saving a self push server persists it and re-registers the built-in distributor`() = runTest {
-        val registerRecorder = lambdaRecorder<MatrixClient, PushProvider, Distributor, Result<Unit>> { _, _, _ ->
-            Result.success(Unit)
-        }
-        val selfPushStore = FakeSelfPushStore()
-        val presenter = createNotificationSettingsPresenter(
-            pushService = createBuiltInPushService(registerWithLambda = { client, provider, distributor ->
-                registerRecorder(client, provider, distributor)
-            }),
-            selfPushStore = selfPushStore,
-        )
-        presenter.test {
-            val initial = consumeItemsUntilPredicate { it.selfPushServer != null }.last()
-            initial.eventSink(NotificationSettingsEvent.ShowSelfPushServerDialog)
-            val shown = consumeItemsUntilPredicate { it.selfPushServer?.showDialog == true }.last()
-            shown.eventSink(NotificationSettingsEvent.SaveSelfPushServer("https://push.example.com", "tk_read_1"))
-            val saved = consumeItemsUntilPredicate {
-                it.selfPushServer?.customServer == "https://push.example.com" && it.selfPushServer?.showDialog == false
-            }.last()
-            advanceUntilIdle()
-            assertThat(selfPushStore.getCustomServer()).isEqualTo("https://push.example.com")
-            assertThat(selfPushStore.getReadToken()).isEqualTo("tk_read_1")
-            assertThat(saved.selfPushServer?.effectiveServer).isEqualTo("https://push.example.com")
-            assertThat(saved.selfPushServer?.readToken).isEqualTo("tk_read_1")
-            assertThat(saved.selfPushServer?.saveFailed).isFalse()
-            registerRecorder.assertions().isCalledOnce().with(
-                any(),
-                any(),
-                value(Distributor(value = SELF_APPLICATION_ID, name = "Built-in push")),
-            )
-            cancelAndIgnoreRemainingEvents()
-        }
-    }
-
-    @OptIn(ExperimentalCoroutinesApi::class)
-    @Test
-    fun `present - saving an invalid self push server URL does not persist it`() = runTest {
-        val registerRecorder = lambdaRecorder<MatrixClient, PushProvider, Distributor, Result<Unit>> { _, _, _ ->
-            Result.success(Unit)
-        }
-        val selfPushStore = FakeSelfPushStore()
-        val presenter = createNotificationSettingsPresenter(
-            pushService = createBuiltInPushService(registerWithLambda = { client, provider, distributor ->
-                registerRecorder(client, provider, distributor)
-            }),
-            selfPushStore = selfPushStore,
-        )
-        presenter.test {
-            val initial = consumeItemsUntilPredicate { it.selfPushServer != null }.last()
-            initial.eventSink(NotificationSettingsEvent.ShowSelfPushServerDialog)
-            val shown = consumeItemsUntilPredicate { it.selfPushServer?.showDialog == true }.last()
-            shown.eventSink(NotificationSettingsEvent.SaveSelfPushServer("http://push.example.com/", null))
-            val failed = consumeItemsUntilPredicate { it.selfPushServer?.saveFailed == true }.last()
-            advanceUntilIdle()
-            assertThat(selfPushStore.getCustomServer()).isNull()
-            // The dialog stays open so the user can fix the URL.
-            assertThat(failed.selfPushServer?.showDialog).isTrue()
-            registerRecorder.assertions().isNeverCalled()
-            cancelAndIgnoreRemainingEvents()
-        }
-    }
-
-    @OptIn(ExperimentalCoroutinesApi::class)
-    @Test
-    fun `present - failing re-registration after a server change rolls the store back`() = runTest {
-        val selfPushStore = FakeSelfPushStore()
-        val presenter = createNotificationSettingsPresenter(
-            pushService = createBuiltInPushService(registerWithLambda = { _, _, _ ->
-                Result.failure(AN_EXCEPTION)
-            }),
-            selfPushStore = selfPushStore,
-        )
-        presenter.test {
-            val initial = consumeItemsUntilPredicate { it.selfPushServer != null }.last()
-            initial.eventSink(NotificationSettingsEvent.ShowSelfPushServerDialog)
-            val shown = consumeItemsUntilPredicate { it.selfPushServer?.showDialog == true }.last()
-            shown.eventSink(NotificationSettingsEvent.SaveSelfPushServer("https://push.example.com", "tk_new"))
-            consumeItemsUntilPredicate { it.selfPushServer?.saveFailed == true }
-            advanceUntilIdle()
-            // The store never advertises a server the live registration does not use.
-            assertThat(selfPushStore.getCustomServer()).isNull()
-            assertThat(selfPushStore.getReadToken()).isNull()
-            cancelAndIgnoreRemainingEvents()
-        }
-    }
-
-    @OptIn(ExperimentalCoroutinesApi::class)
-    @Test
-    fun `present - resetting the self push server clears it and re-registers`() = runTest {
-        val registerRecorder = lambdaRecorder<MatrixClient, PushProvider, Distributor, Result<Unit>> { _, _, _ ->
-            Result.success(Unit)
-        }
-        val selfPushStore = FakeSelfPushStore()
-        selfPushStore.setCustomServer("https://push.example.com")
-        selfPushStore.setReadToken("tk_read_1")
-        val presenter = createNotificationSettingsPresenter(
-            pushService = createBuiltInPushService(registerWithLambda = { client, provider, distributor ->
-                registerRecorder(client, provider, distributor)
-            }),
-            selfPushStore = selfPushStore,
-        )
-        presenter.test {
-            val initial = consumeItemsUntilPredicate {
-                it.selfPushServer?.customServer == "https://push.example.com"
-            }.last()
-            initial.eventSink(NotificationSettingsEvent.ResetSelfPushServer)
-            val reset = consumeItemsUntilPredicate { it.selfPushServer?.customServer == null }.last()
-            advanceUntilIdle()
-            assertThat(selfPushStore.getCustomServer()).isNull()
-            assertThat(selfPushStore.getReadToken()).isNull()
-            assertThat(reset.selfPushServer?.effectiveServer).isEqualTo(DEFAULT_SELF_PUSH_SERVER)
-            registerRecorder.assertions().isCalledOnce()
-            cancelAndIgnoreRemainingEvents()
-        }
-    }
-
-    @OptIn(ExperimentalCoroutinesApi::class)
-    @Test
-    fun `present - built-in distributor exposes the protocol picker and persists the choice`() = runTest {
-        val selfPushStore = FakeSelfPushStore()
-        val refresher = FakeSelfPushStreamRefresher()
-        val presenter = createNotificationSettingsPresenter(
-            pushService = createBuiltInPushService(),
-            selfPushStore = selfPushStore,
-            selfPushStreamRefresher = refresher,
-        )
-        presenter.test {
-            val initial = consumeItemsUntilPredicate { it.selfPushProtocol != null }.last()
-            assertThat(initial.selfPushProtocol?.protocol).isEqualTo(SelfPushProtocol.WEBSOCKET)
-            initial.eventSink(NotificationSettingsEvent.ShowSelfPushProtocolDialog)
-            val shown = consumeItemsUntilPredicate { it.selfPushProtocol?.showDialog == true }.last()
-            shown.eventSink(NotificationSettingsEvent.SetSelfPushProtocol(SelfPushProtocol.JSON_STREAM))
-            val saved = consumeItemsUntilPredicate {
-                it.selfPushProtocol?.protocol == SelfPushProtocol.JSON_STREAM && it.selfPushProtocol?.showDialog == false
-            }.last()
-            advanceUntilIdle()
-            assertThat(selfPushStore.getProtocol()).isEqualTo(SelfPushProtocol.JSON_STREAM)
-            assertThat(saved.selfPushProtocol?.protocol).isEqualTo(SelfPushProtocol.JSON_STREAM)
-            assertThat(refresher.refreshCount).isEqualTo(1)
-            cancelAndIgnoreRemainingEvents()
-        }
-    }
-
-    @OptIn(ExperimentalCoroutinesApi::class)
-    @Test
-    fun `present - protocol row is hidden for external distributors`() = runTest {
+    fun `present - built-in push entry hidden when the distributor is not offered`() = runTest {
         val presenter = createNotificationSettingsPresenter()
         presenter.test {
             val state = awaitLastSequentialItem()
-            assertThat(state.selfPushProtocol).isNull()
-            cancelAndIgnoreRemainingEvents()
-        }
-    }
-
-    @OptIn(ExperimentalCoroutinesApi::class)
-    @Test
-    fun `present - battery row reflects the system setting and forwards the exemption request`() = runTest {
-        val batteryOptimization = FakeBatteryOptimization()
-        val presenter = createNotificationSettingsPresenter(
-            pushService = createBuiltInPushService(),
-            batteryOptimization = batteryOptimization,
-        )
-        presenter.test {
-            val initial = consumeItemsUntilPredicate { it.selfPushServer != null }.last()
-            assertThat(initial.batteryOptimizationIgnored).isFalse()
-            initial.eventSink(NotificationSettingsEvent.RequestDisableBatteryOptimization)
-            advanceUntilIdle()
-            assertThat(batteryOptimization.requestCount).isEqualTo(1)
-            // The system granted the exemption while the dialog was up; a resume refresh reflects it.
-            batteryOptimization.ignoring = true
-            initial.eventSink(NotificationSettingsEvent.RefreshSystemNotificationsEnabled)
-            val refreshed = consumeItemsUntilPredicate { it.batteryOptimizationIgnored }.last()
-            assertThat(refreshed.batteryOptimizationIgnored).isTrue()
-            cancelAndIgnoreRemainingEvents()
-        }
-    }
-
-    @OptIn(ExperimentalCoroutinesApi::class)
-    @Test
-    fun `present - listener status reflects the open streams`() = runTest {
-        val selfPushStore = FakeSelfPushStore()
-        selfPushStore.storeRegistration(A_SECRET, SelfPushRegistration("https://ntfy.sh", "upA"))
-        val presenter = createNotificationSettingsPresenter(
-            pushService = createBuiltInPushService(),
-            selfPushStore = selfPushStore,
-        )
-        presenter.test {
-            val disconnected = consumeItemsUntilPredicate { it.selfPushServer != null }.last()
-            assertThat(disconnected.selfPushServer?.listenerConnected).isFalse()
-
-            selfPushStore.setStreamOpen("https://ntfy.sh", true)
-            disconnected.eventSink(NotificationSettingsEvent.RefreshSystemNotificationsEnabled)
-
-            val connected = consumeItemsUntilPredicate { it.selfPushServer?.listenerConnected == true }.last()
-            assertThat(connected.selfPushServer?.listenerConnected).isTrue()
+            assertThat(state.selfPushEntry).isNull()
             cancelAndIgnoreRemainingEvents()
         }
     }
@@ -1372,10 +1163,7 @@ class NotificationSettingsPresenterTest {
         }),
         soundDisplayNameResolver: FakeSoundDisplayNameResolver = FakeSoundDisplayNameResolver(),
         selfPushStore: SelfPushStore = FakeSelfPushStore(),
-        selfPushStreamRefresher: SelfPushStreamRefresher = FakeSelfPushStreamRefresher(),
-        batteryOptimization: BatteryOptimization = FakeBatteryOptimization(),
         buildMeta: BuildMeta = aBuildMeta(applicationId = SELF_APPLICATION_ID),
-        okHttpClient: OkHttpClient = OkHttpClient(),
     ): NotificationSettingsPresenter {
         val matrixClient = FakeMatrixClient(notificationSettingsService = notificationSettingsService)
         return NotificationSettingsPresenter(
@@ -1391,10 +1179,7 @@ class NotificationSettingsPresenterTest {
             soundDisplayNameResolver = soundDisplayNameResolver,
             stringProvider = FakeStringProvider(),
             selfPushStore = selfPushStore,
-            selfPushStreamRefresher = selfPushStreamRefresher,
-            batteryOptimization = batteryOptimization,
             buildMeta = buildMeta,
-            okHttpClient = okHttpClient,
             sessionCoroutineScope = backgroundScope,
         )
     }
@@ -1455,28 +1240,6 @@ class NotificationSettingsPresenterTest {
         }
 
         override fun getOpenServers(): Set<String> = openServers.toSet()
-    }
-
-    private class FakeSelfPushStreamRefresher : SelfPushStreamRefresher {
-        var refreshCount = 0
-            private set
-
-        override fun refresh() {
-            refreshCount++
-        }
-    }
-
-    private class FakeBatteryOptimization : BatteryOptimization {
-        var ignoring = false
-        var requestCount = 0
-            private set
-
-        override fun isIgnoringBatteryOptimizations(): Boolean = ignoring
-
-        override fun requestDisablingBatteryOptimization(): Boolean {
-            requestCount++
-            return true
-        }
     }
 
     companion object {

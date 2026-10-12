@@ -14,7 +14,6 @@ import io.element.android.libraries.fullscreenintent.api.FullScreenIntentPermiss
 import io.element.android.libraries.matrix.api.room.RoomNotificationMode
 import io.element.android.libraries.preferences.api.store.NotificationSound
 import io.element.android.libraries.pushproviders.api.Distributor
-import io.element.android.libraries.pushproviders.unifiedpush.selfpush.SelfPushProtocol
 import kotlinx.collections.immutable.ImmutableList
 
 data class NotificationSettingsState(
@@ -44,17 +43,10 @@ data class NotificationSettingsState(
      */
     val pendingCallRingtonePickerLaunch: Int,
     /**
-     * Built-in push server configuration, non-null only when the current push distributor is the
-     * app itself. Null hides the whole "Push server" row.
+     * Entry into the built-in push management screen, non-null when the built-in distributor
+     * is offered at all (the Labs flag is on). Null hides the row.
      */
-    val selfPushServer: SelfPushServerState?,
-    /**
-     * Stream protocol for the built-in listener, non-null only when the current push distributor
-     * is the app itself. Null hides the whole "Connection protocol" row.
-     */
-    val selfPushProtocol: SelfPushProtocolState?,
-    /** True when the app is exempt from battery optimizations; drives the advanced row's subtitle. */
-    val batteryOptimizationIgnored: Boolean,
+    val selfPushEntry: SelfPushEntryState?,
     val eventSink: (NotificationSettingsEvent) -> Unit,
 ) {
     sealed interface MatrixSettings {
@@ -87,30 +79,12 @@ data class NotificationSettingsState(
         val copyError: Boolean,
     )
 
-    /**
-     * UI state for the built-in push server row and its edit dialog. [healthCheck] is the result
-     * of the last on-demand check, keyed by [healthCheckServer] so the dialog can ignore results
-     * for an URL that is no longer in the text field. [saveFailed] is set when persisting or
-     * re-registering after a server change failed; the dialog stays open and shows an error.
-     */
-    data class SelfPushServerState(
-        val customServer: String?,
-        val effectiveServer: String,
-        val showDialog: Boolean,
-        val healthCheck: AsyncData<Unit>,
-        val healthCheckServer: String?,
-        val healthCheckToken: String?,
-        val saveFailed: Boolean,
-        /** Bearer token for servers behind auth, null when the server is open. */
-        val readToken: String?,
+    /** UI state for the built-in push entry row. */
+    data class SelfPushEntryState(
+        /** True when the built-in listener is the current distributor. */
+        val active: Boolean,
         /** True while every registered server has an open stream. */
         val listenerConnected: Boolean,
-    )
-
-    /** UI state for the built-in listener's protocol row and its picker dialog. */
-    data class SelfPushProtocolState(
-        val protocol: SelfPushProtocol,
-        val showDialog: Boolean,
     )
 
     /**

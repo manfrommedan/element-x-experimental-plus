@@ -15,19 +15,13 @@ import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.progressSemantics
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalInspectionMode
@@ -35,8 +29,6 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.text.input.ImeAction
-import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.tooling.preview.PreviewParameter
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
@@ -49,11 +41,9 @@ import io.element.android.libraries.designsystem.components.Announcement
 import io.element.android.libraries.designsystem.components.AnnouncementType
 import io.element.android.libraries.designsystem.components.async.AsyncActionView
 import io.element.android.libraries.designsystem.components.dialogs.ErrorDialog
-import io.element.android.libraries.designsystem.components.dialogs.ListDialog
 import io.element.android.libraries.designsystem.components.dialogs.ListOption
 import io.element.android.libraries.designsystem.components.dialogs.SingleSelectionDialog
 import io.element.android.libraries.designsystem.components.list.ListItemContent
-import io.element.android.libraries.designsystem.components.list.TextFieldListItem
 import io.element.android.libraries.designsystem.components.preferences.PreferenceCategory
 import io.element.android.libraries.designsystem.components.preferences.PreferencePage
 import io.element.android.libraries.designsystem.components.preferences.PreferenceSwitch
@@ -65,12 +55,10 @@ import io.element.android.libraries.designsystem.theme.components.IconButton
 import io.element.android.libraries.designsystem.theme.components.IconSource
 import io.element.android.libraries.designsystem.theme.components.ListItem
 import io.element.android.libraries.designsystem.theme.components.Text
-import io.element.android.libraries.designsystem.theme.components.TextButton
 import io.element.android.libraries.designsystem.utils.OnLifecycleEvent
 import io.element.android.libraries.fullscreenintent.api.FullScreenIntentPermissionsEvent
 import io.element.android.libraries.matrix.api.room.RoomNotificationMode
 import io.element.android.libraries.preferences.api.store.NotificationSound
-import io.element.android.libraries.pushproviders.unifiedpush.selfpush.SelfPushProtocol
 import io.element.android.libraries.ui.strings.CommonStrings
 import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.toImmutableList
@@ -83,6 +71,7 @@ fun NotificationSettingsView(
     state: NotificationSettingsState,
     onOpenEditDefault: (isOneToOne: Boolean) -> Unit,
     onTroubleshootNotificationsClick: () -> Unit,
+    onOpenSelfPushSettings: () -> Unit,
     onBackClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -115,6 +104,7 @@ fun NotificationSettingsView(
 //                onCallsNotificationsChanged = { state.eventSink(NotificationSettingsEvent.SetCallNotificationsEnabled(it)) },
                 onInviteForMeNotificationsChange = { state.eventSink(NotificationSettingsEvent.SetInviteForMeNotificationsEnabled(it)) },
                 onTroubleshootNotificationsClick = onTroubleshootNotificationsClick,
+                onOpenSelfPushSettings = onOpenSelfPushSettings,
             )
         }
         AsyncActionView(
@@ -138,6 +128,7 @@ private fun NotificationSettingsContentView(
 //    onCallsNotificationsChanged: (Boolean) -> Unit,
     onInviteForMeNotificationsChange: (Boolean) -> Unit,
     onTroubleshootNotificationsClick: () -> Unit,
+    onOpenSelfPushSettings: () -> Unit,
 ) {
     val context = LocalContext.current
     val systemSettings: NotificationSettingsState.AppSettings = state.appSettings
@@ -267,89 +258,25 @@ private fun NotificationSettingsContentView(
                         }
                     }
                 )
-                state.selfPushServer?.let { selfPushServer ->
+                state.selfPushEntry?.let { selfPushEntry ->
                     ListItem(
                         content = {
-                            Text(text = stringResource(id = CommonStrings.screen_notifications_push_server_title))
-                        },
-                        supportingContent = {
-                            Text(
-                                text = selfPushServer.customServer
-                                    ?: stringResource(
-                                        id = CommonStrings.screen_notifications_push_server_default_subtitle,
-                                        selfPushServer.effectiveServer,
-                                    )
-                            )
-                        },
-                        onClick = {
-                            state.eventSink(NotificationSettingsEvent.ShowSelfPushServerDialog)
-                        }
-                    )
-                    ListItem(
-                        content = {
-                            Text(text = stringResource(id = CommonStrings.screen_notifications_battery_optimization_title))
+                            Text(text = stringResource(id = CommonStrings.common_built_in_push))
                         },
                         supportingContent = {
                             Text(
                                 text = stringResource(
-                                    id = if (state.batteryOptimizationIgnored) {
-                                        CommonStrings.screen_notifications_battery_optimization_unrestricted
-                                    } else {
-                                        CommonStrings.screen_notifications_battery_optimization_restricted
+                                    id = when {
+                                        !selfPushEntry.active -> CommonStrings.common_off
+                                        selfPushEntry.listenerConnected -> CommonStrings.screen_notifications_listener_status_connected
+                                        else -> CommonStrings.screen_notifications_listener_status_connecting
                                     }
                                 )
                             )
                         },
-                        onClick = {
-                            if (!state.batteryOptimizationIgnored) {
-                                state.eventSink(NotificationSettingsEvent.RequestDisableBatteryOptimization)
-                            }
-                        }
+                        onClick = onOpenSelfPushSettings,
                     )
                 }
-                state.selfPushServer?.let { selfPushServer ->
-                    ListItem(
-                        content = {
-                            Text(text = stringResource(id = CommonStrings.screen_notifications_listener_status_title))
-                        },
-                        supportingContent = {
-                            Text(
-                                text = stringResource(
-                                    id = if (selfPushServer.listenerConnected) {
-                                        CommonStrings.screen_notifications_listener_status_connected
-                                    } else {
-                                        CommonStrings.screen_notifications_listener_status_connecting
-                                    }
-                                )
-                            )
-                        },
-                    )
-                }
-                state.selfPushProtocol?.let { selfPushProtocol ->
-                    ListItem(
-                        content = {
-                            Text(text = stringResource(id = CommonStrings.screen_notifications_connection_protocol_title))
-                        },
-                        supportingContent = {
-                            Text(text = selfPushProtocolLabel(selfPushProtocol.protocol))
-                        },
-                        onClick = {
-                            state.eventSink(NotificationSettingsEvent.ShowSelfPushProtocolDialog)
-                        }
-                    )
-                }
-            }
-            if (state.selfPushServer?.showDialog == true) {
-                SelfPushServerDialog(
-                    selfPushServer = state.selfPushServer,
-                    eventSink = state.eventSink,
-                )
-            }
-            if (state.selfPushProtocol?.showDialog == true) {
-                SelfPushProtocolDialog(
-                    selfPushProtocol = state.selfPushProtocol,
-                    eventSink = state.eventSink,
-                )
             }
             if (state.showChangePushProviderDialog) {
                 SingleSelectionDialog(
@@ -508,140 +435,6 @@ private fun CallRingtoneDialog(state: NotificationSettingsState) {
 }
 
 @Composable
-private fun SelfPushProtocolDialog(
-    selfPushProtocol: NotificationSettingsState.SelfPushProtocolState,
-    eventSink: (NotificationSettingsEvent) -> Unit,
-) {
-    SingleSelectionDialog(
-        title = stringResource(id = CommonStrings.screen_notifications_connection_protocol_title),
-        options = persistentListOf(
-            ListOption(title = stringResource(id = CommonStrings.screen_notifications_connection_protocol_websocket)),
-            ListOption(title = stringResource(id = CommonStrings.screen_notifications_connection_protocol_json_stream)),
-        ),
-        initialSelection = when (selfPushProtocol.protocol) {
-            SelfPushProtocol.WEBSOCKET -> 0
-            SelfPushProtocol.JSON_STREAM -> 1
-        },
-        onSelectOption = { index ->
-            val protocol = when (index) {
-                0 -> SelfPushProtocol.WEBSOCKET
-                else -> SelfPushProtocol.JSON_STREAM
-            }
-            eventSink(NotificationSettingsEvent.SetSelfPushProtocol(protocol))
-        },
-        onDismissRequest = { eventSink(NotificationSettingsEvent.DismissSelfPushProtocolDialog) },
-    )
-}
-
-@Composable
-private fun selfPushProtocolLabel(protocol: SelfPushProtocol) = stringResource(
-    id = when (protocol) {
-        SelfPushProtocol.WEBSOCKET -> CommonStrings.screen_notifications_connection_protocol_websocket
-        SelfPushProtocol.JSON_STREAM -> CommonStrings.screen_notifications_connection_protocol_json_stream
-    }
-)
-
-@Composable
-private fun SelfPushServerDialog(
-    selfPushServer: NotificationSettingsState.SelfPushServerState,
-    eventSink: (NotificationSettingsEvent) -> Unit,
-) {
-    var serverUrl by rememberSaveable { mutableStateOf(selfPushServer.customServer ?: selfPushServer.effectiveServer) }
-    var readToken by rememberSaveable { mutableStateOf(selfPushServer.readToken.orEmpty()) }
-    val trimmedUrl = serverUrl.trim()
-    val isValid = isValidSelfPushServerUrl(trimmedUrl)
-    ListDialog(
-        title = stringResource(id = CommonStrings.screen_notifications_push_server_dialog_title),
-        submitText = stringResource(CommonStrings.action_save),
-        onSubmit = { eventSink(NotificationSettingsEvent.SaveSelfPushServer(trimmedUrl, readToken)) },
-        onDismissRequest = { eventSink(NotificationSettingsEvent.DismissSelfPushServerDialog) },
-        enabled = isValid,
-    ) {
-        item {
-            TextFieldListItem(
-                placeholder = DEFAULT_SELF_PUSH_SERVER,
-                text = serverUrl,
-                onTextChange = { serverUrl = it },
-                error = if (serverUrl.isNotEmpty() && !isValid) {
-                    stringResource(id = CommonStrings.screen_notifications_push_server_invalid_url)
-                } else {
-                    null
-                },
-                keyboardOptions = KeyboardOptions(
-                    keyboardType = KeyboardType.Uri,
-                    imeAction = ImeAction.Done,
-                ),
-            )
-        }
-        item {
-            TextFieldListItem(
-                placeholder = "tk_...",
-                text = readToken,
-                onTextChange = { readToken = it },
-                label = stringResource(id = CommonStrings.screen_notifications_push_server_token_label),
-                keyboardOptions = KeyboardOptions(
-                    keyboardType = KeyboardType.Password,
-                    imeAction = ImeAction.Done,
-                ),
-            )
-        }
-        item {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                TextButton(
-                    text = stringResource(id = CommonStrings.screen_notifications_push_server_check_health),
-                    onClick = { eventSink(NotificationSettingsEvent.CheckSelfPushServerHealth(trimmedUrl, readToken)) },
-                    enabled = trimmedUrl.isNotEmpty(),
-                )
-                // Only surface a result that was produced for the URL and token in the dialog.
-                if (selfPushServer.healthCheckServer == trimmedUrl.trimEnd('/') &&
-                    selfPushServer.healthCheckToken == readToken.trim().takeUnless { it.isEmpty() }
-                ) {
-                    when (selfPushServer.healthCheck) {
-                        is AsyncData.Loading -> CircularProgressIndicator(
-                            modifier = Modifier
-                                .progressSemantics()
-                                .size(20.dp),
-                            strokeWidth = 2.dp,
-                        )
-                        is AsyncData.Success -> Text(
-                            text = stringResource(id = CommonStrings.screen_notifications_push_server_health_ok),
-                            style = ElementTheme.typography.fontBodyMdRegular,
-                            color = ElementTheme.colors.textSecondary,
-                        )
-                        is AsyncData.Failure -> Text(
-                            text = stringResource(id = CommonStrings.screen_notifications_push_server_health_error),
-                            style = ElementTheme.typography.fontBodyMdRegular,
-                            color = ElementTheme.colors.textCriticalPrimary,
-                        )
-                        AsyncData.Uninitialized -> Unit
-                    }
-                }
-            }
-        }
-        item {
-            TextButton(
-                text = stringResource(id = CommonStrings.screen_notifications_push_server_reset_to_default),
-                onClick = { eventSink(NotificationSettingsEvent.ResetSelfPushServer) },
-                enabled = selfPushServer.customServer != null,
-            )
-        }
-        if (selfPushServer.saveFailed) {
-            item {
-                Text(
-                    text = stringResource(id = CommonStrings.screen_notifications_push_server_save_failed),
-                    style = ElementTheme.typography.fontBodyMdRegular,
-                    color = ElementTheme.colors.textCriticalPrimary,
-                    modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
-                )
-            }
-        }
-    }
-}
-
-@Composable
 private fun SoundCopyErrorRow(
     onDismissClick: () -> Unit,
 ) {
@@ -739,5 +532,6 @@ internal fun NotificationSettingsViewPreview(@PreviewParameter(
         onBackClick = {},
         onOpenEditDefault = {},
         onTroubleshootNotificationsClick = {},
+        onOpenSelfPushSettings = {},
     )
 }

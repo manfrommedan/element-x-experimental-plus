@@ -29,6 +29,7 @@ class NotificationSettingsNode(
     interface Callback : Plugin {
         fun navigateToEditDefaultNotificationSetting(isOneToOne: Boolean)
         fun navigateToTroubleshootNotifications()
+        fun navigateToSelfPushSettings()
     }
 
     private val callback: Callback = callback()
@@ -41,6 +42,7 @@ class NotificationSettingsNode(
             onOpenEditDefault = callback::navigateToEditDefaultNotificationSetting,
             onBackClick = ::navigateUp,
             onTroubleshootNotificationsClick = callback::navigateToTroubleshootNotifications,
+            onOpenSelfPushSettings = callback::navigateToSelfPushSettings,
             modifier = modifier,
         )
     }

@@ -16,7 +16,6 @@ import io.element.android.libraries.fullscreenintent.api.aFullScreenIntentPermis
 import io.element.android.libraries.matrix.api.room.RoomNotificationMode
 import io.element.android.libraries.preferences.api.store.NotificationSound
 import io.element.android.libraries.pushproviders.api.Distributor
-import io.element.android.libraries.pushproviders.unifiedpush.selfpush.SelfPushProtocol
 import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.toImmutableList
 
@@ -76,13 +75,11 @@ open class NotificationSettingsStatePreviewParam : PreviewParameterProvider<Noti
                 showCallRingtoneDialog = true,
             ),
             aValidNotificationSettingsState(
-                currentPushDistributor = AsyncData.Success(aDistributor("Built-in push", "app.self")),
                 availablePushDistributors = listOf(
                     aDistributor("Firebase"),
                     aDistributor("Built-in push", "app.self"),
                 ),
-                selfPushServer = aSelfPushServerState(),
-                selfPushProtocol = aSelfPushProtocolState(),
+                selfPushEntry = aSelfPushEntryState(),
             ),
             aValidNotificationSettingsState(
                 currentPushDistributor = AsyncData.Success(aDistributor("Built-in push", "app.self")),
@@ -90,31 +87,7 @@ open class NotificationSettingsStatePreviewParam : PreviewParameterProvider<Noti
                     aDistributor("Firebase"),
                     aDistributor("Built-in push", "app.self"),
                 ),
-                selfPushServer = aSelfPushServerState(),
-                selfPushProtocol = aSelfPushProtocolState(showDialog = true),
-                batteryOptimizationIgnored = true,
-            ),
-            aValidNotificationSettingsState(
-                currentPushDistributor = AsyncData.Success(aDistributor("Built-in push", "app.self")),
-                availablePushDistributors = listOf(
-                    aDistributor("Firebase"),
-                    aDistributor("Built-in push", "app.self"),
-                ),
-                selfPushServer = aSelfPushServerState(
-                    customServer = "https://push.example.com",
-                    showDialog = true,
-                ),
-            ),
-            aValidNotificationSettingsState(
-                currentPushDistributor = AsyncData.Success(aDistributor("Built-in push", "app.self")),
-                availablePushDistributors = listOf(
-                    aDistributor("Firebase"),
-                    aDistributor("Built-in push", "app.self"),
-                ),
-                selfPushServer = aSelfPushServerState(
-                    showDialog = true,
-                    saveFailed = true,
-                ),
+                selfPushEntry = aSelfPushEntryState(active = true, listenerConnected = true),
             ),
         )
 }
@@ -143,9 +116,7 @@ fun aValidNotificationSettingsState(
     showCallRingtoneDialog: Boolean = false,
     pendingMessageSoundPickerLaunch: Int = 0,
     pendingCallRingtonePickerLaunch: Int = 0,
-    selfPushServer: NotificationSettingsState.SelfPushServerState? = null,
-    selfPushProtocol: NotificationSettingsState.SelfPushProtocolState? = null,
-    batteryOptimizationIgnored: Boolean = false,
+    selfPushEntry: NotificationSettingsState.SelfPushEntryState? = null,
     eventSink: (NotificationSettingsEvent) -> Unit = {},
 ) = NotificationSettingsState(
     matrixSettings = NotificationSettingsState.MatrixSettings.Valid(
@@ -178,9 +149,7 @@ fun aValidNotificationSettingsState(
     showCallRingtoneDialog = showCallRingtoneDialog,
     pendingMessageSoundPickerLaunch = pendingMessageSoundPickerLaunch,
     pendingCallRingtonePickerLaunch = pendingCallRingtonePickerLaunch,
-    selfPushServer = selfPushServer,
-    selfPushProtocol = selfPushProtocol,
-    batteryOptimizationIgnored = batteryOptimizationIgnored,
+    selfPushEntry = selfPushEntry,
     eventSink = eventSink,
 )
 
@@ -214,39 +183,15 @@ fun aInvalidNotificationSettingsState(
     showCallRingtoneDialog = false,
     pendingMessageSoundPickerLaunch = 0,
     pendingCallRingtonePickerLaunch = 0,
-    selfPushServer = null,
-    selfPushProtocol = null,
-    batteryOptimizationIgnored = false,
+    selfPushEntry = null,
     eventSink = eventSink,
 )
 
-fun aSelfPushProtocolState(
-    protocol: SelfPushProtocol = SelfPushProtocol.WEBSOCKET,
-    showDialog: Boolean = false,
-) = NotificationSettingsState.SelfPushProtocolState(
-    protocol = protocol,
-    showDialog = showDialog,
-)
-
-fun aSelfPushServerState(
-    customServer: String? = null,
-    effectiveServer: String = customServer ?: "https://ntfy.sh",
-    showDialog: Boolean = false,
-    healthCheck: AsyncData<Unit> = AsyncData.Uninitialized,
-    healthCheckServer: String? = null,
-    healthCheckToken: String? = null,
-    saveFailed: Boolean = false,
-    readToken: String? = null,
+fun aSelfPushEntryState(
+    active: Boolean = false,
     listenerConnected: Boolean = false,
-) = NotificationSettingsState.SelfPushServerState(
-    customServer = customServer,
-    effectiveServer = effectiveServer,
-    showDialog = showDialog,
-    healthCheck = healthCheck,
-    healthCheckServer = healthCheckServer,
-    healthCheckToken = healthCheckToken,
-    saveFailed = saveFailed,
-    readToken = readToken,
+) = NotificationSettingsState.SelfPushEntryState(
+    active = active,
     listenerConnected = listenerConnected,
 )
 

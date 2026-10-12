@@ -41,17 +41,14 @@ import io.element.android.libraries.push.api.notifications.SoundDisplayNameResol
 import io.element.android.libraries.push.api.notifications.sound.NotificationSoundCopier
 import io.element.android.libraries.push.api.notifications.sound.NotificationSoundCopier.CopyResult
 import io.element.android.libraries.push.api.notifications.sound.NotificationSoundCopier.SoundSlot
-import io.element.android.libraries.push.impl.battery.BatteryOptimization
 import io.element.android.libraries.pushproviders.api.Distributor
 import io.element.android.libraries.pushproviders.api.PushProvider
 import io.element.android.libraries.pushproviders.unifiedpush.selfpush.SelfPushStore
-import io.element.android.libraries.pushproviders.unifiedpush.selfpush.SelfPushStreamRefresher
 import io.element.android.libraries.pushstore.api.UserPushStore
 import io.element.android.libraries.pushstore.api.UserPushStoreFactory
 import io.element.android.services.toolbox.api.strings.StringProvider
 import kotlinx.collections.immutable.toImmutableList
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.first
@@ -60,11 +57,7 @@ import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
-import kotlinx.coroutines.withContext
-import okhttp3.OkHttpClient
-import okhttp3.Request
 import timber.log.Timber
-import java.io.IOException
 import kotlin.time.Duration.Companion.seconds
 
 @Inject
@@ -81,10 +74,7 @@ class NotificationSettingsPresenter(
     private val soundDisplayNameResolver: SoundDisplayNameResolver,
     private val stringProvider: StringProvider,
     private val selfPushStore: SelfPushStore,
-    private val selfPushStreamRefresher: SelfPushStreamRefresher,
-    private val batteryOptimization: BatteryOptimization,
     private val buildMeta: BuildMeta,
-    private val okHttpClient: OkHttpClient,
     @SessionCoroutineScope
     private val sessionCoroutineScope: CoroutineScope,
 ) : Presenter<NotificationSettingsState> {
@@ -95,10 +85,6 @@ class NotificationSettingsPresenter(
     // DataStore reflects the newer one.
     private val messageSoundLock = Mutex()
     private val callRingtoneLock = Mutex()
-
-    // Serializes server/token save + re-register + rollback; two rapid changes must not
-    // interleave or the loser's rollback would clobber the winner's server.
-    private val selfPushServerLock = Mutex()
 
     @Composable
     override fun present(): NotificationSettingsState {
@@ -154,16 +140,7 @@ class NotificationSettingsPresenter(
 
         var showChangePushProviderDialog by remember { mutableStateOf(false) }
 
-        var showSelfPushServerDialog by remember { mutableStateOf(false) }
-        var selfPushServerRefresh by remember { mutableIntStateOf(0) }
-        var showSelfPushProtocolDialog by remember { mutableStateOf(false) }
-        var selfPushProtocolRefresh by remember { mutableIntStateOf(0) }
-        // Read eagerly and again on resume: the user changes it in the system settings.
-        var batteryOptimizationIgnored by remember { mutableStateOf(batteryOptimization.isIgnoringBatteryOptimizations()) }
-        var selfPushServerHealth by remember { mutableStateOf<AsyncData<Unit>>(AsyncData.Uninitialized) }
-        var selfPushServerHealthServer by remember { mutableStateOf<String?>(null) }
-        var selfPushServerHealthToken by remember { mutableStateOf<String?>(null) }
-        var selfPushServerSaveFailed by remember { mutableStateOf(false) }
+        var selfPushStatusRefresh by remember { mutableIntStateOf(0) }
 
         val messageSound by remember { appPreferencesStore.getMessageSoundFlow() }.collectAsState(initial = NotificationSound.SystemDefault)
         val callRingtone by remember { appPreferencesStore.getCallRingtoneFlow() }.collectAsState(initial = NotificationSound.SystemDefault)
@@ -225,70 +202,6 @@ class NotificationSettingsPresenter(
                 )
         }
 
-        // Applies the push server change and re-registers the built-in distributor so the
-        // homeserver pusher and the local subscriber agree on the new server. The store write,
-        // the registration and the rollback all happen under the lock, and on failure the store
-        // is rolled back so it never advertises a server the live registration does not use.
-        fun CoroutineScope.applySelfPushServer(newServer: String?, newReadToken: String?) = launch {
-            selfPushServerLock.withLock {
-                val previousServer = selfPushStore.getCustomServer()
-                val previousToken = selfPushStore.getReadToken()
-                selfPushStore.setCustomServer(newServer)
-                selfPushStore.setReadToken(newReadToken)
-                selfPushServerRefresh++
-
-                val selfRegistration = distributors.firstOrNull { it.second.value == buildMeta.applicationId }
-                if (selfRegistration == null) {
-                    Timber.w("Built-in distributor not found, cannot re-register after push server change")
-                    selfPushServerSaveFailed = true
-                    return@withLock
-                }
-                pushService.registerWith(
-                    matrixClient = matrixClient,
-                    pushProvider = selfRegistration.first,
-                    distributor = selfRegistration.second,
-                ).fold(
-                    onSuccess = {
-                        selfPushServerSaveFailed = false
-                        showSelfPushServerDialog = false
-                        refreshPushProvider++
-                    },
-                    onFailure = {
-                        Timber.w(it, "Failed to re-register built-in push after server change")
-                        selfPushStore.setCustomServer(previousServer)
-                        selfPushStore.setReadToken(previousToken)
-                        selfPushServerRefresh++
-                        selfPushServerSaveFailed = true
-                    },
-                )
-            }
-        }
-
-        fun CoroutineScope.checkSelfPushServerHealth(server: String, readToken: String?) = launch {
-            selfPushServerHealthServer = server
-            selfPushServerHealthToken = readToken?.trim()?.takeUnless { it.isEmpty() }
-            selfPushServerHealth = AsyncData.Loading()
-            val result = runCatchingExceptions {
-                withContext(Dispatchers.IO) {
-                    val request = Request.Builder().url("$server/v1/health").apply {
-                        // Token-protected servers answer 401 without it, which is not "unreachable".
-                        val token = readToken?.trim()?.takeUnless { it.isEmpty() }
-                        if (token != null) header("Authorization", "Bearer $token")
-                    }.build()
-                    okHttpClient.newCall(request).execute().use { response ->
-                        if (!response.isSuccessful) throw IOException("Health check failed with HTTP ${response.code}")
-                    }
-                }
-            }
-            // Drop the result if a newer check superseded this one or the dialog was reopened.
-            if (selfPushServerHealthServer == server && selfPushServerHealthToken == readToken?.trim()?.takeUnless { it.isEmpty() }) {
-                selfPushServerHealth = result.fold(
-                    onSuccess = { AsyncData.Success(Unit) },
-                    onFailure = { AsyncData.Failure(it) },
-                )
-            }
-        }
-
         fun handleEvent(event: NotificationSettingsEvent) {
             when (event) {
                 is NotificationSettingsEvent.SetAtRoomNotificationsEnabled -> {
@@ -307,8 +220,7 @@ class NotificationSettingsPresenter(
                 NotificationSettingsEvent.FixConfigurationMismatch -> localCoroutineScope.fixConfigurationMismatch(matrixSettings)
                 NotificationSettingsEvent.RefreshSystemNotificationsEnabled -> {
                     systemNotificationsEnabled.value = systemNotificationsEnabledProvider.notificationsEnabled()
-                    batteryOptimizationIgnored = batteryOptimization.isIgnoringBatteryOptimizations()
-                    selfPushServerRefresh++
+                    selfPushStatusRefresh++
                     refreshFullScreenIntentSettings++
                 }
                 NotificationSettingsEvent.ClearNotificationChangeError -> changeNotificationSettingAction.value = AsyncAction.Uninitialized
@@ -371,72 +283,20 @@ class NotificationSettingsPresenter(
                 NotificationSettingsEvent.DismissCallRingtoneCopyError -> {
                     callRingtoneCopyError = false
                 }
-                NotificationSettingsEvent.ShowSelfPushServerDialog -> {
-                    selfPushServerHealth = AsyncData.Uninitialized
-                    selfPushServerHealthServer = null
-                    selfPushServerHealthToken = null
-                    selfPushServerSaveFailed = false
-                    showSelfPushServerDialog = true
-                }
-                NotificationSettingsEvent.DismissSelfPushServerDialog -> showSelfPushServerDialog = false
-                is NotificationSettingsEvent.SaveSelfPushServer -> {
-                    val url = event.url.trim()
-                    if (isValidSelfPushServerUrl(url)) {
-                        localCoroutineScope.applySelfPushServer(url, event.readToken?.trim()?.takeUnless { it.isEmpty() })
-                    } else {
-                        Timber.w("Rejected invalid built-in push server URL")
-                        selfPushServerSaveFailed = true
-                    }
-                }
-                NotificationSettingsEvent.ResetSelfPushServer -> {
-                    localCoroutineScope.applySelfPushServer(null, null)
-                }
-                is NotificationSettingsEvent.CheckSelfPushServerHealth -> {
-                    localCoroutineScope.checkSelfPushServerHealth(event.url.trim().trimEnd('/'), event.readToken)
-                }
-                NotificationSettingsEvent.ShowSelfPushProtocolDialog -> showSelfPushProtocolDialog = true
-                NotificationSettingsEvent.DismissSelfPushProtocolDialog -> showSelfPushProtocolDialog = false
-                is NotificationSettingsEvent.SetSelfPushProtocol -> {
-                    selfPushStore.setProtocol(event.protocol)
-                    selfPushProtocolRefresh++
-                    showSelfPushProtocolDialog = false
-                    selfPushStreamRefresher.refresh()
-                }
-                NotificationSettingsEvent.RequestDisableBatteryOptimization -> {
-                    batteryOptimization.requestDisablingBatteryOptimization()
-                }
             }
         }
 
         val isBuiltInDistributor = (currentDistributor as? AsyncData.Success)?.data?.value == buildMeta.applicationId
-        val selfPushServer = if (isBuiltInDistributor) {
-            // Key on the refresh counter so persisting a server re-reads the store.
-            key(selfPushServerRefresh) {
-                val customServer = selfPushStore.getCustomServer()
+        // The entry row exists whenever the built-in distributor is offered (Labs flag on);
+        // the management itself lives in the dedicated screen.
+        val selfPushEntry = if (distributors.any { it.second.value == buildMeta.applicationId }) {
+            key(selfPushStatusRefresh) {
                 val registrations = selfPushStore.getAllRegistrations()
                 val openServers = selfPushStore.getOpenServers()
-                NotificationSettingsState.SelfPushServerState(
-                    customServer = customServer,
-                    effectiveServer = customServer ?: DEFAULT_SELF_PUSH_SERVER,
-                    showDialog = showSelfPushServerDialog,
-                    healthCheck = selfPushServerHealth,
-                    healthCheckServer = selfPushServerHealthServer,
-                    healthCheckToken = selfPushServerHealthToken,
-                    saveFailed = selfPushServerSaveFailed,
-                    readToken = selfPushStore.getReadToken(),
+                NotificationSettingsState.SelfPushEntryState(
+                    active = isBuiltInDistributor,
                     listenerConnected = registrations.isNotEmpty() &&
                         registrations.values.all { it.server in openServers },
-                )
-            }
-        } else {
-            null
-        }
-
-        val selfPushProtocol = if (isBuiltInDistributor) {
-            key(selfPushProtocolRefresh) {
-                NotificationSettingsState.SelfPushProtocolState(
-                    protocol = selfPushStore.getProtocol(),
-                    showDialog = showSelfPushProtocolDialog,
                 )
             }
         } else {
@@ -468,9 +328,7 @@ class NotificationSettingsPresenter(
             showCallRingtoneDialog = showCallRingtoneDialog,
             pendingMessageSoundPickerLaunch = pendingMessageSoundPickerLaunch,
             pendingCallRingtonePickerLaunch = pendingCallRingtonePickerLaunch,
-            selfPushServer = selfPushServer,
-            selfPushProtocol = selfPushProtocol,
-            batteryOptimizationIgnored = batteryOptimizationIgnored,
+            selfPushEntry = selfPushEntry,
             eventSink = ::handleEvent,
         )
     }
