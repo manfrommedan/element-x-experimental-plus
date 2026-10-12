@@ -529,12 +529,13 @@ private fun SelfPushServerDialog(
     eventSink: (NotificationSettingsEvent) -> Unit,
 ) {
     var serverUrl by rememberSaveable { mutableStateOf(selfPushServer.customServer ?: selfPushServer.effectiveServer) }
+    var readToken by rememberSaveable { mutableStateOf(selfPushServer.readToken.orEmpty()) }
     val trimmedUrl = serverUrl.trim()
     val isValid = isValidSelfPushServerUrl(trimmedUrl)
     ListDialog(
         title = stringResource(id = CommonStrings.screen_notifications_push_server_dialog_title),
         submitText = stringResource(CommonStrings.action_save),
-        onSubmit = { eventSink(NotificationSettingsEvent.SaveSelfPushServer(trimmedUrl)) },
+        onSubmit = { eventSink(NotificationSettingsEvent.SaveSelfPushServer(trimmedUrl, readToken)) },
         onDismissRequest = { eventSink(NotificationSettingsEvent.DismissSelfPushServerDialog) },
         enabled = isValid,
     ) {
@@ -550,6 +551,18 @@ private fun SelfPushServerDialog(
                 },
                 keyboardOptions = KeyboardOptions(
                     keyboardType = KeyboardType.Uri,
+                    imeAction = ImeAction.Done,
+                ),
+            )
+        }
+        item {
+            TextFieldListItem(
+                placeholder = "tk_...",
+                text = readToken,
+                onTextChange = { readToken = it },
+                label = stringResource(id = CommonStrings.screen_notifications_push_server_token_label),
+                keyboardOptions = KeyboardOptions(
+                    keyboardType = KeyboardType.Password,
                     imeAction = ImeAction.Done,
                 ),
             )

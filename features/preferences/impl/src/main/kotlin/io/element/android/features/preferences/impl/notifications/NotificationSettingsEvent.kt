@@ -37,7 +37,7 @@ sealed interface NotificationSettingsEvent {
     data object LaunchCallRingtonePicker : NotificationSettingsEvent
     data object ShowSelfPushServerDialog : NotificationSettingsEvent
     data object DismissSelfPushServerDialog : NotificationSettingsEvent
-    data class SaveSelfPushServer(val url: String) : NotificationSettingsEvent
+    data class SaveSelfPushServer(val url: String, val readToken: String?) : NotificationSettingsEvent
     data object ResetSelfPushServer : NotificationSettingsEvent
     data class CheckSelfPushServerHealth(val url: String) : NotificationSettingsEvent
     data object ShowSelfPushProtocolDialog : NotificationSettingsEvent

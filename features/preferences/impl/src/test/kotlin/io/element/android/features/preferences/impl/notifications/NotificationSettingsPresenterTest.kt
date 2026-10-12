@@ -415,13 +415,15 @@ class NotificationSettingsPresenterTest {
             val initial = consumeItemsUntilPredicate { it.selfPushServer != null }.last()
             initial.eventSink(NotificationSettingsEvent.ShowSelfPushServerDialog)
             val shown = consumeItemsUntilPredicate { it.selfPushServer?.showDialog == true }.last()
-            shown.eventSink(NotificationSettingsEvent.SaveSelfPushServer("https://push.example.com"))
+            shown.eventSink(NotificationSettingsEvent.SaveSelfPushServer("https://push.example.com", "tk_read_1"))
             val saved = consumeItemsUntilPredicate {
                 it.selfPushServer?.customServer == "https://push.example.com" && it.selfPushServer?.showDialog == false
             }.last()
             advanceUntilIdle()
             assertThat(selfPushStore.getCustomServer()).isEqualTo("https://push.example.com")
+            assertThat(selfPushStore.getReadToken()).isEqualTo("tk_read_1")
             assertThat(saved.selfPushServer?.effectiveServer).isEqualTo("https://push.example.com")
+            assertThat(saved.selfPushServer?.readToken).isEqualTo("tk_read_1")
             assertThat(saved.selfPushServer?.saveFailed).isFalse()
             registerRecorder.assertions().isCalledOnce().with(
                 any(),
@@ -449,7 +451,7 @@ class NotificationSettingsPresenterTest {
             val initial = consumeItemsUntilPredicate { it.selfPushServer != null }.last()
             initial.eventSink(NotificationSettingsEvent.ShowSelfPushServerDialog)
             val shown = consumeItemsUntilPredicate { it.selfPushServer?.showDialog == true }.last()
-            shown.eventSink(NotificationSettingsEvent.SaveSelfPushServer("http://push.example.com/"))
+            shown.eventSink(NotificationSettingsEvent.SaveSelfPushServer("http://push.example.com/", null))
             val failed = consumeItemsUntilPredicate { it.selfPushServer?.saveFailed == true }.last()
             advanceUntilIdle()
             assertThat(selfPushStore.getCustomServer()).isNull()
@@ -468,6 +470,7 @@ class NotificationSettingsPresenterTest {
         }
         val selfPushStore = FakeSelfPushStore()
         selfPushStore.setCustomServer("https://push.example.com")
+        selfPushStore.setReadToken("tk_read_1")
         val presenter = createNotificationSettingsPresenter(
             pushService = createBuiltInPushService(registerWithLambda = { client, provider, distributor ->
                 registerRecorder(client, provider, distributor)
@@ -482,6 +485,7 @@ class NotificationSettingsPresenterTest {
             val reset = consumeItemsUntilPredicate { it.selfPushServer?.customServer == null }.last()
             advanceUntilIdle()
             assertThat(selfPushStore.getCustomServer()).isNull()
+            assertThat(selfPushStore.getReadToken()).isNull()
             assertThat(reset.selfPushServer?.effectiveServer).isEqualTo(DEFAULT_SELF_PUSH_SERVER)
             registerRecorder.assertions().isCalledOnce()
             cancelAndIgnoreRemainingEvents()

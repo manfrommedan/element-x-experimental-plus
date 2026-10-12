@@ -30,6 +30,7 @@
     <string name="screen_notifications_push_server_invalid_url">"Enter a valid https:// URL without a trailing slash"</string>
     <string name="screen_notifications_push_server_reset_to_default">"Reset to default"</string>
     <string name="screen_notifications_push_server_save_failed">"Could not apply the push server change. Please try again."</string>
+    <string name="screen_notifications_push_server_token_label">"Access token (optional)"</string>
     <string name="screen_notifications_connection_protocol_title">"Connection protocol"</string>
     <string name="screen_notifications_connection_protocol_websocket">"WebSocket"</string>
     <string name="screen_notifications_connection_protocol_json_stream">"JSON stream (HTTP)"</string>

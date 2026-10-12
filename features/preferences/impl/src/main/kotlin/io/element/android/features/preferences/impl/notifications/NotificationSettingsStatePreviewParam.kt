@@ -235,6 +235,7 @@ fun aSelfPushServerState(
     healthCheck: AsyncData<Unit> = AsyncData.Uninitialized,
     healthCheckServer: String? = null,
     saveFailed: Boolean = false,
+    readToken: String? = null,
 ) = NotificationSettingsState.SelfPushServerState(
     customServer = customServer,
     effectiveServer = effectiveServer,
@@ -242,6 +243,7 @@ fun aSelfPushServerState(
     healthCheck = healthCheck,
     healthCheckServer = healthCheckServer,
     saveFailed = saveFailed,
+    readToken = readToken,
 )
 
 fun aDistributor(

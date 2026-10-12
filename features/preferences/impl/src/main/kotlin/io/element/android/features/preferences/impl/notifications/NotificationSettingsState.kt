@@ -100,6 +100,8 @@ data class NotificationSettingsState(
         val healthCheck: AsyncData<Unit>,
         val healthCheckServer: String?,
         val saveFailed: Boolean,
+        /** Bearer token for servers behind auth, null when the server is open. */
+        val readToken: String?,
     )
 
     /** UI state for the built-in listener's protocol row and its picker dialog. */

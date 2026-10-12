@@ -357,6 +357,7 @@ class NotificationSettingsPresenter(
                     val url = event.url.trim()
                     if (isValidSelfPushServerUrl(url)) {
                         selfPushStore.setCustomServer(url)
+                        selfPushStore.setReadToken(event.readToken?.trim()?.takeUnless { it.isEmpty() })
                         selfPushServerRefresh++
                         localCoroutineScope.reregisterSelfPush()
                     } else {
@@ -366,6 +367,7 @@ class NotificationSettingsPresenter(
                 }
                 NotificationSettingsEvent.ResetSelfPushServer -> {
                     selfPushStore.setCustomServer(null)
+                    selfPushStore.setReadToken(null)
                     selfPushServerRefresh++
                     localCoroutineScope.reregisterSelfPush()
                 }
@@ -398,6 +400,7 @@ class NotificationSettingsPresenter(
                     healthCheck = selfPushServerHealth,
                     healthCheckServer = selfPushServerHealthServer,
                     saveFailed = selfPushServerSaveFailed,
+                    readToken = selfPushStore.getReadToken(),
                 )
             }
         } else {
