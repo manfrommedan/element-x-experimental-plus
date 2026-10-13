@@ -86,7 +86,10 @@ official Element X.
   server, protocol, battery exemption and live connection status. Experimental:
   pushes may arrive late or not at all; if your messages are critical, keep the
   ntfy app around, and if it misbehaves please open an issue in this repo - the
-  in-app bug report goes to upstream, who never heard of this feature.
+  in-app bug report goes to upstream, who never heard of this feature. Runs on
+  [ntfy](https://github.com/binwiederhier/ntfy-android) technology (Apache 2.0):
+  the server and the streaming protocol are their work, their contribution is
+  immeasurable.
 
 * **Splash screen.** The app icon holds the screen while the session restores,
   instead of a blank screen (thanks to [@OolaaPleur](https://github.com/OolaaPleur)
