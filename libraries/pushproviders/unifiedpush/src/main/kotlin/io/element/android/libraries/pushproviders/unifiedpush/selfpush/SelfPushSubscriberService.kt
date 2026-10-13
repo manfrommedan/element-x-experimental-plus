@@ -372,7 +372,9 @@ class SelfPushSubscriberService : Service() {
     }
 
     private fun buildNotification() = NotificationCompat.Builder(this, CHANNEL_ID)
-        .setSmallIcon(R.drawable.ic_notification)
+        // A neutral service glyph borrowed from the ntfy app (Apache 2.0): the app icon here
+        // read as a fresh message notification in the status bar.
+        .setSmallIcon(R.drawable.ic_notification_listener)
         .setContentTitle(getString(CommonStrings.common_push_listener_notification_android))
         .apply {
             val statusText = listenerStatusText()
