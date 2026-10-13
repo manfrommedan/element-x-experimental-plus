@@ -88,8 +88,8 @@ official Element X.
   ntfy app around, and if it misbehaves please open an issue in this repo - the
   in-app bug report goes to upstream, who never heard of this feature. Runs on
   [ntfy](https://github.com/binwiederhier/ntfy-android) technology (Apache 2.0):
-  the server and the streaming protocol are built by the ntfy authors, their
-  contribution is immeasurable.
+  the server and the streaming protocol are entirely their doing, and this
+  feature would not exist without them.
 
 * **Splash screen.** The app icon holds the screen while the session restores,
   instead of a blank screen (thanks to [@OolaaPleur](https://github.com/OolaaPleur)
