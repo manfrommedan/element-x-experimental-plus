@@ -12,6 +12,7 @@ import dev.zacsweers.metro.AppScope
 import dev.zacsweers.metro.ContributesBinding
 import dev.zacsweers.metro.SingleIn
 import io.element.android.features.lockscreen.api.LockScreenService
+import io.element.android.libraries.core.log.logger.LoggerTag
 import io.element.android.libraries.di.annotations.AppCoroutineScope
 import io.element.android.libraries.matrix.api.MatrixClientProvider
 import io.element.android.libraries.matrix.api.core.EventId
@@ -40,6 +41,9 @@ import io.element.android.services.appnavstate.api.currentThreadId
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import timber.log.Timber
+
+private val loggerTag = LoggerTag("NotificationDrawerManager", LoggerTag.NotificationLoggerTag)
 
 /**
  * This class receives notification events as they arrive from the PushHandler calling [onNotifiableEventReceived] and
@@ -112,7 +116,15 @@ class DefaultNotificationDrawerManager(
     }
 
     suspend fun onNotifiableEventsReceived(notifiableEvents: List<NotifiableEvent>) {
-        val eventsToNotify = notifiableEvents.filter { !appNavigationStateService.appNavigationState.value.shouldIgnoreEvent(it) }
+        val navigationState = appNavigationStateService.appNavigationState.value
+        val eventsToNotify = notifiableEvents.filter { !navigationState.shouldIgnoreEvent(it) }
+        // Temporary diagnostics for the "notified while the room is open" report: room ids are safe to log.
+        if (notifiableEvents.isNotEmpty()) {
+            Timber.tag(loggerTag.value).d(
+                "Received ${notifiableEvents.size} event(s) for rooms ${notifiableEvents.map { it.roomId }}, " +
+                    "notifying ${eventsToNotify.size}, nav state: $navigationState"
+            )
+        }
         renderEvents(eventsToNotify)
     }
 
