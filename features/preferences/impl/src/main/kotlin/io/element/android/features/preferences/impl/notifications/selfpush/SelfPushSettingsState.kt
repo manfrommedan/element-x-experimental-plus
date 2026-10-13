@@ -20,8 +20,8 @@ data class SelfPushSettingsState(
     val isActive: Boolean,
     val server: ServerState,
     val protocol: ProtocolState,
-    /** True while every registered server has an open stream. */
-    val listenerConnected: Boolean,
+    /** Aggregated live health of the listener's streams, worst case across the registered servers. */
+    val listenerStatus: ListenerStatus,
     /** True when the app is exempt from battery optimizations; drives the battery row. */
     val batteryOptimizationIgnored: Boolean,
     val eventSink: (SelfPushSettingsEvent) -> Unit,
@@ -50,4 +50,15 @@ data class SelfPushSettingsState(
         val protocol: SelfPushProtocol,
         val showDialog: Boolean,
     )
+
+    /** The listener health as the status row shows it. */
+    enum class ListenerStatus {
+        /** The built-in listener is not the distributor, or nothing is registered. */
+        INACTIVE,
+        CONNECTED,
+        CONNECTING,
+        RECONNECTING,
+        REFUSED,
+        NO_NETWORK,
+    }
 }

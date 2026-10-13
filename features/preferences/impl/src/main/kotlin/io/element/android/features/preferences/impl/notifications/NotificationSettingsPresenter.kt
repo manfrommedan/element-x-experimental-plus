@@ -22,6 +22,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import dev.zacsweers.metro.Inject
 import io.element.android.features.preferences.impl.R
+import io.element.android.features.preferences.impl.notifications.selfpush.selfPushListenerStatus
 import io.element.android.libraries.architecture.AsyncAction
 import io.element.android.libraries.architecture.AsyncData
 import io.element.android.libraries.architecture.Presenter
@@ -44,6 +45,7 @@ import io.element.android.libraries.push.api.notifications.sound.NotificationSou
 import io.element.android.libraries.pushproviders.api.Distributor
 import io.element.android.libraries.pushproviders.api.PushProvider
 import io.element.android.libraries.pushproviders.unifiedpush.selfpush.SelfPushStore
+import io.element.android.libraries.pushproviders.unifiedpush.selfpush.SelfPushStreamStates
 import io.element.android.libraries.pushstore.api.UserPushStore
 import io.element.android.libraries.pushstore.api.UserPushStoreFactory
 import io.element.android.services.toolbox.api.strings.StringProvider
@@ -74,6 +76,7 @@ class NotificationSettingsPresenter(
     private val soundDisplayNameResolver: SoundDisplayNameResolver,
     private val stringProvider: StringProvider,
     private val selfPushStore: SelfPushStore,
+    private val selfPushStreamStates: SelfPushStreamStates,
     private val buildMeta: BuildMeta,
     @SessionCoroutineScope
     private val sessionCoroutineScope: CoroutineScope,
@@ -141,6 +144,8 @@ class NotificationSettingsPresenter(
         var showChangePushProviderDialog by remember { mutableStateOf(false) }
 
         var selfPushStatusRefresh by remember { mutableIntStateOf(0) }
+        // Live per-server stream health from the subscriber service, for the entry row subtitle.
+        val liveStreamStatuses by selfPushStreamStates.states.collectAsState()
 
         val messageSound by remember { appPreferencesStore.getMessageSoundFlow() }.collectAsState(initial = NotificationSound.SystemDefault)
         val callRingtone by remember { appPreferencesStore.getCallRingtoneFlow() }.collectAsState(initial = NotificationSound.SystemDefault)
@@ -290,13 +295,15 @@ class NotificationSettingsPresenter(
         // The entry row exists whenever the built-in distributor is offered (Labs flag on);
         // the management itself lives in the dedicated screen.
         val selfPushEntry = if (distributors.any { it.second.value == buildMeta.applicationId }) {
-            key(selfPushStatusRefresh) {
-                val registrations = selfPushStore.getAllRegistrations()
-                val openServers = selfPushStore.getOpenServers()
+            key(selfPushStatusRefresh, liveStreamStatuses, isBuiltInDistributor) {
                 NotificationSettingsState.SelfPushEntryState(
                     active = isBuiltInDistributor,
-                    listenerConnected = registrations.isNotEmpty() &&
-                        registrations.values.all { it.server in openServers },
+                    listenerStatus = selfPushListenerStatus(
+                        active = isBuiltInDistributor,
+                        registrations = selfPushStore.getAllRegistrations(),
+                        openServers = selfPushStore.getOpenServers(),
+                        liveStatuses = liveStreamStatuses,
+                    ),
                 )
             }
         } else {

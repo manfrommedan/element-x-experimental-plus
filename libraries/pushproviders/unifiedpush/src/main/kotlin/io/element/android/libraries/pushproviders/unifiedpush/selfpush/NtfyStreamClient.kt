@@ -96,6 +96,7 @@ class NtfyStreamClient @Inject constructor(
         readToken: String?,
         protocol: SelfPushProtocol,
         onOpen: () -> Unit = {},
+        onReconnecting: (Throwable) -> Unit = {},
         since: () -> Long?,
     ): Flow<NtfyMessage> {
         require(topics.isNotEmpty()) { "No topics to subscribe to" }
@@ -106,6 +107,7 @@ class NtfyStreamClient @Inject constructor(
             currentCoroutineContext().ensureActive()
             val backoff = clock.backoff(attempt)
             Timber.tag(loggerTag.value).w("Stream broke (${cause.message}), reconnecting in $backoff")
+            onReconnecting(cause)
             clock.delay(backoff)
             true
         }.flowOn(Dispatchers.IO)

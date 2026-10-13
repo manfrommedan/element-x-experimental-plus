@@ -72,13 +72,12 @@ fun SelfPushSettingsView(
                 },
                 supportingContent = {
                     Text(
-                        text = stringResource(
-                            id = if (state.listenerConnected) {
-                                CommonStrings.screen_selfpush_settings_listener_status_connected
-                            } else {
-                                CommonStrings.screen_selfpush_settings_listener_status_connecting
-                            }
-                        )
+                        text = stringResource(id = state.listenerStatus.labelRes()),
+                        color = if (state.listenerStatus == SelfPushSettingsState.ListenerStatus.REFUSED) {
+                            ElementTheme.colors.textCriticalPrimary
+                        } else {
+                            ElementTheme.colors.textSecondary
+                        },
                     )
                 },
             )

@@ -46,7 +46,10 @@ private val loggerTag = LoggerTag("SelfPushSubscriberService", LoggerTag.PushLog
 
 private const val NOTIFICATION_ID = 1007
 private const val CHANNEL_ID = "self_push_listener_channel"
+private const val OUTAGE_NOTIFICATION_ID = 1008
+private const val ALERT_CHANNEL_ID = "self_push_listener_alert_channel"
 private const val WATCHDOG_REQUEST_CODE = 42
+private const val OUTAGE_REQUEST_CODE = 43
 
 /**
  * Keeps the built-in push listener alive: one streaming connection per notification server,
@@ -65,6 +68,7 @@ class SelfPushSubscriberService : Service() {
     @Inject lateinit var pushParser: UnifiedPushParser
     @Inject lateinit var pushHandler: PushHandler
     @Inject lateinit var fetchPushForegroundServiceManager: FetchPushForegroundServiceManager
+    @Inject lateinit var streamStates: SelfPushStreamStates
 
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
@@ -81,6 +85,12 @@ class SelfPushSubscriberService : Service() {
     private val streamJobs = mutableMapOf<String, ActiveStream>()
 
     private val recentMessageIds = RecentMessageIds()
+
+    /** When each server's stream first broke, the base for the outage alert; cleared on reconnect. */
+    private val outageStartTimes = mutableMapOf<String, Long>()
+
+    /** Servers the user was already alerted about during the current outage. */
+    private val outageAlertedServers = mutableSetOf<String>()
 
     private val networkCallback = object : ConnectivityManager.NetworkCallback() {
         override fun onAvailable(network: Network) {
@@ -104,8 +114,10 @@ class SelfPushSubscriberService : Service() {
         streamJobs.forEach { (server, stream) ->
             stream.job.cancel()
             selfPushStore.setStreamOpen(server, false)
+            streamStates.set(server, SelfPushStreamStatus.NO_NETWORK)
         }
         streamJobs.clear()
+        updateForegroundNotification()
     }
 
     override fun onBind(intent: Intent?): IBinder? = null
@@ -149,6 +161,7 @@ class SelfPushSubscriberService : Service() {
 
     override fun onDestroy() {
         serviceScope.cancel()
+        streamJobs.keys.forEach { streamStates.remove(it) }
         getSystemService(ConnectivityManager::class.java)?.unregisterNetworkCallback(networkCallback)
         // START_STICKY covers most kills, but not all OEMs honor it; re-arm the watchdog one
         // last time if there is still something to listen to. A modest delay, not the quick
@@ -198,12 +211,15 @@ class SelfPushSubscriberService : Service() {
             Timber.tag(loggerTag.value).d("Dropping the stream to $server")
             streamJobs.remove(server)?.job?.cancel()
             selfPushStore.setStreamOpen(server, false)
+            streamStates.remove(server)
+            clearOutage(server)
         }
 
         for ((server, topicNames) in plan.toOpen) {
             val readToken = storedToken.takeIf { server == configuredServer }
             Timber.tag(loggerTag.value).d("Opening a $protocol stream to $server for ${topicNames.size} topic(s)")
             selfPushStore.setStreamOpen(server, false)
+            streamStates.set(server, SelfPushStreamStatus.CONNECTING)
             val opened = AtomicBoolean(false)
             streamJobs[server] = ActiveStream(
                 job = serviceScope.launch {
@@ -212,15 +228,27 @@ class SelfPushSubscriberService : Service() {
                         topics = topicNames,
                         readToken = readToken,
                         protocol = protocol,
-                        since = { catchUpSince(topicNames) },
                         onOpen = {
                             opened.set(true)
                             selfPushStore.setStreamOpen(server, true)
+                            streamStates.set(server, SelfPushStreamStatus.CONNECTED)
+                            clearOutage(server)
+                            updateForegroundNotification()
                         },
+                        onReconnecting = {
+                            selfPushStore.setStreamOpen(server, false)
+                            streamStates.set(server, SelfPushStreamStatus.RECONNECTING)
+                            markOutage(server)
+                            updateForegroundNotification()
+                        },
+                        since = { catchUpSince(topicNames) },
                     )
                         .catch { cause ->
                             if (cause is FatalStreamException) {
                                 Timber.tag(loggerTag.value).e(cause, "Stream to $server refused, giving up until the next refresh")
+                                streamStates.set(server, SelfPushStreamStatus.REFUSED)
+                                markOutage(server)
+                                updateForegroundNotification()
                             } else {
                                 throw cause
                             }
@@ -282,6 +310,7 @@ class SelfPushSubscriberService : Service() {
     }
 
     private fun scheduleWatchdog(delayMs: Long? = null) {
+        maybePostOutageAlert()
         val alarmManager = getSystemService(AlarmManager::class.java) ?: return
         runCatchingExceptions {
             // A healthy listener needs no tight cadence: the stream heals itself and the
@@ -318,6 +347,9 @@ class SelfPushSubscriberService : Service() {
                     .setName(getString(CommonStrings.common_push_listener_channel_name_android))
                     .setVibrationEnabled(false)
                     .setSound(null, null)
+                    .build(),
+                NotificationChannelCompat.Builder(ALERT_CHANNEL_ID, NotificationManagerCompat.IMPORTANCE_DEFAULT)
+                    .setName(getString(CommonStrings.common_push_listener_alert_channel_name_android))
                     .build()
             )
         )
@@ -326,8 +358,84 @@ class SelfPushSubscriberService : Service() {
     private fun buildNotification() = NotificationCompat.Builder(this, CHANNEL_ID)
         .setSmallIcon(R.drawable.ic_notification)
         .setContentTitle(getString(CommonStrings.common_push_listener_notification_android))
+        .apply {
+            val statusText = listenerStatusText()
+            if (statusText != null) setContentText(statusText)
+        }
         .setOngoing(true)
         .build()
+
+    /** Mirrors the ntfy app: the ongoing notification tells what the listener is doing right now. */
+    private fun listenerStatusText(): String? {
+        return when (streamStates.states.value.values.worstSelfPushStatus()) {
+            SelfPushStreamStatus.REFUSED -> getString(CommonStrings.common_push_listener_notification_refused_android)
+            SelfPushStreamStatus.RECONNECTING,
+            SelfPushStreamStatus.CONNECTING -> getString(CommonStrings.common_push_listener_notification_reconnecting_android)
+            SelfPushStreamStatus.NO_NETWORK -> getString(CommonStrings.common_push_listener_notification_no_network_android)
+            SelfPushStreamStatus.CONNECTED -> getString(CommonStrings.common_push_listener_notification_connected_android)
+            null -> null
+        }
+    }
+
+    private fun updateForegroundNotification() {
+        runCatchingExceptions {
+            NotificationManagerCompat.from(this).notify(NOTIFICATION_ID, buildNotification())
+        }.onFailure { Timber.tag(loggerTag.value).w(it, "Could not update the listener notification") }
+    }
+
+    private fun markOutage(server: String) {
+        outageStartTimes.putIfAbsent(server, System.currentTimeMillis())
+    }
+
+    private fun clearOutage(server: String) {
+        outageStartTimes.remove(server)
+        outageAlertedServers.remove(server)
+        if (outageAlertedServers.isEmpty()) {
+            runCatchingExceptions {
+                NotificationManagerCompat.from(this).cancel(OUTAGE_NOTIFICATION_ID)
+            }
+        }
+    }
+
+    /**
+     * Surfaces a long outage as a dismissible alert, like the ntfy app's connection alert:
+     * a broken stream heals quietly, but one down past [OUTAGE_ALERT_THRESHOLD_MS] is likely a
+     * dead server or a revoked token, which no reconnect will fix on its own. Evaluated on the
+     * watchdog ticks, so the alert lands within one tick past the threshold.
+     */
+    private fun maybePostOutageAlert() {
+        val now = System.currentTimeMillis()
+        val due = outageStartTimes.keys.filter { server ->
+            server !in outageAlertedServers && now - (outageStartTimes[server] ?: now) >= OUTAGE_ALERT_THRESHOLD_MS
+        }
+        if (due.isEmpty()) return
+        outageAlertedServers.addAll(due)
+        val hosts = due.joinToString { server ->
+            server.substringAfter("://").substringBefore('/')
+        }
+        val launchIntent = packageManager.getLaunchIntentForPackage(packageName)
+        val notification = NotificationCompat.Builder(this, ALERT_CHANNEL_ID)
+            .setSmallIcon(R.drawable.ic_notification)
+            .setContentTitle(getString(CommonStrings.common_push_listener_alert_title_android))
+            .setContentText(getString(CommonStrings.common_push_listener_alert_text_android, hosts))
+            .setAutoCancel(true)
+            .apply {
+                if (launchIntent != null) {
+                    setContentIntent(
+                        PendingIntent.getActivity(
+                            this@SelfPushSubscriberService,
+                            OUTAGE_REQUEST_CODE,
+                            launchIntent,
+                            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+                        )
+                    )
+                }
+            }
+            .build()
+        runCatchingExceptions {
+            NotificationManagerCompat.from(this).notify(OUTAGE_NOTIFICATION_ID, notification)
+        }.onFailure { Timber.tag(loggerTag.value).w(it, "Could not post the outage alert") }
+    }
 
     companion object {
         private const val ACTION_REFRESH = "io.element.android.libraries.pushproviders.unifiedpush.selfpush.action.REFRESH"
@@ -347,6 +455,9 @@ class SelfPushSubscriberService : Service() {
 
         /** Post-destroy re-arm delay. */
         private const val DESTROY_RESTART_DELAY_MS = 30_000L
+
+        /** How long a stream stays broken before the user gets an outage alert. */
+        private const val OUTAGE_ALERT_THRESHOLD_MS = 30 * 60 * 1000L
 
         /** Starts (or refreshes) the listener. Safe to call when it is already running. */
         fun start(context: Context) {

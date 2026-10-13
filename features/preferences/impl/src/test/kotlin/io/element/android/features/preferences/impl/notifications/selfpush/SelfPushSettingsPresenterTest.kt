@@ -27,6 +27,8 @@ import io.element.android.libraries.pushproviders.unifiedpush.selfpush.SelfPushP
 import io.element.android.libraries.pushproviders.unifiedpush.selfpush.SelfPushRegistration
 import io.element.android.libraries.pushproviders.unifiedpush.selfpush.SelfPushStore
 import io.element.android.libraries.pushproviders.unifiedpush.selfpush.SelfPushStreamRefresher
+import io.element.android.libraries.pushproviders.unifiedpush.selfpush.SelfPushStreamStates
+import io.element.android.libraries.pushproviders.unifiedpush.selfpush.SelfPushStreamStatus
 import io.element.android.tests.testutils.consumeItemsUntilPredicate
 import io.element.android.tests.testutils.lambda.any
 import io.element.android.tests.testutils.lambda.lambdaRecorder
@@ -47,7 +49,7 @@ class SelfPushSettingsPresenterTest {
         presenter.test {
             val state = awaitItem()
             assertThat(state.isActive).isFalse()
-            assertThat(state.listenerConnected).isFalse()
+            assertThat(state.listenerStatus).isEqualTo(SelfPushSettingsState.ListenerStatus.INACTIVE)
             assertThat(state.server.effectiveServer).isEqualTo(DEFAULT_SELF_PUSH_SERVER)
             assertThat(state.protocol.protocol).isEqualTo(SelfPushProtocol.WEBSOCKET)
             cancelAndIgnoreRemainingEvents()
@@ -221,21 +223,59 @@ class SelfPushSettingsPresenterTest {
 
     @OptIn(ExperimentalCoroutinesApi::class)
     @Test
-    fun `present - listener status reflects the open streams`() = runTest {
+    fun `present - listener status falls back to the persisted open flags`() = runTest {
         val selfPushStore = FakeSelfPushStore()
         selfPushStore.storeRegistration(A_SECRET, SelfPushRegistration("https://ntfy.sh", "upA"))
         val presenter = createSelfPushSettingsPresenter(
             selfPushStore = selfPushStore,
         )
         presenter.test {
-            val disconnected = consumeItemsUntilPredicate { true }.last()
-            assertThat(disconnected.listenerConnected).isFalse()
+            // The first emissions are INACTIVE until the provider lookup flips isActive.
+            val connecting = consumeItemsUntilPredicate {
+                it.listenerStatus == SelfPushSettingsState.ListenerStatus.CONNECTING
+            }.last()
 
             selfPushStore.setStreamOpen("https://ntfy.sh", true)
-            disconnected.eventSink(SelfPushSettingsEvent.RefreshStatus)
+            connecting.eventSink(SelfPushSettingsEvent.RefreshStatus)
 
-            val connected = consumeItemsUntilPredicate { it.listenerConnected }.last()
-            assertThat(connected.listenerConnected).isTrue()
+            val connected = consumeItemsUntilPredicate {
+                it.listenerStatus == SelfPushSettingsState.ListenerStatus.CONNECTED
+            }.last()
+            assertThat(connected.listenerStatus).isEqualTo(SelfPushSettingsState.ListenerStatus.CONNECTED)
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    @Test
+    fun `present - listener status follows the live stream states without a refresh`() = runTest {
+        val selfPushStore = FakeSelfPushStore()
+        selfPushStore.storeRegistration(A_SECRET, SelfPushRegistration("https://ntfy.sh", "upA"))
+        selfPushStore.setStreamOpen("https://ntfy.sh", true)
+        val streamStates = SelfPushStreamStates()
+        val presenter = createSelfPushSettingsPresenter(
+            selfPushStore = selfPushStore,
+            selfPushStreamStates = streamStates,
+        )
+        presenter.test {
+            // isActive flips true once the provider lookup lands; wait for the connected row.
+            val connected = consumeItemsUntilPredicate {
+                it.listenerStatus == SelfPushSettingsState.ListenerStatus.CONNECTED
+            }.last()
+
+            streamStates.set("https://ntfy.sh", SelfPushStreamStatus.RECONNECTING)
+            val reconnecting = consumeItemsUntilPredicate {
+                it.listenerStatus == SelfPushSettingsState.ListenerStatus.RECONNECTING
+            }.last()
+            assertThat(reconnecting.listenerStatus).isEqualTo(SelfPushSettingsState.ListenerStatus.RECONNECTING)
+
+            streamStates.set("https://ntfy.sh", SelfPushStreamStatus.REFUSED)
+            val refused = consumeItemsUntilPredicate {
+                it.listenerStatus == SelfPushSettingsState.ListenerStatus.REFUSED
+            }.last()
+            assertThat(refused.listenerStatus).isEqualTo(SelfPushSettingsState.ListenerStatus.REFUSED)
+
+            connected.eventSink(SelfPushSettingsEvent.RefreshStatus)
             cancelAndIgnoreRemainingEvents()
         }
     }
@@ -261,6 +301,7 @@ class SelfPushSettingsPresenterTest {
         pushService: FakePushService = createBuiltInPushService(),
         selfPushStore: SelfPushStore = FakeSelfPushStore(),
         selfPushStreamRefresher: SelfPushStreamRefresher = FakeSelfPushStreamRefresher(),
+        selfPushStreamStates: SelfPushStreamStates = SelfPushStreamStates(),
         batteryOptimization: BatteryOptimization = FakeBatteryOptimization(),
         buildMeta: BuildMeta = aBuildMeta(applicationId = SELF_APPLICATION_ID),
     ): SelfPushSettingsPresenter {
@@ -269,6 +310,7 @@ class SelfPushSettingsPresenterTest {
             pushService = pushService,
             selfPushStore = selfPushStore,
             selfPushStreamRefresher = selfPushStreamRefresher,
+            selfPushStreamStates = selfPushStreamStates,
             batteryOptimization = batteryOptimization,
             buildMeta = buildMeta,
             okHttpClient = OkHttpClient(),

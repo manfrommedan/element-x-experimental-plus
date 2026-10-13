@@ -34,6 +34,7 @@ import io.element.android.libraries.pushproviders.api.PushProvider
 import io.element.android.libraries.pushproviders.test.FakePushProvider
 import io.element.android.libraries.pushproviders.test.FakeSelfPushStore
 import io.element.android.libraries.pushproviders.unifiedpush.selfpush.SelfPushStore
+import io.element.android.libraries.pushproviders.unifiedpush.selfpush.SelfPushStreamStates
 import io.element.android.libraries.pushstore.test.userpushstore.FakeUserPushStoreFactory
 import io.element.android.services.toolbox.test.strings.FakeStringProvider
 import io.element.android.tests.testutils.awaitLastSequentialItem
@@ -1162,6 +1163,7 @@ class NotificationSettingsPresenterTest {
         }),
         soundDisplayNameResolver: FakeSoundDisplayNameResolver = FakeSoundDisplayNameResolver(),
         selfPushStore: SelfPushStore = FakeSelfPushStore(),
+        selfPushStreamStates: SelfPushStreamStates = SelfPushStreamStates(),
         buildMeta: BuildMeta = aBuildMeta(applicationId = SELF_APPLICATION_ID),
     ): NotificationSettingsPresenter {
         val matrixClient = FakeMatrixClient(notificationSettingsService = notificationSettingsService)
@@ -1178,6 +1180,7 @@ class NotificationSettingsPresenterTest {
             soundDisplayNameResolver = soundDisplayNameResolver,
             stringProvider = FakeStringProvider(),
             selfPushStore = selfPushStore,
+            selfPushStreamStates = selfPushStreamStates,
             buildMeta = buildMeta,
             sessionCoroutineScope = backgroundScope,
         )

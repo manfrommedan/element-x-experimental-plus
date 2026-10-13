@@ -8,6 +8,7 @@
 
 package io.element.android.features.preferences.impl.notifications
 
+import io.element.android.features.preferences.impl.notifications.selfpush.SelfPushSettingsState
 import io.element.android.libraries.architecture.AsyncAction
 import io.element.android.libraries.architecture.AsyncData
 import io.element.android.libraries.fullscreenintent.api.FullScreenIntentPermissionsState
@@ -83,8 +84,8 @@ data class NotificationSettingsState(
     data class SelfPushEntryState(
         /** True when the built-in listener is the current distributor. */
         val active: Boolean,
-        /** True while every registered server has an open stream. */
-        val listenerConnected: Boolean,
+        /** Aggregated live health of the listener's streams. */
+        val listenerStatus: SelfPushSettingsState.ListenerStatus,
     )
 
     /**

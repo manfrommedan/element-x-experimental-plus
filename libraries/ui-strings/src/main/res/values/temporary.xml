@@ -8,6 +8,13 @@
 <resources>
     <string name="common_push_listener_notification_android">"Listening for notifications"</string>
     <string name="common_push_listener_channel_name_android">"Built-in push listener"</string>
+    <string name="common_push_listener_notification_connected_android">"Connected"</string>
+    <string name="common_push_listener_notification_reconnecting_android">"Reconnecting to the notification server…"</string>
+    <string name="common_push_listener_notification_no_network_android">"No network connection, notifications paused"</string>
+    <string name="common_push_listener_notification_refused_android">"The notification server refused the connection"</string>
+    <string name="common_push_listener_alert_channel_name_android">"Push connection alerts"</string>
+    <string name="common_push_listener_alert_title_android">"Notification server unreachable"</string>
+    <string name="common_push_listener_alert_text_android">"Cannot connect to %1$s for a while now. Notifications may be delayed."</string>
     <string name="common_built_in_push">"Built-in push"</string>
     <string name="a11y_state_expanded">"Expanded"</string>
     <string name="a11y_state_collapsed">"Collapsed"</string>
@@ -38,8 +45,12 @@
     <string name="screen_selfpush_settings_battery_optimization_unrestricted">"Not optimized for this app"</string>
     <string name="screen_selfpush_settings_battery_optimization_restricted">"Notifications may be delayed. Tap to allow background activity (on Xiaomi/MIUI also enable Autostart in the system settings)"</string>
     <string name="screen_selfpush_settings_listener_status_title">"Built-in listener"</string>
+    <string name="screen_selfpush_settings_listener_status_inactive">"Not in use"</string>
     <string name="screen_selfpush_settings_listener_status_connected">"Connected"</string>
     <string name="screen_selfpush_settings_listener_status_connecting">"Connecting…"</string>
+    <string name="screen_selfpush_settings_listener_status_reconnecting">"Reconnecting…"</string>
+    <string name="screen_selfpush_settings_listener_status_refused">"Connection refused by the server"</string>
+    <string name="screen_selfpush_settings_listener_status_no_network">"No network connection"</string>
     <string name="screen_selfpush_settings_enable">"Use built-in push"</string>
     <string name="common_on">"On"</string>
     <string name="common_off">"Off"</string>

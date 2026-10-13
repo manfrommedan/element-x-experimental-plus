@@ -35,6 +35,7 @@ import androidx.lifecycle.Lifecycle
 import io.element.android.compound.theme.ElementTheme
 import io.element.android.compound.tokens.generated.CompoundIcons
 import io.element.android.features.preferences.impl.R
+import io.element.android.features.preferences.impl.notifications.selfpush.labelRes
 import io.element.android.libraries.androidutils.system.startNotificationSettingsIntent
 import io.element.android.libraries.architecture.AsyncData
 import io.element.android.libraries.designsystem.components.Announcement
@@ -268,8 +269,7 @@ private fun NotificationSettingsContentView(
                                 text = stringResource(
                                     id = when {
                                         !selfPushEntry.active -> CommonStrings.common_off
-                                        selfPushEntry.listenerConnected -> CommonStrings.screen_selfpush_settings_listener_status_connected
-                                        else -> CommonStrings.screen_selfpush_settings_listener_status_connecting
+                                        else -> selfPushEntry.listenerStatus.labelRes()
                                     }
                                 )
                             )

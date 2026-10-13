@@ -153,6 +153,28 @@ class NtfyStreamClientTest {
     }
 
     @Test
+    fun `a broken stream reports each reconnect through onReconnecting`() = runBlocking {
+        val clock = RecordingClock()
+        val reconnectCauses = mutableListOf<Throwable>()
+        server.enqueue(httpFrames("""{"id":"0","time":1,"event":"open"}"""))
+        server.enqueue(MockResponse().setResponseCode(401))
+
+        client(clock).stream(
+            serverUrl(),
+            setOf("upA"),
+            readToken = null,
+            SelfPushProtocol.JSON_STREAM,
+            onReconnecting = { reconnectCauses += it },
+        ) { null }
+            .test {
+                awaitError()
+            }
+
+        // The first response's EOF breaks the stream, the reconnect lands on the terminal 401.
+        assertThat(reconnectCauses).hasSize(1)
+    }
+
+    @Test
     fun `broken websocket stream reconnects until a message arrives`() = runBlocking {
         val clock = RecordingClock()
         wsServer.enqueue(MiniWebSocketServer.SendFrames("""{"id":"0","time":1,"event":"open"}"""))

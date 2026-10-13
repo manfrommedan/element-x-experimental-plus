@@ -9,6 +9,7 @@
 package io.element.android.features.preferences.impl.notifications
 
 import androidx.compose.ui.tooling.preview.PreviewParameterProvider
+import io.element.android.features.preferences.impl.notifications.selfpush.SelfPushSettingsState
 import io.element.android.libraries.architecture.AsyncAction
 import io.element.android.libraries.architecture.AsyncData
 import io.element.android.libraries.fullscreenintent.api.FullScreenIntentPermissionsState
@@ -87,7 +88,7 @@ open class NotificationSettingsStatePreviewParam : PreviewParameterProvider<Noti
                     aDistributor("Firebase"),
                     aDistributor("Built-in push", "app.self"),
                 ),
-                selfPushEntry = aSelfPushEntryState(active = true, listenerConnected = true),
+                selfPushEntry = aSelfPushEntryState(active = true, listenerStatus = SelfPushSettingsState.ListenerStatus.CONNECTED),
             ),
         )
 }
@@ -189,10 +190,10 @@ fun aInvalidNotificationSettingsState(
 
 fun aSelfPushEntryState(
     active: Boolean = false,
-    listenerConnected: Boolean = false,
+    listenerStatus: SelfPushSettingsState.ListenerStatus = SelfPushSettingsState.ListenerStatus.INACTIVE,
 ) = NotificationSettingsState.SelfPushEntryState(
     active = active,
-    listenerConnected = listenerConnected,
+    listenerStatus = listenerStatus,
 )
 
 fun aDistributor(

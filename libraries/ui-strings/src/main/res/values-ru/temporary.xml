@@ -2,6 +2,13 @@
 <resources>
     <string name="common_push_listener_notification_android">"Ожидание уведомлений"</string>
     <string name="common_push_listener_channel_name_android">"Встроенные push-уведомления"</string>
+    <string name="common_push_listener_notification_connected_android">"Подключено"</string>
+    <string name="common_push_listener_notification_reconnecting_android">"Переподключение к серверу уведомлений…"</string>
+    <string name="common_push_listener_notification_no_network_android">"Нет сети, уведомления на паузе"</string>
+    <string name="common_push_listener_notification_refused_android">"Сервер уведомлений отклонил подключение"</string>
+    <string name="common_push_listener_alert_channel_name_android">"Оповещения о подключении push"</string>
+    <string name="common_push_listener_alert_title_android">"Сервер уведомлений недоступен"</string>
+    <string name="common_push_listener_alert_text_android">"Не удаётся подключиться к %1$s. Уведомления могут задерживаться."</string>
     <string name="common_built_in_push">"Встроенный push"</string>
     <string name="a11y_state_expanded">"Развёрнуто"</string>
     <string name="a11y_state_collapsed">"Свёрнуто"</string>
@@ -28,8 +35,12 @@
     <string name="screen_selfpush_settings_battery_optimization_unrestricted">"Отключена для этого приложения"</string>
     <string name="screen_selfpush_settings_battery_optimization_restricted">"Уведомления могут приходить с задержкой. Нажмите, чтобы разрешить работу в фоне (на Xiaomi/MIUI также включите автозапуск в настройках системы)"</string>
     <string name="screen_selfpush_settings_listener_status_title">"Подключение"</string>
+    <string name="screen_selfpush_settings_listener_status_inactive">"Не используется"</string>
     <string name="screen_selfpush_settings_listener_status_connected">"Подключено"</string>
     <string name="screen_selfpush_settings_listener_status_connecting">"Подключение…"</string>
+    <string name="screen_selfpush_settings_listener_status_reconnecting">"Переподключение…"</string>
+    <string name="screen_selfpush_settings_listener_status_refused">"Сервер отклонил подключение"</string>
+    <string name="screen_selfpush_settings_listener_status_no_network">"Нет подключения к сети"</string>
     <string name="screen_selfpush_settings_enable">"Использовать встроенный push"</string>
     <string name="common_on">"Вкл"</string>
     <string name="common_off">"Выкл"</string>

@@ -9,6 +9,7 @@ package io.element.android.features.preferences.impl.notifications.selfpush
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableIntStateOf
@@ -29,6 +30,7 @@ import io.element.android.libraries.pushproviders.api.PushProvider
 import io.element.android.libraries.pushproviders.unifiedpush.selfpush.DEFAULT_SELF_PUSH_SERVER
 import io.element.android.libraries.pushproviders.unifiedpush.selfpush.SelfPushStore
 import io.element.android.libraries.pushproviders.unifiedpush.selfpush.SelfPushStreamRefresher
+import io.element.android.libraries.pushproviders.unifiedpush.selfpush.SelfPushStreamStates
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -46,6 +48,7 @@ class SelfPushSettingsPresenter(
     private val pushService: PushService,
     private val selfPushStore: SelfPushStore,
     private val selfPushStreamRefresher: SelfPushStreamRefresher,
+    private val selfPushStreamStates: SelfPushStreamStates,
     private val batteryOptimization: BatteryOptimization,
     private val buildMeta: BuildMeta,
     private val okHttpClient: OkHttpClient,
@@ -77,8 +80,20 @@ class SelfPushSettingsPresenter(
         var showProtocolDialog by remember { mutableStateOf(false) }
         var protocolRefresh by remember { mutableIntStateOf(0) }
 
+        // Live per-server stream health, written by the subscriber service; drives the status row.
+        val liveStreamStatuses by selfPushStreamStates.states.collectAsState()
+
         // Read eagerly and again on resume: the user changes it in the system settings.
         var batteryOptimizationIgnored by remember { mutableStateOf(batteryOptimization.isIgnoringBatteryOptimizations()) }
+
+        fun computeListenerStatus(): SelfPushSettingsState.ListenerStatus {
+            return selfPushListenerStatus(
+                active = isActive,
+                registrations = selfPushStore.getAllRegistrations(),
+                openServers = selfPushStore.getOpenServers(),
+                liveStatuses = liveStreamStatuses,
+            )
+        }
 
         fun selfDistributor(): Pair<PushProvider, Distributor>? {
             return pushService.getAvailablePushProviders()
@@ -222,10 +237,8 @@ class SelfPushSettingsPresenter(
                     showDialog = showProtocolDialog,
                 )
             },
-            listenerConnected = key(statusRefresh) {
-                val registrations = selfPushStore.getAllRegistrations()
-                val openServers = selfPushStore.getOpenServers()
-                registrations.isNotEmpty() && registrations.values.all { it.server in openServers }
+            listenerStatus = key(statusRefresh, liveStreamStatuses, isActive) {
+                computeListenerStatus()
             },
             batteryOptimizationIgnored = batteryOptimizationIgnored,
             eventSink = ::handleEvent,

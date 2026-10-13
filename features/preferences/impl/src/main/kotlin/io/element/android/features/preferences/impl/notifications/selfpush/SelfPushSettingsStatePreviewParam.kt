@@ -15,15 +15,26 @@ open class SelfPushSettingsStatePreviewParam : PreviewParameterProvider<SelfPush
     override val values: Sequence<SelfPushSettingsState>
         get() = sequenceOf(
             aSelfPushSettingsState(),
-            aSelfPushSettingsState(isActive = true, listenerConnected = true),
             aSelfPushSettingsState(
                 isActive = true,
-                listenerConnected = true,
+                listenerStatus = SelfPushSettingsState.ListenerStatus.CONNECTED,
+            ),
+            aSelfPushSettingsState(
+                isActive = true,
+                listenerStatus = SelfPushSettingsState.ListenerStatus.RECONNECTING,
+            ),
+            aSelfPushSettingsState(
+                isActive = true,
+                listenerStatus = SelfPushSettingsState.ListenerStatus.REFUSED,
+            ),
+            aSelfPushSettingsState(
+                isActive = true,
+                listenerStatus = SelfPushSettingsState.ListenerStatus.CONNECTED,
                 server = aServerState(showDialog = true),
             ),
             aSelfPushSettingsState(
                 isActive = true,
-                listenerConnected = true,
+                listenerStatus = SelfPushSettingsState.ListenerStatus.CONNECTED,
                 server = aServerState(
                     customServer = "https://push.example.com",
                     showDialog = true,
@@ -45,14 +56,14 @@ fun aSelfPushSettingsState(
     isActive: Boolean = false,
     server: SelfPushSettingsState.ServerState = aServerState(),
     protocol: SelfPushSettingsState.ProtocolState = aProtocolState(),
-    listenerConnected: Boolean = false,
+    listenerStatus: SelfPushSettingsState.ListenerStatus = SelfPushSettingsState.ListenerStatus.INACTIVE,
     batteryOptimizationIgnored: Boolean = false,
     eventSink: (SelfPushSettingsEvent) -> Unit = {},
 ) = SelfPushSettingsState(
     isActive = isActive,
     server = server,
     protocol = protocol,
-    listenerConnected = listenerConnected,
+    listenerStatus = listenerStatus,
     batteryOptimizationIgnored = batteryOptimizationIgnored,
     eventSink = eventSink,
 )
