@@ -9,6 +9,7 @@
     <string name="common_push_listener_notification_android">"Listening for notifications"</string>
     <string name="common_push_listener_channel_name_android">"Built-in push listener"</string>
     <string name="common_push_listener_notification_connected_android">"Connected"</string>
+    <string name="common_push_listener_notification_connecting_android">"Connecting to the notification server…"</string>
     <string name="common_push_listener_notification_reconnecting_android">"Reconnecting to the notification server…"</string>
     <string name="common_push_listener_notification_no_network_android">"No network connection, notifications paused"</string>
     <string name="common_push_listener_notification_refused_android">"The notification server refused the connection"</string>

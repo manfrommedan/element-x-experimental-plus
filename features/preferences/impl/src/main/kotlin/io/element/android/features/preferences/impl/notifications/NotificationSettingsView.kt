@@ -35,6 +35,7 @@ import androidx.lifecycle.Lifecycle
 import io.element.android.compound.theme.ElementTheme
 import io.element.android.compound.tokens.generated.CompoundIcons
 import io.element.android.features.preferences.impl.R
+import io.element.android.features.preferences.impl.notifications.selfpush.SelfPushSettingsState
 import io.element.android.features.preferences.impl.notifications.selfpush.labelRes
 import io.element.android.libraries.androidutils.system.startNotificationSettingsIntent
 import io.element.android.libraries.architecture.AsyncData
@@ -271,7 +272,14 @@ private fun NotificationSettingsContentView(
                                         !selfPushEntry.active -> CommonStrings.common_off
                                         else -> selfPushEntry.listenerStatus.labelRes()
                                     }
-                                )
+                                ),
+                                color = if (selfPushEntry.active &&
+                                    selfPushEntry.listenerStatus == SelfPushSettingsState.ListenerStatus.REFUSED
+                                ) {
+                                    ElementTheme.colors.textCriticalPrimary
+                                } else {
+                                    ElementTheme.colors.textSecondary
+                                },
                             )
                         },
                         onClick = onOpenSelfPushSettings,

@@ -3,6 +3,7 @@
     <string name="common_push_listener_notification_android">"Ожидание уведомлений"</string>
     <string name="common_push_listener_channel_name_android">"Встроенные push-уведомления"</string>
     <string name="common_push_listener_notification_connected_android">"Подключено"</string>
+    <string name="common_push_listener_notification_connecting_android">"Подключение к серверу уведомлений…"</string>
     <string name="common_push_listener_notification_reconnecting_android">"Переподключение к серверу уведомлений…"</string>
     <string name="common_push_listener_notification_no_network_android">"Нет сети, уведомления на паузе"</string>
     <string name="common_push_listener_notification_refused_android">"Сервер уведомлений отклонил подключение"</string>

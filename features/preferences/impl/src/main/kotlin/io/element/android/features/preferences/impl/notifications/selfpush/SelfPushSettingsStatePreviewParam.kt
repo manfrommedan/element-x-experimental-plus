@@ -25,6 +25,10 @@ open class SelfPushSettingsStatePreviewParam : PreviewParameterProvider<SelfPush
             ),
             aSelfPushSettingsState(
                 isActive = true,
+                listenerStatus = SelfPushSettingsState.ListenerStatus.NO_NETWORK,
+            ),
+            aSelfPushSettingsState(
+                isActive = true,
                 listenerStatus = SelfPushSettingsState.ListenerStatus.REFUSED,
             ),
             aSelfPushSettingsState(

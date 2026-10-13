@@ -40,6 +40,7 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.launch
 import timber.log.Timber
+import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicBoolean
 
 private val loggerTag = LoggerTag("SelfPushSubscriberService", LoggerTag.PushLoggerTag)
@@ -86,11 +87,15 @@ class SelfPushSubscriberService : Service() {
 
     private val recentMessageIds = RecentMessageIds()
 
-    /** When each server's stream first broke, the base for the outage alert; cleared on reconnect. */
-    private val outageStartTimes = mutableMapOf<String, Long>()
+    /**
+     * When each server's stream first broke, the base for the outage alert; cleared on reconnect
+     * and on network loss (offline is not a server outage). Written from the stream callbacks on
+     * IO/OkHttp threads and read from the main thread, hence the concurrent collections.
+     */
+    private val outageStartTimes = ConcurrentHashMap<String, Long>()
 
     /** Servers the user was already alerted about during the current outage. */
-    private val outageAlertedServers = mutableSetOf<String>()
+    private val outageAlertedServers = ConcurrentHashMap.newKeySet<String>()
 
     private val networkCallback = object : ConnectivityManager.NetworkCallback() {
         override fun onAvailable(network: Network) {
@@ -117,6 +122,14 @@ class SelfPushSubscriberService : Service() {
             streamStates.set(server, SelfPushStreamStatus.NO_NETWORK)
         }
         streamJobs.clear()
+        // No network is not a server outage: freeze the alert bookkeeping, drop any posted alert.
+        outageStartTimes.clear()
+        if (outageAlertedServers.isNotEmpty()) {
+            outageAlertedServers.clear()
+            runCatchingExceptions {
+                NotificationManagerCompat.from(this).cancel(OUTAGE_NOTIFICATION_ID)
+            }
+        }
         updateForegroundNotification()
     }
 
@@ -161,7 +174,10 @@ class SelfPushSubscriberService : Service() {
 
     override fun onDestroy() {
         serviceScope.cancel()
-        streamJobs.keys.forEach { streamStates.remove(it) }
+        // The holder outlives the service (app-scope singleton): clear every status, not only
+        // the live streams' — parked servers left in the map after parkStreams would otherwise
+        // report NO_NETWORK forever.
+        streamStates.states.value.keys.forEach { streamStates.remove(it) }
         getSystemService(ConnectivityManager::class.java)?.unregisterNetworkCallback(networkCallback)
         // START_STICKY covers most kills, but not all OEMs honor it; re-arm the watchdog one
         // last time if there is still something to listen to. A modest delay, not the quick
@@ -369,8 +385,8 @@ class SelfPushSubscriberService : Service() {
     private fun listenerStatusText(): String? {
         return when (streamStates.states.value.values.worstSelfPushStatus()) {
             SelfPushStreamStatus.REFUSED -> getString(CommonStrings.common_push_listener_notification_refused_android)
-            SelfPushStreamStatus.RECONNECTING,
-            SelfPushStreamStatus.CONNECTING -> getString(CommonStrings.common_push_listener_notification_reconnecting_android)
+            SelfPushStreamStatus.RECONNECTING -> getString(CommonStrings.common_push_listener_notification_reconnecting_android)
+            SelfPushStreamStatus.CONNECTING -> getString(CommonStrings.common_push_listener_notification_connecting_android)
             SelfPushStreamStatus.NO_NETWORK -> getString(CommonStrings.common_push_listener_notification_no_network_android)
             SelfPushStreamStatus.CONNECTED -> getString(CommonStrings.common_push_listener_notification_connected_android)
             null -> null
@@ -410,7 +426,9 @@ class SelfPushSubscriberService : Service() {
         }
         if (due.isEmpty()) return
         outageAlertedServers.addAll(due)
-        val hosts = due.joinToString { server ->
+        // Name every server currently in an outage, not only the ones that just crossed the
+        // threshold, so the alert text does not go stale while several servers are down.
+        val hosts = outageStartTimes.keys.joinToString { server ->
             server.substringAfter("://").substringBefore('/')
         }
         val launchIntent = packageManager.getLaunchIntentForPackage(packageName)
