@@ -39,6 +39,8 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.launch
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.jsonObject
 import timber.log.Timber
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicBoolean
@@ -339,13 +341,27 @@ class SelfPushSubscriberService : Service() {
         val providerInfo = "${UnifiedPushConfig.NAME} built-in - $clientSecret"
         val pushData = pushParser.parse(message.content.toByteArray(Charsets.UTF_8), clientSecret)
         if (pushData == null) {
-            Timber.tag(loggerTag.value).w("Unreadable push content")
+            Timber.tag(loggerTag.value).w("Unreadable push content (${describePushShape(message.content)})")
             pushHandler.handleInvalid(providerInfo = providerInfo, data = message.content)
             fetchPushForegroundServiceManager.stop()
         } else {
             val handled = pushHandler.handle(pushData = pushData, providerInfo = providerInfo)
             if (!handled) fetchPushForegroundServiceManager.stop()
         }
+    }
+
+    /**
+     * Structural diagnostics for an unparsable push: payload size and which keys the envelope
+     * carries. Keys only, never values — some pusher configs embed event content in the push,
+     * which must not land in the logs.
+     */
+    private fun describePushShape(content: String): String {
+        val shape = runCatchingExceptions {
+            val envelope = Json.parseToJsonElement(content).jsonObject
+            val notification = envelope["notification"]?.jsonObject
+            "json, keys=${envelope.keys}, notification keys=${notification?.keys}"
+        }.getOrElse { "not json" }
+        return "size=${content.length}, $shape"
     }
 
     private fun scheduleWatchdog(delayMs: Long? = null) {
