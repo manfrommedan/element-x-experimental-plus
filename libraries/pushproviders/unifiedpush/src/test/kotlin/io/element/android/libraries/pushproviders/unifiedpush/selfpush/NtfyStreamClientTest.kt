@@ -33,7 +33,6 @@ import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.TimeUnit
 import kotlin.concurrent.thread
 import kotlin.time.Duration
-import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
 // runBlocking, not runTest, on purpose: the streams do real socket IO off the test scheduler,
@@ -164,7 +163,7 @@ class NtfyStreamClientTest {
             setOf("upA"),
             readToken = null,
             SelfPushProtocol.JSON_STREAM,
-            onReconnecting = { reconnectCauses += it },
+            onReconnecting = { cause, _ -> reconnectCauses += cause },
         ) { null }
             .test {
                 awaitError()
@@ -192,18 +191,24 @@ class NtfyStreamClientTest {
     }
 
     @Test
-    fun `silent websocket is declared dead and reconnected`() = runBlocking {
+    fun `silent websocket stays open, liveness is the ping heartbeat`() = runBlocking {
         val clock = RecordingClock()
-        val liveness = NtfyStreamClient.Liveness(maxSilence = 50.milliseconds, checkInterval = 10.milliseconds)
+        // The server says nothing at all: an idle ntfy WebSocket carries no application
+        // frames, only ping control frames the listener never sees. The stream must not be
+        // killed for that silence — dead peers are detected by the ping/pong heartbeat.
         wsServer.enqueue(MiniWebSocketServer.Silent)
-        wsServer.enqueue(MiniWebSocketServer.Refuse(401))
 
-        client(clock, liveness).stream(wsServer.url, setOf("upA"), readToken = null, SelfPushProtocol.WEBSOCKET) { null }
-            .test {
-                assertThat(awaitError()).isInstanceOf(FatalStreamException::class.java)
-            }
+        val job = launch {
+            client(clock).stream(wsServer.url, setOf("upA"), readToken = null, SelfPushProtocol.WEBSOCKET) { null }
+                .collect { }
+        }
+        // Let the stream connect and sit in silence, then cancel: only the cancellation
+        // may end it.
+        delay(500)
+        job.cancel()
 
-        assertThat(clock.reconnects).isEqualTo(1)
+        withTimeout(2.seconds) { job.join() }
+        assertThat(clock.reconnects).isEqualTo(0)
     }
 
     @Test

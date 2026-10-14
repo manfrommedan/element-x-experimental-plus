@@ -15,13 +15,11 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.channels.trySendBlocking
 import kotlinx.coroutines.currentCoroutineContext
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.retryWhen
-import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
@@ -33,7 +31,6 @@ import okhttp3.WebSocketListener
 import timber.log.Timber
 import java.io.IOException
 import java.util.concurrent.TimeUnit
-import java.util.concurrent.atomic.AtomicLong
 import kotlin.random.Random
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
@@ -54,13 +51,14 @@ class FatalStreamException(message: String) : Exception(message)
 /**
  * Holds a streaming connection to an ntfy server and yields the pushes arriving on it.
  *
- * Both ntfy protocols speak the same JSON frames (`open`, `keepalive`, `message`), one frame
- * per line over `GET /{topics}/json` or one frame per message over `/{topics}/ws`. Only
- * `message` frames carry a push; the rest double as proof the connection is alive. The HTTP
- * protocol encodes that as a read timeout just past two default 45s keepalive intervals; the
- * WebSocket protocol cannot use read timeouts (OkHttp manages the upgraded socket), so a
- * monitor closes any socket silent for longer than [Liveness.maxSilence]. Either way the flow
- * fails and the caller reconnects with a bounded backoff.
+ * The two ntfy protocols keep an idle connection alive differently. Over `GET /{topics}/json`
+ * the server sends a keepalive JSON frame every 45s, which a read timeout just past two such
+ * intervals turns into liveness detection. Over `/{topics}/ws` the server instead sends
+ * WebSocket *ping* control frames, which OkHttp answers with a pong without ever surfacing
+ * them to the listener — so a perfectly healthy idle WebSocket delivers no application frames
+ * at all, and liveness comes from OkHttp's own ping interval failing the socket once the
+ * peer's pongs stop. Either way the flow fails and the caller reconnects with a bounded
+ * backoff.
  *
  * [since] is read fresh on every (re)connect and forwarded as the `since` query parameter, so
  * a reconnect replays whatever the server cached while the stream was down instead of dropping
@@ -71,16 +69,21 @@ class NtfyStreamClient @Inject constructor(
     private val clock: BackoffClock = BackoffClock(),
     private val liveness: Liveness = Liveness(),
 ) {
-    /** Frame silence thresholds, overridable in tests so they do not wait in real time. */
+    /** Liveness knobs, overridable in tests so they do not wait in real time. */
     data class Liveness(
+        /** HTTP stream read timeout: just past two default 45s server keepalive intervals. */
         val maxSilence: Duration = 95.seconds,
-        val checkInterval: Duration = 15.seconds,
+        /** WS ping cadence: mirrors the server's keepalive interval; a missing pong fails the socket. */
+        val pingInterval: Duration = 45.seconds,
     )
 
-    // No client-side pings: the server's keepalive frames already warm the NAT binding and
-    // feed the silence monitor, and an extra ping every 30s would double the radio wakeups.
+    // WS keepalives are protocol-level pings OkHttp answers silently, so the app sees no frames
+    // on an idle healthy connection: liveness is the ping interval failing the socket when the
+    // peer's pongs stop, not any application-level silence monitor.
     private val webSocketClient = okHttpClient.newBuilder()
         .connectTimeout(CONNECT_TIMEOUT_S, TimeUnit.SECONDS)
+        .readTimeout(0, TimeUnit.MILLISECONDS)
+        .pingInterval(liveness.pingInterval.inWholeMilliseconds, TimeUnit.MILLISECONDS)
         .build()
 
     private val httpStreamClient = okHttpClient.newBuilder()
@@ -96,7 +99,7 @@ class NtfyStreamClient @Inject constructor(
         readToken: String?,
         protocol: SelfPushProtocol,
         onOpen: () -> Unit = {},
-        onReconnecting: (Throwable) -> Unit = {},
+        onReconnecting: (Throwable, Duration) -> Unit = { _, _ -> },
         since: () -> Long?,
     ): Flow<NtfyMessage> {
         require(topics.isNotEmpty()) { "No topics to subscribe to" }
@@ -107,7 +110,9 @@ class NtfyStreamClient @Inject constructor(
             currentCoroutineContext().ensureActive()
             val backoff = clock.backoff(attempt)
             Timber.tag(loggerTag.value).w("Stream broke (${cause.message}), reconnecting in $backoff")
-            onReconnecting(cause)
+            // The backoff delay below is a coroutine delay: in Doze it can be deferred well
+            // past the intended time. The caller gets the backoff to arm a wakeup alarm.
+            onReconnecting(cause, backoff)
             clock.delay(backoff)
             true
         }.flowOn(Dispatchers.IO)
@@ -206,16 +211,13 @@ class NtfyStreamClient @Inject constructor(
         request: Request,
         onOpen: () -> Unit,
     ) {
-        val lastFrameAt = AtomicLong(System.currentTimeMillis())
         val webSocket = webSocketClient.newWebSocket(request, object : WebSocketListener() {
             override fun onOpen(webSocket: WebSocket, response: Response) {
-                lastFrameAt.set(System.currentTimeMillis())
                 Timber.tag(loggerTag.value).d("WebSocket stream open for ${topics.size} topic(s) on $server")
                 onOpen()
             }
 
             override fun onMessage(webSocket: WebSocket, text: String) {
-                lastFrameAt.set(System.currentTimeMillis())
                 // Backpressure, not drops: catch-up replays can outrun the collector,
                 // and those are exactly the pushes since= exists to save.
                 parseFrame(text)?.let { trySendBlocking(it) }
@@ -236,20 +238,7 @@ class NtfyStreamClient @Inject constructor(
             }
         })
 
-        val monitor = launch {
-            while (isActive) {
-                delay(liveness.checkInterval)
-                val silence = System.currentTimeMillis() - lastFrameAt.get()
-                if (silence > liveness.maxSilence.inWholeMilliseconds) {
-                    Timber.tag(loggerTag.value).w("No frame for $silence ms, reconnecting")
-                    webSocket.close(NORMAL_CLOSURE_STATUS, "inactive")
-                    break
-                }
-            }
-        }
-
         awaitClose {
-            monitor.cancel()
             webSocket.close(NORMAL_CLOSURE_STATUS, null)
         }
     }

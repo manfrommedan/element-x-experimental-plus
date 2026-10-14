@@ -42,6 +42,7 @@ import kotlinx.coroutines.launch
 import timber.log.Timber
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicBoolean
+import kotlin.time.Duration
 
 private val loggerTag = LoggerTag("SelfPushSubscriberService", LoggerTag.PushLoggerTag)
 
@@ -51,6 +52,7 @@ private const val OUTAGE_NOTIFICATION_ID = 1008
 private const val ALERT_CHANNEL_ID = "self_push_listener_alert_channel"
 private const val WATCHDOG_REQUEST_CODE = 42
 private const val OUTAGE_REQUEST_CODE = 43
+private const val RECONNECT_REQUEST_CODE = 44
 
 /**
  * Keeps the built-in push listener alive: one streaming connection per notification server,
@@ -58,10 +60,12 @@ private const val OUTAGE_REQUEST_CODE = 43
  *
  * Modeled on the ntfy subscriber service: foreground, sticky, restarted on boot and on
  * network change, with a watchdog alarm reviving it in case the system froze the process
- * between those events. Reconnects replay what the server cached while the stream was down
- * (the `since` parameter), so pushes landing in a reconnect window are not lost. The ongoing
- * notification sits on a minimum-importance channel the user can hide from the system
- * settings, the same as the ntfy app's own.
+ * between those events. A broken stream reconnects on its own with a bounded backoff, but
+ * that backoff is a coroutine delay Doze can defer, so each reconnect is additionally backed
+ * by an exact wakeup alarm fired at the intended moment. Reconnects replay what the server
+ * cached while the stream was down (the `since` parameter), so pushes landing in a reconnect
+ * window are not lost. The ongoing notification sits on a minimum-importance channel the user
+ * can hide from the system settings, the same as the ntfy app's own.
  */
 class SelfPushSubscriberService : Service() {
     @Inject lateinit var selfPushStore: SelfPushStore
@@ -122,6 +126,7 @@ class SelfPushSubscriberService : Service() {
             streamStates.set(server, SelfPushStreamStatus.NO_NETWORK)
         }
         streamJobs.clear()
+        cancelReconnectAlarm()
         // No network is not a server outage: freeze the alert bookkeeping, drop any posted alert.
         outageStartTimes.clear()
         if (outageAlertedServers.isNotEmpty()) {
@@ -158,7 +163,20 @@ class SelfPushSubscriberService : Service() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        restartStreams(force = false)
+        if (intent?.action == ACTION_RECONNECT) {
+            // The stream's own backoff may have reconnected it already; only force a restart
+            // when something is still not flowing.
+            val allConnected = streamJobs.isNotEmpty() &&
+                streamStates.states.value.values.all { it == SelfPushStreamStatus.CONNECTED }
+            if (allConnected) {
+                Timber.tag(loggerTag.value).d("Reconnect alarm fired but every stream is up, skipping")
+            } else {
+                Timber.tag(loggerTag.value).i("Reconnect alarm fired with a stream down, restarting")
+                restartStreams(force = true)
+            }
+        } else {
+            restartStreams(force = false)
+        }
         scheduleWatchdog()
         return START_STICKY
     }
@@ -186,6 +204,7 @@ class SelfPushSubscriberService : Service() {
             scheduleWatchdog(DESTROY_RESTART_DELAY_MS)
         } else {
             cancelWatchdog()
+            cancelReconnectAlarm()
         }
         ServiceCompat.stopForeground(this, ServiceCompat.STOP_FOREGROUND_REMOVE)
         super.onDestroy()
@@ -251,10 +270,14 @@ class SelfPushSubscriberService : Service() {
                             clearOutage(server)
                             updateForegroundNotification()
                         },
-                        onReconnecting = {
+                        onReconnecting = { _, backoff ->
                             selfPushStore.setStreamOpen(server, false)
                             streamStates.set(server, SelfPushStreamStatus.RECONNECTING)
                             markOutage(server)
+                            // The flow's own backoff is a coroutine delay, which Doze defers:
+                            // an exact wakeup alarm at the same moment is the insurance that the
+                            // reconnect actually happens then.
+                            scheduleReconnectAlarm(backoff)
                             updateForegroundNotification()
                         },
                         since = { catchUpSince(topicNames) },
@@ -345,6 +368,33 @@ class SelfPushSubscriberService : Service() {
                 alarmManager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerAt, watchdogIntent())
             }
         }.onFailure { Timber.tag(loggerTag.value).w(it, "Could not schedule the watchdog") }
+    }
+
+    /**
+     * Arms a wakeup alarm for the moment a broken stream wants to reconnect. The flow retries on
+     * its own while the process is awake; this covers the Doze case, where its coroutine backoff
+     * would only resume at the next arbitrary maintenance window. Firing while every stream is
+     * connected is a no-op (see onStartCommand), so stale alarms are harmless.
+     */
+    private fun scheduleReconnectAlarm(backoff: Duration) {
+        val alarmManager = getSystemService(AlarmManager::class.java) ?: return
+        val triggerAt = System.currentTimeMillis() + backoff.inWholeMilliseconds.coerceAtLeast(1000)
+        runCatchingExceptions {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && !alarmManager.canScheduleExactAlarms()) {
+                alarmManager.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerAt, reconnectIntent())
+            } else {
+                alarmManager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerAt, reconnectIntent())
+            }
+        }.onFailure { Timber.tag(loggerTag.value).w(it, "Could not schedule the reconnect alarm") }
+    }
+
+    private fun cancelReconnectAlarm() {
+        getSystemService(AlarmManager::class.java)?.cancel(reconnectIntent())
+    }
+
+    private fun reconnectIntent(): PendingIntent {
+        val intent = Intent(this, SelfPushSubscriberService::class.java).setAction(ACTION_RECONNECT)
+        return PendingIntent.getForegroundService(this, RECONNECT_REQUEST_CODE, intent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
     }
 
     private fun cancelWatchdog() {
@@ -460,6 +510,7 @@ class SelfPushSubscriberService : Service() {
     companion object {
         private const val ACTION_REFRESH = "io.element.android.libraries.pushproviders.unifiedpush.selfpush.action.REFRESH"
         private const val ACTION_WATCHDOG = "io.element.android.libraries.pushproviders.unifiedpush.selfpush.action.WATCHDOG"
+        private const val ACTION_RECONNECT = "io.element.android.libraries.pushproviders.unifiedpush.selfpush.action.RECONNECT"
 
         /** The stream heals itself between watchdogs; this only revives a frozen process. */
         private const val WATCHDOG_INTERVAL_MS = 15 * 60 * 1000L
