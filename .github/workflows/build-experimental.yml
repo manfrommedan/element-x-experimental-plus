@@ -106,6 +106,10 @@ jobs:
         # Default Gradle names (app-fdroid-plus-<abi>-release.apk) carry no
         # version. Republish them as element-x-plus-fdroid-<version>-<abi>.apk
         # so the release assets state both the F-Droid flavor and the version.
+        # The -latest- copies give the README/landing a permalink:
+        # releases/latest/download/element-x-plus-fdroid-latest-arm64-v8a.apk
+        # always serves the newest build. Only the two popular ABIs get a copy:
+        # duplicating all five would double every release's footprint.
         run: |
           set -euo pipefail
           v="${{ steps.meta.outputs.version }}"
@@ -113,6 +117,9 @@ jobs:
           mkdir -p dist
           for abi in arm64-v8a armeabi-v7a x86_64 x86 universal; do
             cp "$src/app-fdroid-plus-${abi}-release.apk" "dist/element-x-plus-fdroid-${v}-${abi}.apk"
+          done
+          for abi in arm64-v8a universal; do
+            cp "$src/app-fdroid-plus-${abi}-release.apk" "dist/element-x-plus-fdroid-latest-${abi}.apk"
           done
           ls -1 dist
 
@@ -215,5 +222,10 @@ jobs:
             с официальным Element X, ничего не затирая. Package id менялся с
             `.plus`: если стояла та сборка, сначала удалите её, обновления
             поверх не будет.
+
+            ### Постоянная ссылка
+
+            Свежий билд всегда здесь (для большинства телефонов):
+            https://github.com/${{ github.repository }}/releases/latest/download/element-x-plus-fdroid-latest-arm64-v8a.apk
           files: |
             dist/element-x-plus-fdroid-*.apk
