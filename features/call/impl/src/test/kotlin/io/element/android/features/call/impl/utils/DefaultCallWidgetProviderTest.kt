@@ -147,7 +147,8 @@ class DefaultCallWidgetProviderTest {
             theme = "theme",
             startVideoMuted = true,
         ).getOrThrow().url
-        assertThat(url).contains("callIntent=audio")
+        assertThat(url).contains("startVideoMuted=true")
+        assertThat(url).doesNotContain("callIntent=audio")
     }
 
     private fun createProvider(

@@ -104,11 +104,9 @@ class DefaultCallWidgetProvider(
         val urlParams = buildList {
             addAll(phoneStyleUrlParams(phoneStyleEnabled, isAudioCall))
             if (startVideoMuted && !isAudioCall) {
-                // Answer a video call with the camera initially off (Telegram-style):
-                // the audio intent starts the local camera muted while keeping the
-                // normal layout, so the remote video is still shown and the user can
-                // turn their camera on. Independent of the phone-voice layout flag.
-                add("callIntent=audio")
+                // Answer a video call with the camera initially off without
+                // advertising it as an audio call to the other participants.
+                add("startVideoMuted=true")
                 if (!contains("skipLobby=true")) add("skipLobby=true")
             }
         }
