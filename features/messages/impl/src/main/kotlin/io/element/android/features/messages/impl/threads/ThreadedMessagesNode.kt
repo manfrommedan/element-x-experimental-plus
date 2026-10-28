@@ -41,17 +41,15 @@ import io.element.android.features.messages.impl.messagecomposer.MessageComposer
 import io.element.android.features.messages.impl.timeline.TimelineController
 import io.element.android.features.messages.impl.timeline.TimelineEvent
 import io.element.android.features.messages.impl.timeline.TimelinePresenter
+import io.element.android.features.messages.impl.timeline.TimelineSelectionOwner
 import io.element.android.features.messages.impl.timeline.components.customreaction.CustomReactionBottomSheet
 import io.element.android.features.messages.impl.timeline.di.LocalTimelineItemPresenterFactories
 import io.element.android.features.messages.impl.timeline.di.TimelineItemPresenterFactories
 import io.element.android.features.messages.impl.timeline.model.TimelineItem
-import io.element.android.features.messages.impl.urlpreview.LocalPermalinkParser
-import io.element.android.features.messages.impl.urlpreview.LocalUrlPreviewService
-import io.element.android.features.messages.impl.urlpreview.UrlPreviewService
 import io.element.android.features.roommembermoderation.api.ModerationAction
 import io.element.android.features.roommembermoderation.api.RoomMemberModerationEvent
 import io.element.android.features.roommembermoderation.api.RoomMemberModerationRenderer
-import io.element.android.libraries.androidutils.browser.openUrlInMxtrAwareCustomTab
+import io.element.android.libraries.androidutils.browser.openUrlInChromeCustomTab
 import io.element.android.libraries.androidutils.system.openUrlInExternalApp
 import io.element.android.libraries.architecture.NodeInputs
 import io.element.android.libraries.architecture.Presenter
@@ -96,13 +94,12 @@ class ThreadedMessagesNode(
     private val presenterFactory: MessagesPresenter.Factory,
     private val actionListPresenterFactory: ActionListPresenter.Factory,
     private val timelineItemPresenterFactories: TimelineItemPresenterFactories,
-    private val urlPreviewService: UrlPreviewService,
     private val permalinkParser: PermalinkParser,
     private val appNavigationStateService: AppNavigationStateService,
     private val roomMemberModerationRenderer: RoomMemberModerationRenderer,
     private val emojiPickerRenderer: EmojiPickerRenderer,
     private val dispatchers: CoroutineDispatchers,
-) : Node(buildContext, plugins = plugins), MessagesNavigator {
+) : Node(buildContext, plugins = plugins), MessagesNavigator, TimelineSelectionOwner {
     data class Inputs(
         val threadRootEventId: ThreadId,
         val focusedEventId: EventId?,
@@ -113,6 +110,7 @@ class ThreadedMessagesNode(
 
     private var timelineController: TimelineController? by mutableStateOf(null)
     private var presenter: Presenter<MessagesState>? by mutableStateOf(null)
+    private var timelinePresenter: TimelinePresenter? = null
 
     /**
      * This should be fast to load, but not faster than several UI frames, which will cause ANRs.
@@ -127,10 +125,12 @@ class ThreadedMessagesNode(
             dispatchers = dispatchers,
         )
         this.timelineController = timelineController
+        val timelinePresenter = timelinePresenterFactory.create(timelineController = timelineController, this)
+        this.timelinePresenter = timelinePresenter
         return presenterFactory.create(
             navigator = this,
             composerPresenter = messageComposerPresenterFactory.create(timelineController, this, threadRoot = inputs.threadRootEventId),
-            timelinePresenter = timelinePresenterFactory.create(timelineController = timelineController, this),
+            timelinePresenter = timelinePresenter,
             // TODO add special processor for threaded timeline
             actionListPresenter = actionListPresenterFactory.create(
                 postProcessor = TimelineItemActionPostProcessor.Default,
@@ -147,8 +147,7 @@ class ThreadedMessagesNode(
         fun navigateToRoomMemberDetails(userId: UserId)
         fun handlePermalinkClick(data: PermalinkData)
         fun navigateToEventDebugInfo(eventId: EventId?, debugInfo: TimelineItemDebugInfo)
-        fun handleForwardEventClick(eventId: EventId, timelineProvider: TimelineProvider)
-        fun handleBulkForwardEventClick(eventIds: List<EventId>)
+        fun handleForwardEventClick(eventIds: List<EventId>, timelineProvider: TimelineProvider)
         fun navigateToReportMessage(eventId: EventId, senderId: UserId)
         fun navigateToSendLocation()
         fun navigateToCreatePoll()
@@ -197,13 +196,13 @@ class ThreadedMessagesNode(
             }
             is PermalinkData.FallbackLink -> {
                 if (customTab) {
-                    activity.openUrlInMxtrAwareCustomTab(null, darkTheme, url)
+                    activity.openUrlInChromeCustomTab(null, darkTheme, url)
                 } else {
                     activity.openUrlInExternalApp(url)
                 }
             }
             is PermalinkData.RoomEmailInviteLink -> {
-                activity.openUrlInMxtrAwareCustomTab(null, darkTheme, url)
+                activity.openUrlInChromeCustomTab(null, darkTheme, url)
             }
         }
     }
@@ -232,12 +231,12 @@ class ThreadedMessagesNode(
         callback.navigateToEventDebugInfo(eventId, debugInfo)
     }
 
-    override fun forwardEvent(eventId: EventId, timelineProvider: TimelineProvider) {
-        callback.handleForwardEventClick(eventId, timelineProvider)
+    override fun forwardEvents(eventIds: List<EventId>, timelineProvider: TimelineProvider) {
+        callback.handleForwardEventClick(eventIds, timelineProvider)
     }
 
-    override fun forwardEvents(eventIds: List<EventId>) {
-        if (eventIds.isNotEmpty()) callback.handleBulkForwardEventClick(eventIds)
+    override fun exitTimelineSelection() {
+        timelinePresenter?.exitSelectionMode()
     }
 
     override fun navigateToReportMessage(eventId: EventId, senderId: UserId) {
@@ -283,8 +282,6 @@ class ThreadedMessagesNode(
         val canUseOverlay = !isTalkbackActive() && !hasExternalKeyboard()
         CompositionLocalProvider(
             LocalTimelineItemPresenterFactories provides timelineItemPresenterFactories,
-            LocalUrlPreviewService provides urlPreviewService,
-            LocalPermalinkParser provides permalinkParser,
         ) {
             // Only display the actual UI and lifecycle logic if the presenter is loaded
             presenter?.present()?.let { state ->

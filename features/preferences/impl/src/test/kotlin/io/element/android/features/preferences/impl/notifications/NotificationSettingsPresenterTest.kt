@@ -11,6 +11,9 @@ package io.element.android.features.preferences.impl.notifications
 import com.google.common.truth.Truth.assertThat
 import io.element.android.libraries.architecture.AsyncData
 import io.element.android.libraries.core.meta.BuildMeta
+import io.element.android.libraries.featureflag.api.FeatureFlagService
+import io.element.android.libraries.featureflag.api.ShowAllActivityInRoomListFeature
+import io.element.android.libraries.featureflag.test.FakeFeatureFlagService
 import io.element.android.libraries.fullscreenintent.api.FullScreenIntentPermissionsState
 import io.element.android.libraries.fullscreenintent.api.aFullScreenIntentPermissionsState
 import io.element.android.libraries.matrix.api.MatrixClient
@@ -42,6 +45,7 @@ import io.element.android.tests.testutils.consumeItemsUntilPredicate
 import io.element.android.tests.testutils.lambda.lambdaRecorder
 import io.element.android.tests.testutils.lambda.value
 import io.element.android.tests.testutils.test
+import io.element.android.tests.testutils.testCoroutineDispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.TestScope
@@ -1150,6 +1154,46 @@ class NotificationSettingsPresenterTest {
         }
     }
 
+    @Test
+    fun `present - showAllActivityInRoomList reflects the feature flag value`() = runTest {
+        val featureFlagService = FakeFeatureFlagService(
+            initialState = mapOf(ShowAllActivityInRoomListFeature.key to true)
+        )
+        val presenter = createNotificationSettingsPresenter(featureFlagService = featureFlagService)
+        presenter.test {
+            val state = consumeItemsUntilPredicate { it.showAllActivityInRoomList }.last()
+            assertThat(state.showAllActivityInRoomList).isTrue()
+            featureFlagService.setFeatureEnabled(ShowAllActivityInRoomListFeature, false)
+
+            val updatedState = consumeItemsUntilPredicate { !it.showAllActivityInRoomList }.last()
+            assertThat(updatedState.showAllActivityInRoomList).isFalse()
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `present - ToggleShowAllActivityInRoomList toggles the feature flag`() = runTest {
+        val featureFlagService = FakeFeatureFlagService(
+            initialState = mapOf(ShowAllActivityInRoomListFeature.key to false)
+        )
+        val presenter = createNotificationSettingsPresenter(featureFlagService = featureFlagService)
+        presenter.test {
+            val initialState = awaitItem()
+            assertThat(initialState.showAllActivityInRoomList).isFalse()
+            initialState.eventSink(NotificationSettingsEvent.ToggleShowAllActivityInRoomList(true))
+
+            val enabledState = consumeItemsUntilPredicate { it.showAllActivityInRoomList }.last()
+            assertThat(enabledState.showAllActivityInRoomList).isTrue()
+            assertThat(featureFlagService.isFeatureEnabled(ShowAllActivityInRoomListFeature)).isTrue()
+            enabledState.eventSink(NotificationSettingsEvent.ToggleShowAllActivityInRoomList(false))
+
+            val disabledState = consumeItemsUntilPredicate { !it.showAllActivityInRoomList }.last()
+            assertThat(disabledState.showAllActivityInRoomList).isFalse()
+            assertThat(featureFlagService.isFeatureEnabled(ShowAllActivityInRoomListFeature)).isFalse()
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
     private fun TestScope.createNotificationSettingsPresenter(
         notificationSettingsService: FakeNotificationSettingsService = FakeNotificationSettingsService(),
         pushService: PushService = FakePushService(),
@@ -1165,6 +1209,7 @@ class NotificationSettingsPresenterTest {
         selfPushStore: SelfPushStore = FakeSelfPushStore(),
         selfPushStreamStates: SelfPushStreamStates = SelfPushStreamStates(),
         buildMeta: BuildMeta = aBuildMeta(applicationId = SELF_APPLICATION_ID),
+        featureFlagService: FeatureFlagService = FakeFeatureFlagService(),
     ): NotificationSettingsPresenter {
         val matrixClient = FakeMatrixClient(notificationSettingsService = notificationSettingsService)
         return NotificationSettingsPresenter(
@@ -1183,6 +1228,8 @@ class NotificationSettingsPresenterTest {
             selfPushStreamStates = selfPushStreamStates,
             buildMeta = buildMeta,
             sessionCoroutineScope = backgroundScope,
+            featureFlagService = featureFlagService,
+            dispatchers = testCoroutineDispatchers(useUnconfinedTestDispatcher = true),
         )
     }
 

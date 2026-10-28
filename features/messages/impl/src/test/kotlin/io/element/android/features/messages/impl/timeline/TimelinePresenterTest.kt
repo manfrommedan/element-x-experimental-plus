@@ -33,7 +33,12 @@ import io.element.android.features.poll.api.actions.SendPollResponseAction
 import io.element.android.features.poll.test.actions.FakeEndPollAction
 import io.element.android.features.poll.test.actions.FakeSendPollResponseAction
 import io.element.android.features.roomcall.api.aStandByCallState
+import io.element.android.libraries.androidutils.clipboard.ClipboardHelper
+import io.element.android.libraries.androidutils.clipboard.FakeClipboardHelper
+import io.element.android.libraries.androidutils.toast.FakeToastHelper
+import io.element.android.libraries.androidutils.toast.ToastHelper
 import io.element.android.libraries.architecture.Presenter
+import io.element.android.libraries.designsystem.utils.snackbar.SnackbarDispatcher
 import io.element.android.libraries.featureflag.api.FeatureFlags
 import io.element.android.libraries.featureflag.test.FakeFeatureFlagService
 import io.element.android.libraries.matrix.api.core.EventId
@@ -75,6 +80,7 @@ import io.element.android.libraries.matrix.ui.components.aMatrixUserList
 import io.element.android.libraries.preferences.api.store.AppPreferencesStore
 import io.element.android.libraries.preferences.test.InMemoryAppPreferencesStore
 import io.element.android.libraries.preferences.test.InMemorySessionPreferencesStore
+import io.element.android.libraries.ui.strings.CommonStrings
 import io.element.android.services.analytics.test.FakeAnalyticsService
 import io.element.android.tests.testutils.WarmUpRule
 import io.element.android.tests.testutils.awaitLastSequentialItem
@@ -1548,6 +1554,38 @@ class TimelinePresenterTest {
     }
 
     @Test
+    fun `present - copy to clipboard on old device shows a toast`() = runTest {
+        val clipboardHelper = FakeClipboardHelper(isOldDevice = true)
+        val toastHelper = FakeToastHelper()
+        val presenter = createTimelinePresenter(
+            clipboardHelper = clipboardHelper,
+            toastHelper = toastHelper,
+        )
+        presenter.test {
+            awaitFirstItem().eventSink(TimelineEvent.CopyToClipboard("https://element.io"))
+            assertThat(clipboardHelper.clipboardContents).isEqualTo("https://element.io")
+            assertThat(toastHelper.shownToasts).containsExactly(CommonStrings.common_copied_to_clipboard)
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `present - copy to clipboard on new device does not show a toast`() = runTest {
+        val clipboardHelper = FakeClipboardHelper(isOldDevice = false)
+        val toastHelper = FakeToastHelper()
+        val presenter = createTimelinePresenter(
+            clipboardHelper = clipboardHelper,
+            toastHelper = toastHelper,
+        )
+        presenter.test {
+            awaitFirstItem().eventSink(TimelineEvent.CopyToClipboard("https://element.io"))
+            assertThat(clipboardHelper.clipboardContents).isEqualTo("https://element.io")
+            assertThat(toastHelper.shownToasts).isEmpty()
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
     fun `present - show shield hide shield`() = runTest {
         val presenter = createTimelinePresenter()
         val shield = aCriticalShield()
@@ -1904,6 +1942,8 @@ class TimelinePresenterTest {
         appPreferencesStore: AppPreferencesStore = InMemoryAppPreferencesStore(),
         timelineProtectionPresenter: Presenter<TimelineProtectionState> = { aTimelineProtectionState() },
         resolveVerifiedUserSendFailurePresenter: Presenter<ResolveVerifiedUserSendFailureState> = { aResolveVerifiedUserSendFailureState() },
+        clipboardHelper: ClipboardHelper = FakeClipboardHelper(),
+        toastHelper: ToastHelper = FakeToastHelper(),
     ): TimelinePresenter {
         return TimelinePresenter(
             timelineItemsFactoryCreator = aTimelineItemsFactoryCreator(),
@@ -1926,11 +1966,14 @@ class TimelinePresenterTest {
             typingNotificationPresenter = { aTypingNotificationState() },
             roomCallStatePresenter = { aStandByCallState() },
             featureFlagService = featureFlagService,
+            snackbarDispatcher = SnackbarDispatcher(),
             analyticsService = FakeAnalyticsService(),
             liveLocationShareManager = liveLocationShareManager,
             markAsFullyRead = markAsFullyRead,
             appPreferencesStore = appPreferencesStore,
             timelineProtectionPresenter = timelineProtectionPresenter,
+            clipboardHelper = clipboardHelper,
+            toastHelper = toastHelper,
         )
     }
 }

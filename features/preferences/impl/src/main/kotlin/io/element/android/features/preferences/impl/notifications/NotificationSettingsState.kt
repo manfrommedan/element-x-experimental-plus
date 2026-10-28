@@ -48,6 +48,10 @@ data class NotificationSettingsState(
      * is offered at all (the Labs flag is on). Null hides the row.
      */
     val selfPushEntry: SelfPushEntryState?,
+    /**
+     * Whether to show all activity indicators in the room list, using unread messages instead of notifications.
+     */
+    val showAllActivityInRoomList: Boolean,
     val eventSink: (NotificationSettingsEvent) -> Unit,
 ) {
     sealed interface MatrixSettings {

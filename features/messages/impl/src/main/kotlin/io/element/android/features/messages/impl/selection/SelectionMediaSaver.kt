@@ -58,6 +58,7 @@ class DefaultSelectionMediaSaver(
 private fun SavableMedia.toMediaInfo(): MediaInfo = MediaInfo(
     filename = filename,
     caption = null,
+    htmlCaption = null,
     mimeType = mimeType,
     fileSize = null,
     formattedFileSize = "",

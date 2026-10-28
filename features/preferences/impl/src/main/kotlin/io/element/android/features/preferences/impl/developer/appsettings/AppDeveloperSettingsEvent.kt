@@ -18,4 +18,5 @@ sealed interface AppDeveloperSettingsEvent {
     data class SetTracingLogLevel(val logLevel: LogLevelItem) : AppDeveloperSettingsEvent
     data class ToggleTracingLogPack(val logPack: TraceLogPack, val enabled: Boolean) : AppDeveloperSettingsEvent
     data class SetAppLanguage(val language: AppLanguageItem) : AppDeveloperSettingsEvent
+    data class CopyToClipboard(val text: String) : AppDeveloperSettingsEvent
 }

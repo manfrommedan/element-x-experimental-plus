@@ -45,8 +45,11 @@ import io.element.android.features.messages.impl.voicemessages.timeline.Redacted
 import io.element.android.features.poll.api.actions.EndPollAction
 import io.element.android.features.poll.api.actions.SendPollResponseAction
 import io.element.android.features.roomcall.api.RoomCallState
+import io.element.android.libraries.androidutils.clipboard.ClipboardHelper
+import io.element.android.libraries.androidutils.toast.ToastHelper
 import io.element.android.libraries.architecture.Presenter
 import io.element.android.libraries.core.coroutine.CoroutineDispatchers
+import io.element.android.libraries.designsystem.utils.snackbar.SnackbarDispatcher
 import io.element.android.libraries.di.annotations.SessionCoroutineScope
 import io.element.android.libraries.featureflag.api.FeatureFlagService
 import io.element.android.libraries.featureflag.api.FeatureFlags
@@ -61,6 +64,7 @@ import io.element.android.libraries.matrix.api.timeline.Timeline
 import io.element.android.libraries.matrix.api.timeline.item.event.LocalEventSendState
 import io.element.android.libraries.matrix.api.timeline.item.event.TimelineItemEventOrigin
 import io.element.android.libraries.preferences.api.store.SessionPreferencesStore
+import io.element.android.libraries.ui.strings.CommonStrings
 import io.element.android.services.analytics.api.AnalyticsLongRunningTransaction.DisplayFirstTimelineItems
 import io.element.android.services.analytics.api.AnalyticsLongRunningTransaction.NotificationToMessage
 import io.element.android.services.analytics.api.AnalyticsLongRunningTransaction.OpenRoom
@@ -102,12 +106,18 @@ class TimelinePresenter(
     private val typingNotificationPresenter: Presenter<TypingNotificationState>,
     private val roomCallStatePresenter: Presenter<RoomCallState>,
     private val featureFlagService: FeatureFlagService,
+    private val snackbarDispatcher: SnackbarDispatcher,
     private val analyticsService: AnalyticsService,
     private val liveLocationShareManager: ActiveLiveLocationShareManager,
     private val markAsFullyRead: MarkAsFullyRead,
     private val timelineProtectionPresenter: Presenter<TimelineProtectionState>,
+    private val clipboardHelper: ClipboardHelper,
+    private val toastHelper: ToastHelper,
 ) : Presenter<TimelineState> {
     private val tag = "TimelinePresenter"
+
+    // The fork's richer selection is owned by MessagesPresenter and is already cleared before forwarding.
+    fun exitSelectionMode() = Unit
 
     @AssistedFactory
     interface Factory {
@@ -266,6 +276,14 @@ class TimelinePresenter(
                 }
                 is TimelineEvent.ConsumeScrollToDate -> {
                     scrollToDateIndex.value = null
+                }
+                is TimelineEvent.EnterSelectionMode,
+                is TimelineEvent.ToggleSelection,
+                TimelineEvent.ExitSelectionMode -> Unit
+                is TimelineEvent.CopyToClipboard -> {
+                    clipboardHelper.copyPlainText(event.text) {
+                        toastHelper.show(CommonStrings.common_copied_to_clipboard)
+                    }
                 }
                 TimelineEvent.HideShieldDialog -> messageShieldDialogData.value = null
                 TimelineEvent.MarkAllAsRead -> sessionCoroutineScope.launch {
@@ -505,6 +523,7 @@ class TimelinePresenter(
             scrollToDateIndex = scrollToDateIndex.value,
             displayJumpToUnread = displayJumpToUnread,
             jumpToUnread = jumpToUnread.value,
+            selectionState = SelectionState.Disabled,
             useNewTimelineEventRenderer = useNewTimelineEventRenderer,
             eventSink = ::handleEvent,
         )

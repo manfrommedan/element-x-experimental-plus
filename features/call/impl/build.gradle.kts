@@ -90,10 +90,10 @@ dependencies {
     // Fork phone-voice Element Call, built from element-call-experimental-plus
     // (embedded/android AAR) instead of the stock upstream element-call-embedded.
     implementation(":element-call-embedded-plus@aar")
+    implementation(projects.features.callnative.api)
     api(projects.features.call.api)
 
     testCommonDependencies(libs, true)
-    testImplementation(projects.features.call.test)
     testImplementation(projects.libraries.featureflag.test)
     testImplementation(projects.libraries.preferences.test)
     testImplementation(projects.libraries.matrix.test)

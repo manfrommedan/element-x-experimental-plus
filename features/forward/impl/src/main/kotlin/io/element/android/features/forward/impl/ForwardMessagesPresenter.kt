@@ -28,16 +28,14 @@ import timber.log.Timber
 
 @AssistedInject
 class ForwardMessagesPresenter(
-    @Assisted eventIds: List<String>,
+    @Assisted private val eventIds: List<EventId>,
     @Assisted private val timelineProvider: TimelineProvider,
     @SessionCoroutineScope
     private val sessionCoroutineScope: CoroutineScope,
 ) : Presenter<ForwardMessagesState> {
-    private val eventIds: List<EventId> = eventIds.map(::EventId)
-
     @AssistedFactory
     fun interface Factory {
-        fun create(eventIds: List<String>, timelineProvider: TimelineProvider): ForwardMessagesPresenter
+        fun create(eventIds: List<EventId>, timelineProvider: TimelineProvider): ForwardMessagesPresenter
     }
 
     private val forwardingActionState: MutableState<AsyncAction<List<RoomId>>> = mutableStateOf(AsyncAction.Uninitialized)
@@ -65,19 +63,11 @@ class ForwardMessagesPresenter(
         roomIds: List<RoomId>,
     ) = launch {
         suspend {
-            val timeline = timelineProvider.getActiveTimeline()
-            var failures = 0
-            var lastError: Throwable? = null
-            for ((index, eventId) in eventIds.withIndex()) {
-                val result = timeline.forwardEvent(eventId, roomIds)
-                if (result.isFailure) {
-                    failures += 1
-                    lastError = result.exceptionOrNull()
-                    Timber.e(lastError, "Error forwarding event $eventId ($failures failed so far)")
+            timelineProvider.getActiveTimeline().forwardEvents(eventIds, roomIds)
+                .onFailure {
+                    Timber.e(it, "Error while forwarding events")
                 }
-                if (index < eventIds.lastIndex) kotlinx.coroutines.delay(150)
-            }
-            if (failures == eventIds.size && lastError != null) throw lastError
+                .getOrThrow()
             roomIds
         }.runCatchingUpdatingState(forwardingActionState)
     }

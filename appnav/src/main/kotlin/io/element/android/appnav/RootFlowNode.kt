@@ -8,8 +8,10 @@
 
 package io.element.android.appnav
 
+import android.app.Activity
 import android.content.Intent
 import android.os.Parcelable
+import androidx.activity.compose.LocalActivity
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
 import androidx.compose.runtime.Composable
@@ -41,10 +43,15 @@ import io.element.android.appnav.root.RootNavStateFlowFactory
 import io.element.android.appnav.root.RootPresenter
 import io.element.android.appnav.root.RootView
 import io.element.android.appnav.session.MatrixSessionCache
+import io.element.android.appnav.verification.IncomingVerificationRequestData
+import io.element.android.appnav.verification.IncomingVerificationRequestObserver
+import io.element.android.appnav.verification.OtherSessionIncomingVerificationNode
+import io.element.android.appnav.verification.OtherSessionVerificationNode
 import io.element.android.features.announcement.api.AnnouncementService
 import io.element.android.features.login.api.LoginParams
 import io.element.android.features.login.api.accesscontrol.AccountProviderAccessControl
 import io.element.android.features.rageshake.api.bugreport.BugReportEntryPoint
+import io.element.android.features.share.api.ShareEntryPoint
 import io.element.android.features.share.api.ShareIntentData
 import io.element.android.features.signedout.api.SignedOutEntryPoint
 import io.element.android.libraries.accountselect.api.AccountSelectEntryPoint
@@ -53,17 +60,20 @@ import io.element.android.libraries.architecture.BaseFlowNode
 import io.element.android.libraries.architecture.appyx.rememberDelegateTransitionHandler
 import io.element.android.libraries.architecture.createNode
 import io.element.android.libraries.architecture.waitForChildAttached
+import io.element.android.libraries.core.coroutine.withPreviousValue
 import io.element.android.libraries.deeplink.api.DeeplinkData
 import io.element.android.libraries.di.annotations.AppCoroutineScope
 import io.element.android.libraries.featureflag.api.FeatureFlagService
 import io.element.android.libraries.featureflag.api.FeatureFlags
 import io.element.android.libraries.matrix.api.accountprovider.AccountProvider
 import io.element.android.libraries.matrix.api.core.EventId
+import io.element.android.libraries.matrix.api.core.RoomId
 import io.element.android.libraries.matrix.api.core.SessionId
 import io.element.android.libraries.matrix.api.core.ThreadId
 import io.element.android.libraries.matrix.api.core.asEventId
 import io.element.android.libraries.matrix.api.core.toRoomIdOrAlias
 import io.element.android.libraries.matrix.api.permalink.PermalinkData
+import io.element.android.libraries.matrix.api.verification.VerificationRequest
 import io.element.android.libraries.oauth.api.OAuthAction
 import io.element.android.libraries.oauth.api.OAuthActionFlow
 import io.element.android.libraries.sessionstorage.api.LoggedInState
@@ -76,11 +86,16 @@ import io.element.android.services.appnavstate.api.ROOM_OPENED_FROM_NOTIFICATION
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.drop
+import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.launchIn
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.parcelize.Parcelize
 import timber.log.Timber
+import kotlin.time.Duration.Companion.seconds
 
 @ContributesNode(AppScope::class)
 @AssistedInject
@@ -101,6 +116,8 @@ class RootFlowNode(
     private val announcementService: AnnouncementService,
     private val analyticsService: AnalyticsService,
     private val analyticsColdStartWatcher: AnalyticsColdStartWatcher,
+    private val incomingVerificationRequestObserver: IncomingVerificationRequestObserver,
+    private val shareEntryPoint: ShareEntryPoint,
     @AppCoroutineScope private val appCoroutineScope: CoroutineScope,
 ) : BaseFlowNode<RootFlowNode.NavTarget>(
     backstack = BackStack(
@@ -116,6 +133,9 @@ class RootFlowNode(
      * login params, whatever the order in which the intent and the first nav state emission are processed.
      */
     private var pendingLoginParams: LoginParams? = null
+
+    // Used to close the dedicated share activity after the background send has been scheduled.
+    private var currentActivity: Activity? = null
 
     /**
      * True while the session is being restored and only an empty node is displayed.
@@ -134,6 +154,8 @@ class RootFlowNode(
                 observeNavState(false)
             }
         }
+        observeIncomingVerificationRequests()
+        observeRemovedSessions()
         super.onBuilt()
     }
 
@@ -209,7 +231,68 @@ class RootFlowNode(
 
     private fun switchToLoggedInFlow(sessionId: SessionId, navId: Int) {
         pendingLoginParams = null
-        backstack.safeRoot(NavTarget.LoggedInFlow(sessionId, navId))
+        setRoot(NavTarget.LoggedInFlow(sessionId, navId))
+        restoreAllSessions()
+    }
+
+    /**
+     * Restore all the sessions with a valid token, so that they sync and can receive incoming verification requests.
+     */
+    private fun restoreAllSessions() = lifecycleScope.launch {
+        sessionStore.getAllSessions()
+            .filter { it.isTokenValid }
+            .forEach { sessionData ->
+                matrixSessionCache.getOrRestore(SessionId(sessionData.userId)).onFailure {
+                    Timber.e(it, "Failed to restore session ${sessionData.userId}")
+                }
+            }
+    }
+
+    /**
+     * Remove from the cache the sessions which have been removed from the session store, for instance after a logout.
+     */
+    private fun observeRemovedSessions() {
+        sessionStore.sessionsFlow()
+            .map { sessions -> sessions.map { SessionId(it.userId) }.toSet() }
+            .withPreviousValue()
+            .onEach { (previous, current) ->
+                (previous.orEmpty() - current).forEach { sessionId ->
+                    // The verification of a removed session cannot continue, for instance if the user has signed out from it
+                    backstack.removeLast(NavTarget.OtherAccountSessionVerification(sessionId))
+                    Timber.d("Session $sessionId removed, remove it from the cache")
+                    matrixSessionCache.remove(sessionId)
+                }
+            }
+            .launchIn(lifecycleScope)
+    }
+
+    private fun observeIncomingVerificationRequests() {
+        incomingVerificationRequestObserver.incomingVerificationRequests()
+            .onEach(::onIncomingVerificationRequest)
+            .launchIn(lifecycleScope)
+    }
+
+    private fun onIncomingVerificationRequest(data: IncomingVerificationRequestData) = lifecycleScope.launch {
+        // Wait for a logged in flow to be displayed
+        val currentSessionId = withTimeoutOrNull(5.seconds) {
+            backstack.elements.map { elements ->
+                elements.firstNotNullOfOrNull { (it.key.navTarget as? NavTarget.LoggedInFlow)?.sessionId }
+            }.filterNotNull().first()
+        }
+        if (currentSessionId == null) {
+            Timber.w("Incoming verification request ${data.verificationRequest.details.flowId} discarded, no logged in flow.")
+            return@launch
+        }
+        if (currentSessionId == data.sessionId) {
+            waitForChildAttached<LoggedInAppScopeFlowNode, NavTarget> { navTarget ->
+                navTarget is NavTarget.LoggedInFlow && navTarget.sessionId == currentSessionId
+            }
+                .attachSession()
+                .onIncomingVerificationRequest(data.verificationRequest)
+        } else {
+            // Display the request on top of the current session, without switching session
+            backstack.push(NavTarget.OtherAccountIncomingVerificationRequest(data.sessionId, data.verificationRequest))
+        }
     }
 
     private fun switchToNotLoggedInFlow(params: LoginParams?) {
@@ -220,7 +303,20 @@ class RootFlowNode(
 
     private fun switchToSignedOutFlow(sessionId: SessionId) {
         pendingLoginParams = null
-        backstack.safeRoot(NavTarget.SignedOutFlow(sessionId))
+        setRoot(NavTarget.SignedOutFlow(sessionId))
+    }
+
+    /**
+     * Set the root of the backstack. If an incoming share is displayed, keep it on top of the new root, so that the user can
+     * finish sharing, for instance with another account if the current one has been signed out.
+     */
+    private fun setRoot(navTarget: NavTarget) {
+        val hasIncomingShare = backstack.elements.value.any { it.key.navTarget is NavTarget.IncomingShare }
+        if (hasIncomingShare) {
+            backstack.replaceRoot(navTarget)
+        } else {
+            backstack.safeRoot(navTarget)
+        }
     }
 
     private suspend fun restoreSessionIfNeeded(
@@ -254,6 +350,7 @@ class RootFlowNode(
 
     @Composable
     override fun View(modifier: Modifier) {
+        currentActivity = LocalActivity.current
         val state = presenter.present()
         RootView(
             state = state,
@@ -284,8 +381,7 @@ class RootFlowNode(
 
         @Parcelize data class AccountSelect(
             val currentSessionId: SessionId,
-            val shareIntentData: ShareIntentData?,
-            val permalinkData: PermalinkData?,
+            val permalinkData: PermalinkData,
         ) : NavTarget
 
         @Parcelize data class NotLoggedInFlow(
@@ -301,6 +397,20 @@ class RootFlowNode(
         ) : NavTarget
 
         @Parcelize data object BugReport : NavTarget
+
+        @Parcelize data class IncomingShare(
+            val sessionId: SessionId,
+            val shareIntentData: ShareIntentData,
+        ) : NavTarget
+
+        @Parcelize data class OtherAccountIncomingVerificationRequest(
+            val sessionId: SessionId,
+            val verificationRequest: VerificationRequest.Incoming,
+        ) : NavTarget
+
+        @Parcelize data class OtherAccountSessionVerification(
+            val sessionId: SessionId,
+        ) : NavTarget
     }
 
     override fun resolve(navTarget: NavTarget, buildContext: BuildContext): Node {
@@ -318,6 +428,12 @@ class RootFlowNode(
 
                     override fun navigateToAddAccount() {
                         backstack.push(NavTarget.NotLoggedInFlow(null))
+                    }
+
+                    override fun navigateToSession(sessionId: SessionId) {
+                        lifecycleScope.launch {
+                            sessionStore.setLatestSession(sessionId.value)
+                        }
                     }
                 }
                 val savedNavState = extractSavedStateForNavTarget(navTarget, this.buildContext.savedStateMap)
@@ -355,6 +471,83 @@ class RootFlowNode(
                 )
             }
             NavTarget.SplashScreen -> emptyNode(buildContext)
+            is NavTarget.OtherAccountIncomingVerificationRequest -> {
+                if (matrixSessionCache.getOrNull(navTarget.sessionId) == null) {
+                    Timber.w("Couldn't find session ${navTarget.sessionId} for the incoming verification request")
+                    lifecycleScope.launch { backstack.pop() }
+                    return emptyNode(buildContext)
+                }
+                val inputs = OtherSessionIncomingVerificationNode.Inputs(
+                    sessionId = navTarget.sessionId,
+                    verificationRequest = navTarget.verificationRequest,
+                )
+                val callback = object : OtherSessionIncomingVerificationNode.Callback {
+                    override fun onDone() {
+                        backstack.pop()
+                    }
+                }
+                createNode<OtherSessionIncomingVerificationNode>(buildContext, plugins = listOf(inputs, callback))
+            }
+            is NavTarget.OtherAccountSessionVerification -> {
+                if (matrixSessionCache.getOrNull(navTarget.sessionId) == null) {
+                    Timber.w("Couldn't find session ${navTarget.sessionId} to verify")
+                    lifecycleScope.launch { backstack.pop() }
+                    return emptyNode(buildContext)
+                }
+                val inputs = OtherSessionVerificationNode.Inputs(sessionId = navTarget.sessionId)
+                val callback = object : OtherSessionVerificationNode.Callback {
+                    override fun onDone() {
+                        backstack.pop()
+                    }
+                }
+                createNode<OtherSessionVerificationNode>(buildContext, plugins = listOf(inputs, callback))
+            }
+            is NavTarget.IncomingShare -> {
+                val callback = object : ShareEntryPoint.Callback {
+                    override fun onDone(sessionId: SessionId, roomIds: List<RoomId>) {
+                        // Remove the incoming share screen
+                        backstack.pop()
+                        val activity = currentActivity
+                        val isShareActivity = activity != null && (
+                            activity.javaClass.simpleName == "IncomingShareActivity" ||
+                                activity.intent?.action == Intent.ACTION_SEND ||
+                                activity.intent?.action == Intent.ACTION_SEND_MULTIPLE
+                            )
+                        if (isShareActivity && activity != null) {
+                            activity.finishAndRemoveTask()
+                            return
+                        }
+                        lifecycleScope.launch {
+                            // Switch to the session which has been used to share the data, if necessary,
+                            // and navigate to the room if the data was shared to a single one.
+                            val loggedInFlowNode = attachSession(sessionId)
+                            roomIds.singleOrNull()?.let { roomId ->
+                                loggedInFlowNode.attachRoom(roomId.toRoomIdOrAlias(), clearBackstack = false)
+                            }
+                        }
+                    }
+
+                    override fun onCancel() {
+                        backstack.pop()
+                    }
+
+                    override fun onSessionVerificationRequired(sessionId: SessionId) {
+                        val navTarget = NavTarget.OtherAccountSessionVerification(sessionId)
+                        if (backstack.elements.value.lastOrNull()?.key?.navTarget != navTarget) {
+                            backstack.push(navTarget)
+                        }
+                    }
+                }
+                shareEntryPoint.createNode(
+                    parentNode = this,
+                    buildContext = buildContext,
+                    params = ShareEntryPoint.Params(
+                        sessionId = navTarget.sessionId,
+                        shareIntentData = navTarget.shareIntentData,
+                    ),
+                    callback = callback,
+                )
+            }
             NavTarget.BugReport -> {
                 val callback = object : BugReportEntryPoint.Callback {
                     override fun onDone() {
@@ -376,13 +569,7 @@ class RootFlowNode(
                                 // Do not pop when the account is changed to avoid a UI flicker.
                                 backstack.pop()
                             }
-                            attachSession(sessionId).apply {
-                                if (navTarget.shareIntentData != null) {
-                                    attachIncomingShare(navTarget.shareIntentData)
-                                } else if (navTarget.permalinkData != null) {
-                                    attachPermalinkData(navTarget.permalinkData)
-                                }
-                            }
+                            attachSession(sessionId).attachPermalinkData(navTarget.permalinkData)
                         }
                     }
 
@@ -452,21 +639,12 @@ class RootFlowNode(
             // No session, open login
             switchToNotLoggedInFlow(null)
         } else {
-            // wait for the current session to be restored
-            val loggedInFlowNode = attachSession(latestSessionId)
-            if (sessionStore.numberOfSessions() > 1) {
-                // Several accounts, let the user choose which one to use
-                backstack.push(
-                    NavTarget.AccountSelect(
-                        currentSessionId = latestSessionId,
-                        shareIntentData = shareIntentData,
-                        permalinkData = null,
-                    )
-                )
-            } else {
-                // Only one account, directly attach the incoming share node.
-                loggedInFlowNode.attachIncomingShare(shareIntentData)
-            }
+            // Wait for the current session to be restored and for the FTUE to be complete, so that the session is verified,
+            // then display the incoming share on top of it.
+            // The incoming share does not belong to the current session: in case of multiple accounts, the user can switch account
+            // from the room select screen, and the share is kept if the current session is signed out in the meantime.
+            attachSession(latestSessionId).waitForHome()
+            backstack.push(NavTarget.IncomingShare(latestSessionId, shareIntentData))
         }
     }
 
@@ -489,7 +667,6 @@ class RootFlowNode(
                         backstack.push(
                             NavTarget.AccountSelect(
                                 currentSessionId = latestSessionId,
-                                shareIntentData = null,
                                 permalinkData = permalinkData,
                             )
                         )

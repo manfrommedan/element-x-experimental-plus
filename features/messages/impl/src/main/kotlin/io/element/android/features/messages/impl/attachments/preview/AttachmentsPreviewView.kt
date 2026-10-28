@@ -9,6 +9,7 @@
 package io.element.android.features.messages.impl.attachments.preview
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -319,6 +320,7 @@ private fun AttachmentSendStateView(
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun AttachmentPreviewContent(
     state: AttachmentsPreviewState,

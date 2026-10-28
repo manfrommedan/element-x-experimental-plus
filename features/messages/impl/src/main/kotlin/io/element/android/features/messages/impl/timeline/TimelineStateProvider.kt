@@ -64,6 +64,7 @@ fun aTimelineState(
     displayJumpToUnread: Boolean = false,
     jumpToUnread: JumpToUnreadState = JumpToUnreadState.Hidden,
     newEventState: NewEventState = NewEventState.None,
+    selectionState: SelectionState = SelectionState.Disabled,
     useNewTimelineEventRenderer: Boolean = false,
     eventSink: (TimelineEvent) -> Unit = {},
 ): TimelineState {
@@ -87,6 +88,7 @@ fun aTimelineState(
         scrollToDateIndex = scrollToDateIndex,
         displayJumpToUnread = displayJumpToUnread,
         jumpToUnread = jumpToUnread,
+        selectionState = selectionState,
         useNewTimelineEventRenderer = useNewTimelineEventRenderer,
         eventSink = eventSink,
     )
@@ -160,6 +162,8 @@ internal fun aTimelineItemEvent(
     content: TimelineItemEventContent = aTimelineItemTextContent(),
     groupPosition: TimelineItemGroupPosition = TimelineItemGroupPosition.None,
     sendState: LocalEventSendState? = null,
+    editSendState: LocalEventSendState? = null,
+    redactionSendState: LocalEventSendState? = null,
     inReplyTo: InReplyToDetails? = null,
     threadInfo: TimelineItemThreadInfo? = null,
     debugInfo: TimelineItemDebugInfo = aTimelineItemDebugInfo(),
@@ -186,6 +190,8 @@ internal fun aTimelineItemEvent(
         ),
         groupPosition = groupPosition,
         localSendState = sendState,
+        editSendState = editSendState,
+        redactionSendState = redactionSendState,
         inReplyTo = inReplyTo,
         threadInfo = threadInfo,
         origin = null,

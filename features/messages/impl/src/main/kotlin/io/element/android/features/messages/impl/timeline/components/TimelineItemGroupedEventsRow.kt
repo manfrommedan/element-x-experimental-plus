@@ -29,6 +29,7 @@ import io.element.android.features.messages.impl.timeline.components.receipt.Tim
 import io.element.android.features.messages.impl.timeline.groups.isRedactedMessagesGroup
 import io.element.android.features.messages.impl.timeline.groups.redactedSendersSummary
 import io.element.android.features.messages.impl.timeline.model.TimelineItem
+import io.element.android.features.messages.impl.timeline.model.TimelineItemSelectionData
 import io.element.android.features.messages.impl.timeline.protection.TimelineProtectionState
 import io.element.android.features.messages.impl.timeline.protection.aTimelineProtectionState
 import io.element.android.libraries.designsystem.components.avatar.AvatarData
@@ -229,6 +230,7 @@ private fun TimelineItemGroupedEventsRowContent(
                         onSwipeToReply = {},
                         eventSink = eventSink,
                         eventContentView = eventContentView,
+                        selectionData = TimelineItemSelectionData(),
                     )
                 }
             }

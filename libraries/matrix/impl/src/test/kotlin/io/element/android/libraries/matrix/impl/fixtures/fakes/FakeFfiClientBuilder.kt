@@ -51,7 +51,7 @@ class FakeFfiClientBuilder(
     override fun inMemoryStore(): ClientBuilder = this
     override fun crossProcessLockConfig(crossProcessLockConfig: CrossProcessLockConfig): ClientBuilder = this
     override fun dmRoomDefinition(dmRoomDefinition: DmRoomDefinition): ClientBuilder = this
-    override fun withSearchIndexStore(path: String, password: String?): ClientBuilder {
+    override fun withSearchIndexStore(path: String, key: String?): ClientBuilder {
         // The real SDK creates the index directory when the client is built; tests that assert on
         // the coverage bookkeeping rely on that side effect.
         File(path).mkdirs()

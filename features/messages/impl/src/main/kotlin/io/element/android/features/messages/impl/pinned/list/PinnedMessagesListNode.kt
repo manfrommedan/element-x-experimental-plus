@@ -15,7 +15,6 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
-import androidx.compose.ui.res.stringResource
 import com.bumble.appyx.core.modality.BuildContext
 import com.bumble.appyx.core.node.Node
 import com.bumble.appyx.core.plugin.Plugin
@@ -29,8 +28,9 @@ import io.element.android.features.messages.impl.timeline.model.TimelineItem
 import io.element.android.features.messages.impl.urlpreview.LocalPermalinkParser
 import io.element.android.features.messages.impl.urlpreview.LocalUrlPreviewService
 import io.element.android.features.messages.impl.urlpreview.UrlPreviewService
-import io.element.android.libraries.androidutils.system.copyToClipboard
+import io.element.android.libraries.androidutils.clipboard.ClipboardHelper
 import io.element.android.libraries.androidutils.system.openUrlInExternalApp
+import io.element.android.libraries.androidutils.toast.ToastHelper
 import io.element.android.libraries.architecture.callback
 import io.element.android.libraries.di.RoomScope
 import io.element.android.libraries.emoji.api.picker.EmojiPickerRenderer
@@ -57,6 +57,8 @@ class PinnedMessagesListNode(
     private val urlPreviewService: UrlPreviewService,
     private val permalinkParser: PermalinkParser,
     private val emojiPickerRenderer: EmojiPickerRenderer,
+    private val clipboardHelper: ClipboardHelper,
+    private val toastHelper: ToastHelper,
 ) : Node(buildContext, plugins = plugins), PinnedMessagesListNavigator {
     interface Callback : Plugin {
         fun handleEventClick(event: TimelineItem.Event, canUseOverlay: Boolean)
@@ -120,7 +122,6 @@ class PinnedMessagesListNode(
             LocalPermalinkParser provides permalinkParser,
         ) {
             val context = LocalContext.current
-            val toastMessage = stringResource(CommonStrings.common_copied_to_clipboard)
             val view = LocalView.current
             val state = presenter.present()
             PinnedMessagesListView(
@@ -138,10 +139,9 @@ class PinnedMessagesListNode(
                     view.performHapticFeedback(
                         HapticFeedbackConstants.LONG_PRESS
                     )
-                    context.copyToClipboard(
-                        text = it.url,
-                        toastMessage = toastMessage,
-                    )
+                    clipboardHelper.copyPlainText(it.url) {
+                        toastHelper.show(CommonStrings.common_copied_to_clipboard)
+                    }
                 },
                 emojiPickerRenderer = emojiPickerRenderer,
                 modifier = modifier
