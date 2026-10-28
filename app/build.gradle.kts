@@ -401,6 +401,8 @@ licensee {
     ignoreDependencies("com.github.matrix-org", "matrix-analytics-events")
     // Ignore dependency that are not third-party licenses to us.
     ignoreDependencies(groupId = "io.element.android")
+    // The upstream AAR has no POM license metadata; rustls-platform-verifier is Apache-2.0/MIT.
+    ignoreDependencies("org.rustls", "rustls-platform-verifier")
 }
 
 fun Project.configureLicensesTasks(reportingExtension: ReportingExtension) {
