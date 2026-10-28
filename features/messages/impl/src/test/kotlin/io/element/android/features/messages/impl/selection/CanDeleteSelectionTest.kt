@@ -49,9 +49,9 @@ class CanDeleteSelectionTest {
     }
 
     @Test
-    fun `window-evicted selected id does not force-disable`() {
-        // \$2 is selected but not present in the loaded timeline items - it must not disable Delete.
+    fun `window-evicted selected id disables delete`() {
+        // \$2 is selected but unavailable, so Delete would otherwise silently no-op.
         val items = listOf(aTimelineItemEvent(eventId = EventId("\$1"), isMine = true))
-        assertThat(canDeleteSelection(items, setOf(EventId("\$1"), EventId("\$2")), redactOwnOnly)).isTrue()
+        assertThat(canDeleteSelection(items, setOf(EventId("\$1"), EventId("\$2")), redactOwnOnly)).isFalse()
     }
 }

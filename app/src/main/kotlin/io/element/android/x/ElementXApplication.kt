@@ -9,6 +9,7 @@
 package io.element.android.x
 
 import android.app.Application
+import android.os.StrictMode
 import androidx.compose.material3.ComposeMaterial3Flags.isAnchoredDraggableComponentsStrictOffsetCheckEnabled
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.startup.AppInitializer
@@ -57,6 +58,9 @@ class ElementXApplication : Application(), DependencyInjectionGraphOwner, Config
         }
         MxtrHttpProxy.start(this)
         MxtrWebViewProxy.applyGlobally(this)
+
+        enableStrictMode()
+
         AppInitializer.getInstance(this).apply {
             initializeComponent(CrashInitializer::class.java)
             initializeComponent(PlatformInitializer::class.java)
@@ -69,5 +73,17 @@ class ElementXApplication : Application(), DependencyInjectionGraphOwner, Config
         // Disable the strict offset check for anchored draggable components, as it can cause issues with bottom sheets.
         // Remove once https://issuetracker.google.com/issues/477038695 is fixed.
         isAnchoredDraggableComponentsStrictOffsetCheckEnabled = false
+    }
+
+    private fun enableStrictMode() {
+        // Workaround to avoid NetworkOnMainThreadException when using the network on the main thread.
+        // This is a temporary solution to rustls doing the certificate verification using blocking network requests.
+        // It should be removed once the underlying issue is fixed.
+        StrictMode.setThreadPolicy(
+            StrictMode.ThreadPolicy.Builder()
+                .detectNetwork()
+                .penaltyLog()
+                .build()
+        )
     }
 }

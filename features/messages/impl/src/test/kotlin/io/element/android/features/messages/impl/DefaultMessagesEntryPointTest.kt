@@ -90,7 +90,6 @@ class DefaultMessagesEntryPointTest {
                 knockRequestsListEntryPoint = FakeKnockRequestsListEntryPoint(),
                 dateFormatter = FakeDateFormatter(),
                 coroutineDispatchers = testCoroutineDispatchers(),
-                context = org.robolectric.RuntimeEnvironment.getApplication(),
                 hasVulkanSupport = DeviceHasVulkanSupport(mockk(relaxed = true))
             )
         }

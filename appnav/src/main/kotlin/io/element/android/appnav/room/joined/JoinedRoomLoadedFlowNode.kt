@@ -87,7 +87,7 @@ class JoinedRoomLoadedFlowNode(
         fun handlePermalinkClick(data: PermalinkData, pushToBackstack: Boolean)
         fun navigateToGlobalNotificationSettings()
         fun navigateToDeveloperSettings()
-        fun navigateToMessageSearch(roomId: RoomId)
+        fun navigateToMessageSearch()
     }
 
     data class Inputs(
@@ -169,7 +169,7 @@ class JoinedRoomLoadedFlowNode(
             }
 
             override fun navigateToMessageSearch() {
-                callback.navigateToMessageSearch(inputs.room.roomId)
+                callback.navigateToMessageSearch()
             }
         }
         return roomDetailsEntryPoint.createNode(
@@ -206,7 +206,11 @@ class JoinedRoomLoadedFlowNode(
                 } else {
                     (graph as TimelineBindings).timelineProvider
                 }
-                val params = ForwardEntryPoint.Params(listOf(navTarget.eventId), timelineProvider)
+                val params = ForwardEntryPoint.Params(
+                    eventIds = listOf(navTarget.eventId),
+                    timelineProvider = timelineProvider,
+                    fromRoomId = inputs.room.roomId,
+                )
                 val callback = object : ForwardEntryPoint.Callback {
                     override fun onDone(roomIds: List<RoomId>) {
                         backstack.pop()
@@ -273,9 +277,7 @@ class JoinedRoomLoadedFlowNode(
             }
 
             override fun navigateToMessageSearch() {
-                // Pushed on the session backstack rather than this room's, so that tapping a
-                // result can re-attach the room focused on the matching event.
-                callback.navigateToMessageSearch(inputs.room.roomId)
+                callback.navigateToMessageSearch()
             }
         }
         val params = MessagesEntryPoint.Params(

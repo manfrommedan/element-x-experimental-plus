@@ -19,10 +19,13 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.v2.runAndroidComposeUiTest
+import com.google.common.truth.Truth.assertThat
+import io.element.android.features.home.impl.HomeEvent
 import io.element.android.features.home.impl.HomeView
 import io.element.android.features.home.impl.R
 import io.element.android.features.home.impl.aHomeState
 import io.element.android.features.home.impl.components.RoomListMenuAction
+import io.element.android.features.home.impl.components.visibleRangeToRoomsRange
 import io.element.android.features.home.impl.model.RoomListRoomSummary
 import io.element.android.features.home.impl.model.RoomSummaryDisplayType
 import io.element.android.libraries.matrix.api.core.RoomId
@@ -50,11 +53,48 @@ class RoomListViewTest : RobolectricTest() {
             )
         )
 
+        // The banner is not included in the range, only the rooms are
         eventsRecorder.assertList(
             listOf(
-                RoomListEvent.UpdateVisibleRange(0..5),
+                RoomListEvent.UpdateVisibleRange(0..4),
             )
         )
+    }
+
+    @Test
+    fun `visible range accounts for the favorites header and spacer`() {
+        val result = visibleRangeToRoomsRange(
+            first = 2,
+            last = 5,
+            firstRoomIndex = 2,
+            spacerIndex = 4,
+        )
+
+        assertThat(result).isEqualTo(0..<3)
+    }
+
+    @Test
+    fun `visible range starting at the favorites spacer starts at the next room`() {
+        val result = visibleRangeToRoomsRange(
+            first = 4,
+            last = 5,
+            firstRoomIndex = 2,
+            spacerIndex = 4,
+        )
+
+        assertThat(result).isEqualTo(2..<3)
+    }
+
+    @Test
+    fun `visible range without favorites section only excludes the banner`() {
+        val result = visibleRangeToRoomsRange(
+            first = 1,
+            last = 5,
+            firstRoomIndex = 1,
+            spacerIndex = Int.MAX_VALUE,
+        )
+
+        assertThat(result).isEqualTo(0..<5)
     }
 
     @Test
@@ -63,12 +103,14 @@ class RoomListViewTest : RobolectricTest() {
         setRoomListView(
             state = aRoomListState(
                 contentState = aRoomsContentState(securityBannerState = SecurityBannerState.RecoveryKeyConfirmation),
-                eventSink = eventsRecorder,
+                // Ignore the visible range updates, which are also emitted when the banner is shrinking
+                eventSink = { event ->
+                    if (event !is RoomListEvent.UpdateVisibleRange) {
+                        eventsRecorder(event)
+                    }
+                },
             )
         )
-
-        // Remove automatic initial events
-        eventsRecorder.clear()
 
         val close = activity!!.getString(CommonStrings.action_close)
         onNodeWithContentDescription(close).performClick()
@@ -81,16 +123,39 @@ class RoomListViewTest : RobolectricTest() {
         setRoomListView(
             state = aRoomListState(
                 contentState = aRoomsContentState(securityBannerState = SecurityBannerState.SetUpRecovery),
-                eventSink = eventsRecorder,
+                // Ignore the visible range updates, which are also emitted when the banner is shrinking
+                eventSink = { event ->
+                    if (event !is RoomListEvent.UpdateVisibleRange) {
+                        eventsRecorder(event)
+                    }
+                },
             )
         )
-
-        // Remove automatic initial events
-        eventsRecorder.clear()
 
         val close = activity!!.getString(CommonStrings.action_close)
         onNodeWithContentDescription(close).performClick()
         eventsRecorder.assertSingle(RoomListEvent.DismissBanner)
+    }
+
+    @Test
+    fun `clicking on close swipe avatar banner emits the expected Event`() = runAndroidComposeUiTest {
+        val eventsRecorder = EventsRecorder<RoomListEvent>()
+        setRoomListView(
+            state = aRoomListState(
+                contentState = aRoomsContentState(showSwipeAvatarBanner = true),
+                // Ignore the visible range updates, which are also emitted when the banner is shrinking
+                eventSink = { event ->
+                    if (event !is RoomListEvent.UpdateVisibleRange) {
+                        eventsRecorder(event)
+                    }
+                },
+            )
+        )
+
+        eventsRecorder.assertEmpty()
+        val close = activity!!.getString(CommonStrings.action_close)
+        onNodeWithContentDescription(close).performClick()
+        eventsRecorder.assertSingle(RoomListEvent.DismissSwipeAvatarBanner)
     }
 
     @Test
@@ -259,6 +324,23 @@ class RoomListViewTest : RobolectricTest() {
             )
         )
     }
+
+    @Test
+    fun `clicking on add account in the multi-account announcement emits the expected Event and invokes the callback`() = runAndroidComposeUiTest {
+        val eventsRecorder = EventsRecorder<HomeEvent>()
+        ensureCalledOnce { callback ->
+            setRoomListView(
+                state = aRoomListState(),
+                showMultiAccountAnnouncement = true,
+                homeEventSink = eventsRecorder,
+                onAddAccountClick = callback,
+            )
+            clickOn(R.string.screen_multi_account_announcement_action)
+            // Wait for the bottom sheet to be hidden
+            waitForIdle()
+        }
+        eventsRecorder.assertSingle(HomeEvent.DismissMultiAccountAnnouncement)
+    }
 }
 
 private fun AndroidComposeUiTest<ComponentActivity>.setRoomListView(
@@ -273,12 +355,21 @@ private fun AndroidComposeUiTest<ComponentActivity>.setRoomListView(
     onMenuActionClick: (RoomListMenuAction) -> Unit = EnsureNeverCalledWithParam(),
     onReportRoomClick: (RoomId) -> Unit = EnsureNeverCalledWithParam(),
     onDeclineInviteAndBlockUser: (RoomListRoomSummary) -> Unit = EnsureNeverCalledWithParam(),
+    onAddAccountClick: () -> Unit = EnsureNeverCalled(),
+    showMultiAccountAnnouncement: Boolean = false,
+    homeEventSink: (HomeEvent) -> Unit = {},
 ) {
     setSafeContent {
         HomeView(
-            homeState = aHomeState(roomListState = state),
+            homeState = aHomeState(
+                roomListState = state,
+                showMultiAccountAnnouncement = showMultiAccountAnnouncement,
+                eventSink = homeEventSink,
+            ),
             onRoomClick = { roomId, _ -> onRoomClick(roomId) },
             onSettingsClick = onSettingsClick,
+            onAddAccountClick = onAddAccountClick,
+            onSwitchToAccount = EnsureNeverCalledWithParam(),
             onSetUpRecoveryClick = onSetUpRecoveryClick,
             onConfirmRecoveryKeyClick = onConfirmRecoveryKeyClick,
             onStartChatClick = onCreateRoomClick,

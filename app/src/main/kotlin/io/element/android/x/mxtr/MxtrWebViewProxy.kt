@@ -52,7 +52,6 @@ object MxtrWebViewProxy {
             .addBypassRule("169.254.0.0/16")
             .addBypassRule("fd00::/8")
             .addBypassRule("fe80::/10")
-            .addDirect() // fallback if local proxy unreachable
             .build()
         ProxyController.getInstance().setProxyOverride(config, executor) {
             Timber.tag(TAG).i("WebView proxy set to %s", proxy)

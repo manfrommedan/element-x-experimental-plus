@@ -152,7 +152,7 @@ class MessageSearchPresenter(
                     // any one of them could be the one holding this room's hits. A list that
                     // already has rows pulls only while the user is looking at the end of it.
                     val roomScopedAndEmpty = roomId != null &&
-                        messageSearch.results.value.isEmpty() &&
+                        messageSearch.results.value.none { it.content !is RedactedContent } &&
                         sweptPages < MAX_ROOM_SCOPED_SWEEP_PAGES
                     if (roomScopedAndEmpty) sweptPages++
                     val shouldPaginate = !idle.endReached && (roomScopedAndEmpty || isListEndVisible)

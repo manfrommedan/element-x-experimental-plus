@@ -91,7 +91,6 @@ import io.element.android.libraries.matrix.test.A_TRANSACTION_ID
 import io.element.android.libraries.matrix.test.A_USER_ID
 import io.element.android.libraries.matrix.test.A_USER_ID_2
 import io.element.android.libraries.matrix.test.FakeMatrixClient
-import io.element.android.libraries.matrix.test.core.FakeSendHandle
 import io.element.android.libraries.matrix.test.core.aBuildMeta
 import io.element.android.libraries.matrix.test.encryption.FakeEncryptionService
 import io.element.android.libraries.matrix.test.permalink.FakePermalinkParser
@@ -318,7 +317,7 @@ class MessagesPresenterTest {
 
     @Test
     fun `present - handle action forward`() = runTest {
-        val onForwardEventClickLambda = lambdaRecorder<EventId, TimelineProvider, Unit> { _, _ -> }
+        val onForwardEventClickLambda = lambdaRecorder<List<EventId>, TimelineProvider, Unit> { _, _ -> }
         val navigator = FakeMessagesNavigator(
             onForwardEventClickLambda = onForwardEventClickLambda,
         )
@@ -327,7 +326,7 @@ class MessagesPresenterTest {
             val initialState = awaitItem()
             initialState.eventSink(MessagesEvent.HandleAction(TimelineItemAction.Forward, aMessageEvent()))
             assertThat(awaitItem().actionListState.target).isEqualTo(ActionListState.Target.None)
-            onForwardEventClickLambda.assertions().isCalledOnce().with(value(AN_EVENT_ID), any())
+            onForwardEventClickLambda.assertions().isCalledOnce().with(value(listOf(AN_EVENT_ID)), any())
         }
     }
 
@@ -648,24 +647,24 @@ class MessagesPresenterTest {
     }
 
     @Test
-    fun `present - handle action redact - a message which was never sent is redacted without asking`() = runTest {
+    fun `present - handle action redact - a message which was never sent is removed from the send queue without asking`() = runTest {
         val coroutineDispatchers = testCoroutineDispatchers(useUnconfinedTestDispatcher = true)
-        val liveTimeline = FakeTimeline()
-        val redactEventLambda = lambdaRecorder { _: EventOrTransactionId, _: String? -> Result.success(Unit) }
-        liveTimeline.redactEventLambda = redactEventLambda
+        val abortSendLambda = lambdaRecorder { _: EventOrTransactionId -> Result.success(true) }
         val presenter = createMessagesPresenter(
-            timeline = liveTimeline,
+            timeline = FakeTimeline(abortSendResult = abortSendLambda),
             coroutineDispatchers = coroutineDispatchers,
         )
         presenter.testWithLifecycleOwner {
             val initialState = awaitItem()
-            val localEcho = aMessageEvent(eventId = null, transactionId = A_TRANSACTION_ID)
+            val localEcho = aMessageEvent(
+                eventId = null,
+                transactionId = A_TRANSACTION_ID,
+                sendState = LocalEventSendState.Failed.Unknown("Error"),
+            )
             initialState.eventSink(MessagesEvent.HandleAction(TimelineItemAction.Redact, localEcho))
             advanceUntilIdle()
             assertThat(expectMostRecentItem().redactEventAction).isEqualTo(AsyncAction.Uninitialized)
-            assert(redactEventLambda)
-                .isCalledOnce()
-                .with(value(localEcho.eventOrTransactionId), value(null))
+            abortSendLambda.assertions().isCalledOnce().with(value(localEcho.eventOrTransactionId))
         }
     }
 
@@ -1179,29 +1178,23 @@ class MessagesPresenterTest {
 
     @Test
     fun `present - handle action retry sending`() = runTest {
-        val retryLambda = lambdaRecorder<Result<Unit>> { Result.success(Unit) }
-        val messageEvent = aMessageEvent(
-            sendState = LocalEventSendState.Failed.Unknown("Error"),
-            sendHandleProvider = { FakeSendHandle(retryLambda = retryLambda) },
-        )
-        val presenter = createMessagesPresenter()
+        val retryLambda = lambdaRecorder { _: EventOrTransactionId -> Result.success(true) }
+        val messageEvent = aMessageEvent(sendState = LocalEventSendState.Failed.Unknown("Error"))
+        val presenter = createMessagesPresenter(timeline = FakeTimeline(retrySendResult = retryLambda))
         presenter.testWithLifecycleOwner {
             skipItems(1)
             val initialState = awaitItem()
             initialState.eventSink(MessagesEvent.HandleAction(TimelineItemAction.RetrySending, messageEvent))
             advanceUntilIdle()
-            retryLambda.assertions().isCalledOnce()
+            retryLambda.assertions().isCalledOnce().with(value(messageEvent.eventOrTransactionId))
         }
     }
 
     @Test
     fun `present - handle action retry sending - failure is ignored`() = runTest {
-        val retryLambda = lambdaRecorder<Result<Unit>> { Result.failure(AN_EXCEPTION) }
-        val messageEvent = aMessageEvent(
-            sendState = LocalEventSendState.Failed.Unknown("Error"),
-            sendHandleProvider = { FakeSendHandle(retryLambda = retryLambda) },
-        )
-        val presenter = createMessagesPresenter()
+        val retryLambda = lambdaRecorder { _: EventOrTransactionId -> Result.failure<Boolean>(AN_EXCEPTION) }
+        val messageEvent = aMessageEvent(sendState = LocalEventSendState.Failed.Unknown("Error"))
+        val presenter = createMessagesPresenter(timeline = FakeTimeline(retrySendResult = retryLambda))
         presenter.testWithLifecycleOwner {
             skipItems(1)
             val initialState = awaitItem()
@@ -1212,18 +1205,16 @@ class MessagesPresenterTest {
     }
 
     @Test
-    fun `present - handle action retry sending - no send handle, it should have no effect`() = runTest {
-        val messageEvent = aMessageEvent(
-            sendState = LocalEventSendState.Failed.Unknown("Error"),
-            sendHandleProvider = { null },
-        )
-        val presenter = createMessagesPresenter()
+    fun `present - handle action retry sending - no pending send state, it should have no effect`() = runTest {
+        val retryLambda = lambdaRecorder { _: EventOrTransactionId -> Result.success(true) }
+        val messageEvent = aMessageEvent(sendState = null)
+        val presenter = createMessagesPresenter(timeline = FakeTimeline(retrySendResult = retryLambda))
         presenter.testWithLifecycleOwner {
             skipItems(1)
             val initialState = awaitItem()
             initialState.eventSink(MessagesEvent.HandleAction(TimelineItemAction.RetrySending, messageEvent))
             advanceUntilIdle()
-            // No op!
+            retryLambda.assertions().isNeverCalled()
         }
     }
 

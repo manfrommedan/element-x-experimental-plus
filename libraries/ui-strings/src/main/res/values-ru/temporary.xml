@@ -16,6 +16,8 @@
     <string name="a11y_active">"Активно"</string>
     <string name="a11y_inactive">"Неактивно"</string>
     <!-- common_voice_call уже переведён в Localazy (translations.xml), не дублируем -->
+    <string name="common_call_no_answer">"Нет ответа"</string>
+    <string name="common_call_duration">"Звонок, %1$s"</string>
     <string name="screen_message_search_title">"Поиск сообщений"</string>
     <string name="screen_message_search_error">"При поиске что-то пошло не так. Попробуйте ещё раз."</string>
     <string name="common_switch_account">"Сменить аккаунт"</string>

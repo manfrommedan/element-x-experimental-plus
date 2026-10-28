@@ -21,6 +21,9 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.produceState
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -30,6 +33,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import io.element.android.compound.theme.ElementTheme
 import io.element.android.compound.tokens.generated.CompoundIcons
+import io.element.android.features.call.api.CallSummary
+import io.element.android.features.call.api.CallSummaryStore
 import io.element.android.features.messages.impl.timeline.TimelineRoomInfo
 import io.element.android.features.messages.impl.timeline.aTimelineItemEvent
 import io.element.android.features.messages.impl.timeline.aTimelineItemReadReceipts
@@ -48,6 +53,8 @@ import io.element.android.libraries.designsystem.preview.PreviewsDayNight
 import io.element.android.libraries.designsystem.text.toDp
 import io.element.android.libraries.matrix.api.notification.CallIntent
 import io.element.android.libraries.ui.strings.CommonStrings
+
+internal val LocalCallSummaryStore = staticCompositionLocalOf<CallSummaryStore?> { null }
 
 @Composable
 internal fun TimelineItemCallNotifyView(
@@ -80,10 +87,24 @@ internal fun TimelineItemCallNotifyView(
             val phoneVoiceLayoutEnabled = LocalPhoneVoiceLayoutEnabled.current
             val isAudio = content.callIntent == CallIntent.AUDIO
             val baseLabel = getTextRes(timelineRoomInfo, state)
-            val labelRes = if (phoneVoiceLayoutEnabled && isAudio && baseLabel == CommonStrings.common_call_started) {
-                CommonStrings.common_voice_call
+            val summaryStore = LocalCallSummaryStore.current
+            val summary by produceState<CallSummary?>(null, event.eventId, summaryStore) {
+                val eventId = event.eventId ?: return@produceState
+                summaryStore?.observe(eventId)?.collect { value = it }
+            }
+            val labelRes = when (summary) {
+                CallSummary.NoAnswer -> CommonStrings.common_call_no_answer
+                is CallSummary.Connected -> CommonStrings.common_call_duration
+                null -> if (phoneVoiceLayoutEnabled && isAudio && baseLabel == CommonStrings.common_call_started) {
+                    CommonStrings.common_voice_call
+                } else {
+                    baseLabel
+                }
+            }
+            val labelText = if (summary is CallSummary.Connected) {
+                stringResource(labelRes, formatCallDuration((summary as CallSummary.Connected).durationSeconds))
             } else {
-                baseLabel
+                stringResource(labelRes)
             }
             if (phoneVoiceLayoutEnabled) {
                 Avatar(
@@ -108,7 +129,7 @@ internal fun TimelineItemCallNotifyView(
                             tint = ElementTheme.colors.iconSecondary,
                         )
                         Text(
-                            text = stringResource(labelRes),
+                            text = labelText,
                             style = ElementTheme.typography.fontBodyMdRegular,
                             color = ElementTheme.colors.textSecondary,
                             maxLines = 1,
@@ -125,7 +146,7 @@ internal fun TimelineItemCallNotifyView(
                 )
                 Text(
                     modifier = Modifier.weight(1f),
-                    text = stringResource(labelRes),
+                    text = labelText,
                     style = ElementTheme.typography.fontBodyMdRegular,
                     color = ElementTheme.colors.textSecondary,
                     maxLines = 1,
@@ -167,6 +188,17 @@ private fun getTextRes(
 } else {
     // In Rooms, do not show declined info.
     CommonStrings.common_call_started
+}
+
+private fun formatCallDuration(durationSeconds: Long): String {
+    val hours = durationSeconds / 3600
+    val minutes = (durationSeconds % 3600) / 60
+    val seconds = durationSeconds % 60
+    return if (hours > 0) {
+        "%d:%02d:%02d".format(hours, minutes, seconds)
+    } else {
+        "%d:%02d".format(minutes, seconds)
+    }
 }
 
 @Composable

@@ -132,6 +132,27 @@ class DefaultRegisterUnifiedPushUseCaseTest : RobolectricTest() {
     }
 
     @Test
+    fun `failed external registration keeps the built-in registration`() = runTest {
+        val endpointRegistrationHandler = EndpointRegistrationHandler()
+        val selfPushRegistrar = FakeSelfPushRegistrar()
+        val selfPushStore = FakeSelfPushStore()
+        selfPushStore.storeRegistration(A_SECRET, SelfPushRegistration(server = "https://ntfy.sh", topic = "up1234abcd"))
+        val useCase = createDefaultRegisterUnifiedPushUseCase(
+            endpointRegistrationHandler = endpointRegistrationHandler,
+            selfPushRegistrar = selfPushRegistrar,
+            selfPushStore = selfPushStore,
+        )
+        launch {
+            delay(100)
+            endpointRegistrationHandler.registrationDone(RegistrationResult(A_SECRET, Result.failure(AN_EXCEPTION)))
+        }
+        val result = useCase.execute(Distributor("aValue", "aName"), A_SECRET, A_SESSION_ID)
+        assertThat(result.isFailure).isTrue()
+        assertThat(selfPushRegistrar.unregisteredSecrets).isEmpty()
+        assertThat(selfPushStore.getRegistration(A_SECRET)).isNotNull()
+    }
+
+    @Test
     fun `registration with an external distributor does not touch the listener when there is nothing to retire`() = runTest {
         val endpointRegistrationHandler = EndpointRegistrationHandler()
         val selfPushRegistrar = FakeSelfPushRegistrar()

@@ -69,6 +69,7 @@ class KonsistClassNameTest {
                 // 'LocalEventSendStateSendingMediaWithProgress'; no readable name contains that.
                 "MediaWithProgressPreviewParam",
                 "OverlapRatioPreviewParam",
+                "SelectionCountPreviewParam",
                 "TextFileContentPreviewParam",
                 "HtmlMessageContentPreviewParam",
             )

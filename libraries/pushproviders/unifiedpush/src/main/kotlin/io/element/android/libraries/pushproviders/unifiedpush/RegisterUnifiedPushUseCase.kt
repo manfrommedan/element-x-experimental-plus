@@ -42,11 +42,6 @@ class DefaultRegisterUnifiedPushUseCase(
         if (distributor.value == context.packageName && selfPushAvailability.isEnabled()) {
             return selfPushRegistrar.register(clientSecret)
         }
-        // Registering with an external distributor retires a built-in one on the same secret,
-        // otherwise its topic would keep streaming to the listener forever.
-        if (selfPushStore.getRegistration(clientSecret) != null) {
-            selfPushRegistrar.unregister(clientSecret)
-        }
         UnifiedPush.saveDistributor(context, distributor.value)
         // This will trigger the callback
         // VectorUnifiedPushMessagingReceiver.onNewEndpoint
@@ -60,6 +55,11 @@ class DefaultRegisterUnifiedPushUseCase(
                     .first()
                     .result
                 result.getOrThrow()
+            }
+        }.onSuccess {
+            // Retire the built-in topic only after the external endpoint is known to work.
+            if (selfPushStore.getRegistration(clientSecret) != null) {
+                selfPushRegistrar.unregister(clientSecret)
             }
         }
     }

@@ -74,7 +74,6 @@ dependencies {
     implementation(libs.datetime)
     implementation(libs.jsoup)
     implementation(libs.serialization.json)
-    implementation(libs.androidx.constraintlayout)
     implementation(libs.androidx.constraintlayout.compose)
     implementation(libs.androidx.exifinterface)
     implementation(libs.androidx.media3.exoplayer)

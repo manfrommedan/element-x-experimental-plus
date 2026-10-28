@@ -33,6 +33,7 @@ import im.vector.app.features.analytics.plan.Composer
 import im.vector.app.features.analytics.plan.Interaction
 import io.element.android.features.contentscanner.api.ContentScannerService
 import io.element.android.features.location.api.LocationService
+import io.element.android.features.messages.api.timeline.TextPillificator
 import io.element.android.features.messages.impl.MessagesNavigator
 import io.element.android.features.messages.impl.attachments.Attachment
 import io.element.android.features.messages.impl.attachments.preview.error.sendAttachmentError
@@ -40,9 +41,9 @@ import io.element.android.features.messages.impl.draft.ComposerDraftService
 import io.element.android.features.messages.impl.messagecomposer.suggestions.RoomAliasSuggestionsDataSource
 import io.element.android.features.messages.impl.messagecomposer.suggestions.SuggestionsProcessor
 import io.element.android.features.messages.impl.timeline.TimelineController
-import io.element.android.features.messages.impl.utils.TextPillificationHelper
 import io.element.android.libraries.architecture.AsyncAction
 import io.element.android.libraries.architecture.Presenter
+import io.element.android.libraries.core.coroutine.CoroutineDispatchers
 import io.element.android.libraries.core.extensions.runCatchingExceptions
 import io.element.android.libraries.core.mimetype.MimeTypes
 import io.element.android.libraries.designsystem.utils.snackbar.SnackbarDispatcher
@@ -135,13 +136,14 @@ class MessageComposerPresenter(
     permissionsPresenterFactory: PermissionsPresenter.Factory,
     private val draftService: ComposerDraftService,
     private val mentionSpanProvider: MentionSpanProvider,
-    private val pillificationHelper: TextPillificationHelper,
+    private val pillificationHelper: TextPillificator,
     private val suggestionsProcessor: SuggestionsProcessor,
     private val mediaOptimizationConfigProvider: MediaOptimizationConfigProvider,
     private val notificationConversationService: NotificationConversationService,
     private val slashCommandService: SlashCommandService,
     private val contentScannerService: ContentScannerService,
     private val contentValidationCache: EventContentValidationCache,
+    private val dispatchers: CoroutineDispatchers,
 ) : Presenter<MessageComposerState> {
     @AssistedFactory
     interface Factory {
@@ -181,16 +183,13 @@ class MessageComposerPresenter(
 
         val cameraPermissionState = cameraPermissionPresenter.present()
 
-        val canShareLocation = remember { mutableStateOf(false) }
-        LaunchedEffect(Unit) {
-            canShareLocation.value = locationService.isServiceAvailable()
-        }
+        val canShareLocation by remember { locationService.isServiceAvailable() }.collectAsState()
 
         // Picking several items at once is always available: it is ours, and it does not depend on
         // how the batch is later sent. The SendGalleryMessages flag is read at send time instead,
         // where it decides between one gallery event and a message per item.
-        val galleryMediaMultiPicker = mediaPickerProvider.registerMultipleGalleryPicker { pickedMedia ->
-            handlePickedMediaList(pickedMedia)
+        val galleryMediaMultiPicker = mediaPickerProvider.registerGalleryMultiPicker { uris ->
+            handlePickedMediaList(uris.map { it to null })
         }
         // The document picker hands back bare uris, so the mime type is left to the factory to resolve.
         val filesMultiPicker = mediaPickerProvider.registerFileMultiPicker(AnyMimeTypes) { uris ->
@@ -415,7 +414,7 @@ class MessageComposerPresenter(
             isInThreadTimeline = isInThread,
             showAttachmentSourcePicker = showAttachmentSourcePicker,
             showTextFormatting = showTextFormatting,
-            canShareLocation = canShareLocation.value,
+            canShareLocation = canShareLocation,
             suggestions = suggestions.toImmutableList(),
             resolveMentionDisplay = resolveMentionDisplay,
             resolveAtRoomMentionDisplay = resolveAtRoomMentionDisplay,
