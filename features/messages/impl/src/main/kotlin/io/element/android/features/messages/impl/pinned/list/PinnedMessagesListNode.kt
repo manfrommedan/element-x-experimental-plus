@@ -21,7 +21,9 @@ import com.bumble.appyx.core.plugin.Plugin
 import dev.zacsweers.metro.Assisted
 import dev.zacsweers.metro.AssistedInject
 import io.element.android.annotations.ContributesNode
+import io.element.android.features.call.api.CallSummaryStore
 import io.element.android.features.messages.impl.actionlist.ActionListPresenter
+import io.element.android.features.messages.impl.timeline.components.LocalCallSummaryStore
 import io.element.android.features.messages.impl.timeline.di.LocalTimelineItemPresenterFactories
 import io.element.android.features.messages.impl.timeline.di.TimelineItemPresenterFactories
 import io.element.android.features.messages.impl.timeline.model.TimelineItem
@@ -53,6 +55,7 @@ class PinnedMessagesListNode(
     @Assisted plugins: List<Plugin>,
     presenterFactory: PinnedMessagesListPresenter.Factory,
     actionListPresenterFactory: ActionListPresenter.Factory,
+    private val callSummaryStore: CallSummaryStore,
     private val timelineItemPresenterFactories: TimelineItemPresenterFactories,
     private val urlPreviewService: UrlPreviewService,
     private val permalinkParser: PermalinkParser,
@@ -120,6 +123,7 @@ class PinnedMessagesListNode(
             LocalTimelineItemPresenterFactories provides timelineItemPresenterFactories,
             LocalUrlPreviewService provides urlPreviewService,
             LocalPermalinkParser provides permalinkParser,
+            LocalCallSummaryStore provides callSummaryStore,
         ) {
             val context = LocalContext.current
             val view = LocalView.current

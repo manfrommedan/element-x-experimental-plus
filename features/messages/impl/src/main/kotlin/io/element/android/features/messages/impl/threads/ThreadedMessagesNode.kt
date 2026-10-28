@@ -28,6 +28,7 @@ import dev.zacsweers.metro.Assisted
 import dev.zacsweers.metro.AssistedInject
 import io.element.android.annotations.ContributesNode
 import io.element.android.compound.theme.ElementTheme
+import io.element.android.features.call.api.CallSummaryStore
 import io.element.android.features.messages.impl.MessagesEvent
 import io.element.android.features.messages.impl.MessagesNavigator
 import io.element.android.features.messages.impl.MessagesPresenter
@@ -42,6 +43,7 @@ import io.element.android.features.messages.impl.timeline.TimelineController
 import io.element.android.features.messages.impl.timeline.TimelineEvent
 import io.element.android.features.messages.impl.timeline.TimelinePresenter
 import io.element.android.features.messages.impl.timeline.TimelineSelectionOwner
+import io.element.android.features.messages.impl.timeline.components.LocalCallSummaryStore
 import io.element.android.features.messages.impl.timeline.components.customreaction.CustomReactionBottomSheet
 import io.element.android.features.messages.impl.timeline.di.LocalTimelineItemPresenterFactories
 import io.element.android.features.messages.impl.timeline.di.TimelineItemPresenterFactories
@@ -92,6 +94,7 @@ class ThreadedMessagesNode(
     @Assisted plugins: List<Plugin>,
     private val room: JoinedRoom,
     private val analyticsService: AnalyticsService,
+    private val callSummaryStore: CallSummaryStore,
     private val messageComposerPresenterFactory: MessageComposerPresenter.Factory,
     private val timelinePresenterFactory: TimelinePresenter.Factory,
     private val presenterFactory: MessagesPresenter.Factory,
@@ -288,6 +291,7 @@ class ThreadedMessagesNode(
             LocalTimelineItemPresenterFactories provides timelineItemPresenterFactories,
             LocalUrlPreviewService provides urlPreviewService,
             LocalPermalinkParser provides permalinkParser,
+            LocalCallSummaryStore provides callSummaryStore,
         ) {
             // Only display the actual UI and lifecycle logic if the presenter is loaded
             presenter?.present()?.let { state ->

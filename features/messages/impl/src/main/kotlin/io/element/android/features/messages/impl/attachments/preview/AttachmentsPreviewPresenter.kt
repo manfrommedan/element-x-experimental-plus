@@ -329,9 +329,14 @@ class AttachmentsPreviewPresenter(
                             .takeIf { it.isNotEmpty() }
 
                         if (attachmentList.size == 1) {
+                            // Retry starts a fresh preprocess instead of consuming the stale failure below.
+                            val isRetry = sendActionState.value is SendActionState.Failure
+                            if (isRetry) {
+                                sendActionState.value = SendActionState.Idle
+                            }
                             // Single-attachment flow: keep the upstream preprocess-then-upload behaviour
                             // so the user sees the existing Processing/Uploading progress dialogs.
-                            if (mediaOptimizationSelectorState.displayMediaSelectorViews == true) {
+                            if (mediaOptimizationSelectorState.displayMediaSelectorViews == true || isRetry) {
                                 val config = MediaOptimizationConfig(
                                     compressImages = mediaOptimizationSelectorState.isImageOptimizationEnabled == true,
                                     videoCompressionPreset = mediaOptimizationSelectorState.selectedVideoPreset ?: VideoCompressionPreset.STANDARD,

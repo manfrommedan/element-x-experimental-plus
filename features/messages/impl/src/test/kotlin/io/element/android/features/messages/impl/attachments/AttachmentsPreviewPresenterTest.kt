@@ -269,6 +269,10 @@ class AttachmentsPreviewPresenterTest : RobolectricTest() {
             initialState.eventSink(AttachmentsPreviewEvent.SendAttachment)
             assertThat(awaitItem().sendActionState).isEqualTo(SendActionState.Sending.Processing(displayProgress = false))
             assertThat(awaitItem().sendActionState).isInstanceOf(SendActionState.Failure::class.java)
+            // The failed single-attachment flow retries preprocessing instead of consuming the stale failure.
+            assertThat(awaitItem().sendActionState).isEqualTo(SendActionState.Idle)
+            assertThat(awaitItem().sendActionState).isEqualTo(SendActionState.Sending.Processing(displayProgress = true))
+            cancelAndIgnoreRemainingEvents()
         }
     }
 

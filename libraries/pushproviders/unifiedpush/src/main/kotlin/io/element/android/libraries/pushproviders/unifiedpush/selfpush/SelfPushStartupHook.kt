@@ -13,6 +13,8 @@ import dev.zacsweers.metro.AppScope
 import dev.zacsweers.metro.ContributesIntoSet
 import io.element.android.features.enterprise.api.AppStartupHook
 import io.element.android.libraries.di.annotations.ApplicationContext
+import io.element.android.libraries.featureflag.api.FeatureFlagService
+import io.element.android.libraries.featureflag.api.FeatureFlags
 
 /**
  * Starts the built-in push listener when the app comes up with live registrations.
@@ -23,9 +25,10 @@ import io.element.android.libraries.di.annotations.ApplicationContext
 class SelfPushStartupHook(
     @ApplicationContext private val context: Context,
     private val selfPushStore: SelfPushStore,
+    private val featureFlagService: FeatureFlagService,
 ) : AppStartupHook {
     override suspend fun onAppStartup(activity: Activity) {
-        if (selfPushStore.getAllRegistrations().isNotEmpty()) {
+        if (featureFlagService.isFeatureEnabled(FeatureFlags.BuiltInPush) && selfPushStore.getAllRegistrations().isNotEmpty()) {
             SelfPushSubscriberService.start(context)
         }
     }

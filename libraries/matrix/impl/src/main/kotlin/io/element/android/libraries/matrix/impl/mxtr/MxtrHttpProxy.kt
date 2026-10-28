@@ -64,15 +64,27 @@ object MxtrHttpProxy {
         MxtrStats.setCurrentServer("${config.data.host}:${config.data.port}")
         if (!started.compareAndSet(false, true)) return
 
-        Thread(::superviseAcceptLoop, "mxtr-supervisor").apply { isDaemon = true }.start()
+        // Bind before returning so restored Matrix clients and the WebView override
+        // never observe an enabled proxy with port 0 and silently fall back to direct.
+        val initialSocket = try {
+            bindServerSocketEphemeral(MxtrConfig.LOCAL_PROXY_HOST).also {
+                MxtrConfig.setActiveLocalPort(it.localPort)
+            }
+        } catch (t: Throwable) {
+            started.set(false)
+            Timber.tag(TAG).e(t, "could not bind local proxy")
+            return
+        }
+        Thread({ superviseAcceptLoop(initialSocket) }, "mxtr-supervisor").apply { isDaemon = true }.start()
     }
 
-    private fun superviseAcceptLoop() {
+    private fun superviseAcceptLoop(initialSocket: ServerSocket) {
+        var nextSocket = initialSocket
         var backoffMs = 1_000L
         while (true) {
             val startNanos = System.nanoTime()
             try {
-                runAcceptLoop()
+                runAcceptLoop(nextSocket)
                 MxtrStats.setAcceptLoopAlive(false)
                 return
             } catch (t: Throwable) {
@@ -87,12 +99,13 @@ object MxtrHttpProxy {
                     return
                 }
                 backoffMs = (backoffMs * 2).coerceAtMost(60_000L)
+                nextSocket = bindServerSocketEphemeral(MxtrConfig.LOCAL_PROXY_HOST)
             }
         }
     }
 
-    private fun runAcceptLoop() {
-        bindServerSocketEphemeral(MxtrConfig.LOCAL_PROXY_HOST).use { ss ->
+    private fun runAcceptLoop(serverSocket: ServerSocket) {
+        serverSocket.use { ss ->
             val boundPort = ss.localPort
             MxtrConfig.setActiveLocalPort(boundPort)
             val cfg = activeConfig.get()

@@ -30,6 +30,7 @@ import dev.zacsweers.metro.Assisted
 import dev.zacsweers.metro.AssistedInject
 import io.element.android.annotations.ContributesNode
 import io.element.android.compound.theme.ElementTheme
+import io.element.android.features.call.api.CallSummaryStore
 import io.element.android.features.knockrequests.api.banner.KnockRequestsBannerRenderer
 import io.element.android.features.messages.impl.actionlist.ActionListPresenter
 import io.element.android.features.messages.impl.actionlist.model.TimelineItemActionPostProcessor
@@ -40,6 +41,7 @@ import io.element.android.features.messages.impl.timeline.TimelineController
 import io.element.android.features.messages.impl.timeline.TimelineEvent
 import io.element.android.features.messages.impl.timeline.TimelinePresenter
 import io.element.android.features.messages.impl.timeline.TimelineSelectionOwner
+import io.element.android.features.messages.impl.timeline.components.LocalCallSummaryStore
 import io.element.android.features.messages.impl.timeline.components.customreaction.CustomReactionBottomSheet
 import io.element.android.features.messages.impl.timeline.di.LocalTimelineItemPresenterFactories
 import io.element.android.features.messages.impl.timeline.di.TimelineItemPresenterFactories
@@ -99,6 +101,7 @@ class MessagesNode(
     @SessionCoroutineScope private val sessionCoroutineScope: CoroutineScope,
     private val room: JoinedRoom,
     private val analyticsService: AnalyticsService,
+    private val callSummaryStore: CallSummaryStore,
     messageComposerPresenterFactory: MessageComposerPresenter.Factory,
     timelinePresenterFactory: TimelinePresenter.Factory,
     presenterFactory: MessagesPresenter.Factory,
@@ -293,6 +296,7 @@ class MessagesNode(
             io.element.android.features.messages.impl.timeline.components.LocalPhoneVoiceLayoutEnabled provides phoneVoiceLayoutEnabled,
             LocalUrlPreviewService provides urlPreviewService,
             LocalPermalinkParser provides permalinkParser,
+            LocalCallSummaryStore provides callSummaryStore,
             LocalEventContentValidationState provides eventContentValidationCache,
         ) {
             val state = presenter.present()

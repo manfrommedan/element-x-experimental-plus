@@ -25,6 +25,8 @@
          phone-style voice mode is on. Falls back to the upstream
          common_call_started string when the mode is off. -->
     <string name="common_voice_call">"Voice call"</string>
+    <string name="common_call_no_answer">"No answer"</string>
+    <string name="common_call_duration">"Call, %1$s"</string>
     <string name="screen_message_search_title">Search messages</string>
     <string name="screen_message_search_error">Something went wrong while searching. Please try again.</string>
     <string name="common_switch_account">Switch accounts</string>

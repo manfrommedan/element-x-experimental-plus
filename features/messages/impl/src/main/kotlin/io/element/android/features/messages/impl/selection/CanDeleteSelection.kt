@@ -26,10 +26,8 @@ fun List<TimelineItem>.allEvents(): Sequence<TimelineItem.Event> = asSequence().
 /**
  * Whether the bulk Delete action should be enabled for the current selection.
  *
- * True when the selection is non-empty and none of the loaded selected events is one the user
- * is not allowed to redact (own message without canRedactOwn, or someone else's without
- * canRedactOther). Window-evicted selected ids that are not in [timelineItems] do not force-disable;
- * the per-event filter in BulkRedactSelected stays the backstop for those.
+ * True when every selected event is loaded and the user is allowed to redact it.
+ * Window-evicted selections disable the action rather than silently doing nothing.
  */
 fun canDeleteSelection(
     timelineItems: List<TimelineItem>,
@@ -37,8 +35,10 @@ fun canDeleteSelection(
     userEventPermissions: UserEventPermissions,
 ): Boolean {
     if (selectedIds.isEmpty()) return false
-    return timelineItems
+    val selectedEvents = timelineItems
         .allEvents()
         .filter { it.eventId in selectedIds }
-        .none { if (it.isMine) !userEventPermissions.canRedactOwn else !userEventPermissions.canRedactOther }
+        .toList()
+    return selectedEvents.size == selectedIds.size &&
+        selectedEvents.none { if (it.isMine) !userEventPermissions.canRedactOwn else !userEventPermissions.canRedactOther }
 }
