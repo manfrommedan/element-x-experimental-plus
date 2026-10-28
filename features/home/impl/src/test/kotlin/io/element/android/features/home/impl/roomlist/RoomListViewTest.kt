@@ -19,11 +19,13 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.v2.runAndroidComposeUiTest
+import com.google.common.truth.Truth.assertThat
 import io.element.android.features.home.impl.HomeEvent
 import io.element.android.features.home.impl.HomeView
 import io.element.android.features.home.impl.R
 import io.element.android.features.home.impl.aHomeState
 import io.element.android.features.home.impl.components.RoomListMenuAction
+import io.element.android.features.home.impl.components.visibleRangeToRoomsRange
 import io.element.android.features.home.impl.model.RoomListRoomSummary
 import io.element.android.features.home.impl.model.RoomSummaryDisplayType
 import io.element.android.libraries.matrix.api.core.RoomId
@@ -57,6 +59,42 @@ class RoomListViewTest : RobolectricTest() {
                 RoomListEvent.UpdateVisibleRange(0..4),
             )
         )
+    }
+
+    @Test
+    fun `visible range accounts for the favorites header and spacer`() {
+        val result = visibleRangeToRoomsRange(
+            first = 2,
+            last = 5,
+            firstRoomIndex = 2,
+            spacerIndex = 4,
+        )
+
+        assertThat(result).isEqualTo(0..<3)
+    }
+
+    @Test
+    fun `visible range starting at the favorites spacer starts at the next room`() {
+        val result = visibleRangeToRoomsRange(
+            first = 4,
+            last = 5,
+            firstRoomIndex = 2,
+            spacerIndex = 4,
+        )
+
+        assertThat(result).isEqualTo(2..<3)
+    }
+
+    @Test
+    fun `visible range without favorites section only excludes the banner`() {
+        val result = visibleRangeToRoomsRange(
+            first = 1,
+            last = 5,
+            firstRoomIndex = 1,
+            spacerIndex = Int.MAX_VALUE,
+        )
+
+        assertThat(result).isEqualTo(0..<5)
     }
 
     @Test

@@ -227,6 +227,20 @@ private fun RoomsView(
     }
 }
 
+internal fun visibleRangeToRoomsRange(
+    first: Int,
+    last: Int,
+    firstRoomIndex: Int,
+    spacerIndex: Int,
+): IntRange {
+    fun roomCountBefore(position: Int): Int = when {
+        position <= firstRoomIndex -> 0
+        position <= spacerIndex -> position - firstRoomIndex
+        else -> position - firstRoomIndex - 1
+    }
+    return roomCountBefore(first)..<roomCountBefore(last + 1)
+}
+
 @Composable
 private fun RoomsViewList(
     state: RoomListContentState.Rooms,
@@ -243,11 +257,6 @@ private fun RoomsViewList(
     // The banner slot must never be 0px high, else the LazyColumn considers that it is not visible and it is
     // removed from the composition. A new banner would then be added above the visible area of the list.
     val bannerSlotMinHeight = with(LocalDensity.current) { 1.toDp() }
-    OnVisibleRangeChangeEffect(lazyListState) { visibleRange ->
-        // The first item of the list is the banner slot, remove it to get the range of the rooms
-        val roomsRange = (visibleRange.first - 1).coerceAtLeast(0)..<visibleRange.last
-        eventSink(RoomListEvent.UpdateVisibleRange(roomsRange))
-    }
     val partitioned = remember(state.summaries, state.pinFavoritesToTop) {
         if (state.pinFavoritesToTop) {
             state.summaries.partition { it.isFavorite }
@@ -258,6 +267,15 @@ private fun RoomsViewList(
     val favorites = partitioned.first
     val others = partitioned.second
     val showFavoritesSection = favorites.isNotEmpty() && others.isNotEmpty()
+    OnVisibleRangeChangeEffect(lazyListState) { visibleRange ->
+        val firstRoomIndex = if (showFavoritesSection) 2 else 1
+        val spacerIndex = if (showFavoritesSection) firstRoomIndex + favorites.size else Int.MAX_VALUE
+        eventSink(
+            RoomListEvent.UpdateVisibleRange(
+                visibleRangeToRoomsRange(visibleRange.first, visibleRange.last, firstRoomIndex, spacerIndex)
+            )
+        )
+    }
     LazyColumn(
         state = lazyListState,
         modifier = modifier,

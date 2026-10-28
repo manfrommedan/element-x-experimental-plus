@@ -46,10 +46,13 @@ import io.element.android.features.messages.impl.timeline.components.customreact
 import io.element.android.features.messages.impl.timeline.di.LocalTimelineItemPresenterFactories
 import io.element.android.features.messages.impl.timeline.di.TimelineItemPresenterFactories
 import io.element.android.features.messages.impl.timeline.model.TimelineItem
+import io.element.android.features.messages.impl.urlpreview.LocalPermalinkParser
+import io.element.android.features.messages.impl.urlpreview.LocalUrlPreviewService
+import io.element.android.features.messages.impl.urlpreview.UrlPreviewService
 import io.element.android.features.roommembermoderation.api.ModerationAction
 import io.element.android.features.roommembermoderation.api.RoomMemberModerationEvent
 import io.element.android.features.roommembermoderation.api.RoomMemberModerationRenderer
-import io.element.android.libraries.androidutils.browser.openUrlInChromeCustomTab
+import io.element.android.libraries.androidutils.browser.openUrlInMxtrAwareCustomTab
 import io.element.android.libraries.androidutils.system.openUrlInExternalApp
 import io.element.android.libraries.architecture.NodeInputs
 import io.element.android.libraries.architecture.Presenter
@@ -94,6 +97,7 @@ class ThreadedMessagesNode(
     private val presenterFactory: MessagesPresenter.Factory,
     private val actionListPresenterFactory: ActionListPresenter.Factory,
     private val timelineItemPresenterFactories: TimelineItemPresenterFactories,
+    private val urlPreviewService: UrlPreviewService,
     private val permalinkParser: PermalinkParser,
     private val appNavigationStateService: AppNavigationStateService,
     private val roomMemberModerationRenderer: RoomMemberModerationRenderer,
@@ -196,13 +200,13 @@ class ThreadedMessagesNode(
             }
             is PermalinkData.FallbackLink -> {
                 if (customTab) {
-                    activity.openUrlInChromeCustomTab(null, darkTheme, url)
+                    activity.openUrlInMxtrAwareCustomTab(null, darkTheme, url)
                 } else {
                     activity.openUrlInExternalApp(url)
                 }
             }
             is PermalinkData.RoomEmailInviteLink -> {
-                activity.openUrlInChromeCustomTab(null, darkTheme, url)
+                activity.openUrlInMxtrAwareCustomTab(null, darkTheme, url)
             }
         }
     }
@@ -282,6 +286,8 @@ class ThreadedMessagesNode(
         val canUseOverlay = !isTalkbackActive() && !hasExternalKeyboard()
         CompositionLocalProvider(
             LocalTimelineItemPresenterFactories provides timelineItemPresenterFactories,
+            LocalUrlPreviewService provides urlPreviewService,
+            LocalPermalinkParser provides permalinkParser,
         ) {
             // Only display the actual UI and lifecycle logic if the presenter is loaded
             presenter?.present()?.let { state ->
