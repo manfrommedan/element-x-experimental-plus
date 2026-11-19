@@ -56,10 +56,12 @@ import io.element.android.libraries.matrix.ui.media.contentvalidation.ContentVal
 import io.element.android.libraries.ui.common.layout.ContentAvoidingLayoutData
 import io.element.android.libraries.ui.strings.CommonStrings
 import io.element.android.libraries.ui.utils.a11y.isTalkbackActive
+import io.element.android.libraries.ui.utils.time.formatShort
 import io.element.android.libraries.voiceplayer.api.VoiceMessageEvent
 import io.element.android.libraries.voiceplayer.api.VoiceMessageState
 import io.element.android.libraries.voiceplayer.api.VoiceMessageStatePreviewParam
 import kotlinx.coroutines.delay
+import kotlin.time.Duration.Companion.milliseconds
 
 @Composable
 fun TimelineItemVoiceView(
@@ -74,6 +76,13 @@ fun TimelineItemVoiceView(
     fun playPause() {
         state.eventSink(VoiceMessageEvent.PlayPause)
     }
+
+    // Progress while the user drags the waveform cursor.
+    var draggedProgress by remember { mutableStateOf<Float?>(null) }
+    // Last seek, until the player reports a new progress, so that the time does not go back to the previous position meanwhile.
+    var pendingSeek by remember { mutableStateOf<Float?>(null) }
+    LaunchedEffect(state.progress) { pendingSeek = null }
+    val time = seekTime(seekProgress = draggedProgress ?: pendingSeek, durationMs = state.durationMs) ?: state.time
 
     val a11y = stringResource(CommonStrings.common_voice_message)
     val a11yActionLabel = stringResource(
@@ -132,7 +141,7 @@ fun TimelineItemVoiceView(
                 onClick = { state.eventSink(VoiceMessageEvent.ChangePlaybackSpeed) },
             )
             Text(
-                text = state.time,
+                text = time,
                 color = ElementTheme.colors.textSecondary,
                 style = ElementTheme.typography.fontBodySmMedium,
                 maxLines = 1,
@@ -151,7 +160,11 @@ fun TimelineItemVoiceView(
             durationMs = state.durationMs,
             playbackSpeed = state.playbackSpeed,
             seekEnabled = !isTalkbackActive(),
-            onSeek = { state.eventSink(VoiceMessageEvent.Seek(it)) },
+            onSeek = {
+                pendingSeek = it
+                state.eventSink(VoiceMessageEvent.Seek(it))
+            },
+            onSeekProgressChange = { draggedProgress = it },
         )
     }
         if (onCancelUpload != null) {
@@ -161,6 +174,14 @@ fun TimelineItemVoiceView(
             )
         }
     }
+}
+
+/**
+ * Time at [seekProgress], or `null` if there is no seek or the duration is unknown.
+ */
+private fun seekTime(seekProgress: Float?, durationMs: Long): String? {
+    if (seekProgress == null || durationMs <= 0L) return null
+    return (seekProgress * durationMs).toLong().milliseconds.formatShort()
 }
 
 @Composable

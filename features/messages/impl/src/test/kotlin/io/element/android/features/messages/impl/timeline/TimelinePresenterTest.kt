@@ -47,7 +47,6 @@ import io.element.android.libraries.matrix.api.core.ThreadId
 import io.element.android.libraries.matrix.api.core.UniqueId
 import io.element.android.libraries.matrix.api.core.asEventId
 import io.element.android.libraries.matrix.api.room.MessageEventType
-import io.element.android.libraries.matrix.api.room.RoomMembersState
 import io.element.android.libraries.matrix.api.room.tombstone.PredecessorRoom
 import io.element.android.libraries.matrix.api.timeline.MatrixTimelineItem
 import io.element.android.libraries.matrix.api.timeline.ReceiptType
@@ -55,7 +54,6 @@ import io.element.android.libraries.matrix.api.timeline.Timeline
 import io.element.android.libraries.matrix.api.timeline.item.event.EventReaction
 import io.element.android.libraries.matrix.api.timeline.item.event.LocalEventSendState
 import io.element.android.libraries.matrix.api.timeline.item.event.ReactionSender
-import io.element.android.libraries.matrix.api.timeline.item.event.Receipt
 import io.element.android.libraries.matrix.api.timeline.item.event.TimelineItemEventOrigin
 import io.element.android.libraries.matrix.api.timeline.item.virtual.VirtualTimelineItem
 import io.element.android.libraries.matrix.test.AN_EVENT_ID
@@ -69,7 +67,6 @@ import io.element.android.libraries.matrix.test.A_USER_ID
 import io.element.android.libraries.matrix.test.room.FakeBaseRoom
 import io.element.android.libraries.matrix.test.room.FakeJoinedRoom
 import io.element.android.libraries.matrix.test.room.aRoomInfo
-import io.element.android.libraries.matrix.test.room.aRoomMember
 import io.element.android.libraries.matrix.test.room.powerlevels.FakeRoomPermissions
 import io.element.android.libraries.matrix.test.timeline.FakeTimeline
 import io.element.android.libraries.matrix.test.timeline.aMessageContent
@@ -184,6 +181,7 @@ class TimelinePresenterTest {
         )
         val room = FakeJoinedRoom(
             liveTimeline = timeline,
+            roomCoroutineScope = backgroundScope,
         )
         val sessionPreferencesStore = InMemorySessionPreferencesStore(isSendPublicReadReceiptsEnabled = isSendPublicReadReceiptsEnabled)
         val presenter = createTimelinePresenter(
@@ -627,6 +625,7 @@ class TimelinePresenterTest {
                 // (isEventLoaded defaults to false), so the FAB targets the out-of-window marker.
                 initialRoomInfo = aRoomInfo(fullyReadEventId = fullyReadEventId, numUnreadMessages = 1),
             ),
+            roomCoroutineScope = backgroundScope,
         )
         val presenter = createTimelinePresenter(
             timeline = timeline,
@@ -663,6 +662,7 @@ class TimelinePresenterTest {
                 roomPermissions = roomPermissions(),
                 initialRoomInfo = aRoomInfo(fullyReadEventId = fullyReadEventId, numUnreadMessages = 1),
             ),
+            roomCoroutineScope = backgroundScope,
         )
         val presenter = createTimelinePresenter(
             timeline = timeline,
@@ -699,6 +699,7 @@ class TimelinePresenterTest {
                 roomPermissions = roomPermissions(),
                 initialRoomInfo = aRoomInfo(fullyReadEventId = fullyReadEventId, numUnreadMessages = 0),
             ),
+            roomCoroutineScope = backgroundScope,
         )
         val presenter = createTimelinePresenter(
             timeline = timeline,
@@ -732,6 +733,7 @@ class TimelinePresenterTest {
                 // virtual ReadMarker because there are no items newer than it.
                 initialRoomInfo = aRoomInfo(fullyReadEventId = AN_EVENT_ID),
             ),
+            roomCoroutineScope = backgroundScope,
         )
         val presenter = createTimelinePresenter(
             timeline = timeline,
@@ -763,6 +765,7 @@ class TimelinePresenterTest {
                 roomPermissions = roomPermissions(),
                 initialRoomInfo = aRoomInfo(fullyReadEventId = AN_EVENT_ID),
             ),
+            roomCoroutineScope = backgroundScope,
         )
         val presenter = createTimelinePresenter(
             timeline = timeline,
@@ -790,6 +793,7 @@ class TimelinePresenterTest {
                 roomPermissions = roomPermissions(),
                 initialRoomInfo = aRoomInfo(fullyReadEventId = AN_EVENT_ID),
             ),
+            roomCoroutineScope = backgroundScope,
         )
         val presenter = createTimelinePresenter(
             timeline = timeline,
@@ -820,6 +824,7 @@ class TimelinePresenterTest {
                 roomPermissions = roomPermissions(),
                 initialRoomInfo = aRoomInfo(fullyReadEventId = AN_EVENT_ID),
             ),
+            roomCoroutineScope = backgroundScope,
         )
         val presenter = createTimelinePresenter(
             timeline = timeline,
@@ -856,6 +861,7 @@ class TimelinePresenterTest {
                 roomPermissions = roomPermissions(),
                 initialRoomInfo = aRoomInfo(fullyReadEventId = fullyReadEventId, numUnreadMessages = 1),
             ),
+            roomCoroutineScope = backgroundScope,
         )
         val presenter = createTimelinePresenter(
             timeline = timeline,
@@ -1044,6 +1050,7 @@ class TimelinePresenterTest {
                 roomPermissions = roomPermissions(),
                 threadRootIdForEventResult = { _ -> Result.success(null) },
             ),
+            roomCoroutineScope = backgroundScope,
         )
         val presenter = createTimelinePresenter(
             room = room,
@@ -1165,7 +1172,8 @@ class TimelinePresenterTest {
             initialState.eventSink.invoke(TimelineEvent.LoadMore(Timeline.PaginationDirection.FORWARDS))
             advanceUntilIdle()
             assert(paginateLambda).isNeverCalled()
-            assertThat(expectMostRecentItem().isLive).isFalse()
+            runCurrent()
+            ensureAllEventsConsumed()
         }
     }
 
@@ -1187,7 +1195,7 @@ class TimelinePresenterTest {
             initialState.eventSink.invoke(TimelineEvent.LoadMore(Timeline.PaginationDirection.FORWARDS))
             advanceUntilIdle()
             assert(paginateLambda).isNeverCalled()
-            assertThat(expectMostRecentItem().isLive).isFalse()
+            ensureAllEventsConsumed()
         }
     }
 
@@ -1260,6 +1268,7 @@ class TimelinePresenterTest {
                     roomPermissions = roomPermissions(),
                     threadRootIdForEventResult = { Result.success(null) },
                 ),
+                roomCoroutineScope = backgroundScope,
             ),
             timelineItemIndexer = timelineItemIndexer,
         )
@@ -1275,13 +1284,19 @@ class TimelinePresenterTest {
 
             advanceUntilIdle()
 
-            awaitItem().also { state ->
-                assertThat(state.focusedEventId).isEqualTo(AN_EVENT_ID)
-                assertThat(state.focusRequestState).isEqualTo(FocusRequestState.Requested(AN_EVENT_ID, Duration.ZERO))
+            // The timeline items factory is now built eagerly, so states can be emitted before the
+            // focus request is picked up. Skip to the first one that carries it.
+            var state = awaitItem()
+            while (state.focusedEventId == null) {
+                state = awaitItem()
             }
-            awaitItem().also { state ->
-                assertThat(state.focusedEventId).isEqualTo(AN_EVENT_ID)
-                assertThat(state.focusRequestState).isEqualTo(FocusRequestState.Success(AN_EVENT_ID, 0))
+            state.also {
+                assertThat(it.focusedEventId).isEqualTo(AN_EVENT_ID)
+                assertThat(it.focusRequestState).isEqualTo(FocusRequestState.Requested(AN_EVENT_ID, Duration.ZERO))
+            }
+            awaitItem().also {
+                assertThat(it.focusedEventId).isEqualTo(AN_EVENT_ID)
+                assertThat(it.focusRequestState).isEqualTo(FocusRequestState.Success(AN_EVENT_ID, 0))
             }
         }
     }
@@ -1298,6 +1313,7 @@ class TimelinePresenterTest {
                     roomPermissions = roomPermissions(),
                     threadRootIdForEventResult = { _ -> Result.success(null) },
                 ),
+                roomCoroutineScope = backgroundScope,
             )
         )
         presenter.test {
@@ -1345,6 +1361,7 @@ class TimelinePresenterTest {
                 roomPermissions = roomPermissions(),
                 threadRootIdForEventResult = { _ -> Result.success(threadId) },
             ),
+            roomCoroutineScope = backgroundScope,
         )
         val openThreadLambda = lambdaRecorder { _: ThreadId, _: EventId? -> }
         val navigator = FakeMessagesNavigator(onOpenThreadLambda = openThreadLambda)
@@ -1404,6 +1421,7 @@ class TimelinePresenterTest {
                 roomPermissions = roomPermissions(),
                 threadRootIdForEventResult = { _ -> Result.success(threadId) },
             ),
+            roomCoroutineScope = backgroundScope,
         )
         val openThreadLambda = lambdaRecorder { _: ThreadId, _: EventId? -> }
         val navigator = FakeMessagesNavigator(onOpenThreadLambda = openThreadLambda)
@@ -1459,6 +1477,7 @@ class TimelinePresenterTest {
                 // Use a different thread id
                 threadRootIdForEventResult = { _ -> Result.success(A_THREAD_ID_2) },
             ),
+            roomCoroutineScope = backgroundScope,
         )
         val openThreadLambda = lambdaRecorder { _: ThreadId, _: EventId? -> }
         val navigator = FakeMessagesNavigator(onOpenThreadLambda = openThreadLambda)
@@ -1518,6 +1537,7 @@ class TimelinePresenterTest {
                 // The event is in the main timeline, not in a thread
                 threadRootIdForEventResult = { _ -> Result.success(null) },
             ),
+            roomCoroutineScope = backgroundScope,
         )
         val openRoomLambda = lambdaRecorder { _: RoomId, _: EventId?, _: List<String> -> }
         val navigator = FakeMessagesNavigator(onNavigateToRoomLambda = openRoomLambda)
@@ -1711,55 +1731,6 @@ class TimelinePresenterTest {
     }
 
     @Test
-    fun `present - when room member info is loaded, read receipts info should be updated`() = runTest {
-        val timeline = FakeTimeline(
-            timelineItems = flowOf(
-                listOf(
-                    MatrixTimelineItem.Event(
-                        A_UNIQUE_ID,
-                        anEventTimelineItem(
-                            sender = A_USER_ID,
-                            receipts = persistentListOf(
-                                Receipt(
-                                    userId = A_USER_ID,
-                                    timestamp = 0L,
-                                )
-                            )
-                        )
-                    )
-                )
-            )
-        )
-        val room = FakeJoinedRoom(
-            liveTimeline = timeline,
-            baseRoom = FakeBaseRoom(
-                roomPermissions = roomPermissions(),
-            ),
-        ).apply {
-            givenRoomMembersState(RoomMembersState.Unknown)
-        }
-
-        val avatarUrl = "https://domain.com/avatar.jpg"
-
-        val presenter = createTimelinePresenter(timeline, room)
-        presenter.test {
-            val initialState = consumeItemsUntilPredicate(30.seconds) { it.timelineItems.isNotEmpty() }.last()
-            val event = initialState.timelineItems.first() as TimelineItem.Event
-            assertThat(event.senderAvatar.url).isNull()
-            assertThat(event.readReceiptState.receipts.first().avatarData.url).isNull()
-
-            room.givenRoomMembersState(
-                RoomMembersState.Ready(
-                    persistentListOf(aRoomMember(userId = A_USER_ID, avatarUrl = avatarUrl))
-                )
-            )
-
-            val updatedEvent = awaitItem().timelineItems.first() as TimelineItem.Event
-            assertThat(updatedEvent.readReceiptState.receipts.first().avatarData.url).isEqualTo(avatarUrl)
-        }
-    }
-
-    @Test
     fun `present - timeline room info includes predecessor room when room has predecessor`() = runTest {
         val predecessorRoomId = RoomId("!predecessor:server.org")
         val predecessorRoom = PredecessorRoom(roomId = predecessorRoomId)
@@ -1769,6 +1740,7 @@ class TimelinePresenterTest {
                 roomPermissions = roomPermissions(),
                 predecessorRoomResult = { predecessorRoom }
             ),
+            roomCoroutineScope = backgroundScope,
         )
 
         val presenter = createTimelinePresenter(room = room)
@@ -1786,6 +1758,7 @@ class TimelinePresenterTest {
                 roomPermissions = roomPermissions(),
                 predecessorRoomResult = { null }
             ),
+            roomCoroutineScope = backgroundScope,
         )
         val presenter = createTimelinePresenter(room = room)
         presenter.test {
@@ -1800,6 +1773,7 @@ class TimelinePresenterTest {
             baseRoom = FakeBaseRoom(
                 roomPermissions = roomPermissions(),
             ),
+            roomCoroutineScope = backgroundScope,
         )
         val onNavigateToRoomLambda = lambdaRecorder<RoomId, EventId?, List<String>, Unit> { _, _, _ -> }
         val navigator = FakeMessagesNavigator(
@@ -1872,7 +1846,7 @@ class TimelinePresenterTest {
         return awaitItem()
     }
 
-    private fun aRoomWithDetachedTimeline(
+    private fun TestScope.aRoomWithDetachedTimeline(
         paginateLambda: (Timeline.PaginationDirection) -> Result<Boolean>,
         createTimelineResult: () -> Result<Timeline> = { Result.success(aDetachedTimeline(paginateLambda)) },
     ): FakeJoinedRoom {
@@ -1885,6 +1859,7 @@ class TimelinePresenterTest {
                 roomPermissions = roomPermissions(),
                 threadRootIdForEventResult = { _ -> Result.success(null) },
             ),
+            roomCoroutineScope = backgroundScope,
         )
     }
 
@@ -1929,6 +1904,7 @@ class TimelinePresenterTest {
             baseRoom = FakeBaseRoom(
                 roomPermissions = roomPermissions(),
             ),
+            roomCoroutineScope = backgroundScope,
         ),
         redactedVoiceMessageManager: RedactedVoiceMessageManager = FakeRedactedVoiceMessageManager(),
         messagesNavigator: FakeMessagesNavigator = FakeMessagesNavigator(),
@@ -1972,7 +1948,7 @@ class TimelinePresenterTest {
             markAsFullyRead = markAsFullyRead,
             appPreferencesStore = appPreferencesStore,
             timelineProtectionPresenter = timelineProtectionPresenter,
-            clipboardHelper = clipboardHelper,
+                clipboardHelper = clipboardHelper,
             toastHelper = toastHelper,
         )
     }

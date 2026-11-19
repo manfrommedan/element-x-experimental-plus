@@ -24,6 +24,8 @@ import io.element.android.features.messages.impl.timeline.TimelineController
 import io.element.android.features.messages.impl.utils.FakeMentionSpanFormatter
 import io.element.android.features.messages.test.timeline.FakeTextPillificator
 import io.element.android.libraries.designsystem.utils.snackbar.SnackbarDispatcher
+import io.element.android.libraries.emoji.api.recentemojis.EmptyGetRecentEmojis
+import io.element.android.libraries.emoji.test.fakeEmojiPickerPresenterFactory
 import io.element.android.libraries.matrix.api.core.ThreadId
 import io.element.android.libraries.matrix.api.core.UserId
 import io.element.android.libraries.matrix.api.permalink.PermalinkBuilder
@@ -322,6 +324,9 @@ class MessageComposerPresenterSlashCommandTest {
         contentScannerService = { _, _ -> },
         contentValidationCache = InMemoryEventContentValidationCache(),
         dispatchers = testCoroutineDispatchers(useUnconfinedTestDispatcher = true),
+        emojiPickerPresenterFactory = fakeEmojiPickerPresenterFactory(),
+        getRecentEmojis = EmptyGetRecentEmojis,
+        addRecentEmoji = { Result.success(Unit) },
     ).apply {
         isTesting = true
         showTextFormatting = isRichTextEditorEnabled

@@ -233,6 +233,7 @@ private fun TimelineItemRowContent(
                         TimelineItemStateEventRow(
                             event = timelineItem,
                             isLastOutgoingMessage = isLastOutgoingMessage,
+                            timelineRoomInfo = timelineRoomInfo,
                             onClick = { onContentClick(timelineItem) },
                             onReadReceiptsClick = onReadReceiptClick,
                             onLongClick = { onLongClick(timelineItem) },

@@ -123,6 +123,7 @@ open class MainActivity : NodeActivity() {
         appBindings.nativeCallPip().onUserLeaveHint(this)
     }
 
+
     @Composable
     private fun MainContent(appBindings: AppBindings) {
         val migrationState = appBindings.migrationEntryPoint().present()

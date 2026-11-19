@@ -387,7 +387,7 @@ class MessagesPresenter(
                         .toMap()
                     val orderedTargets = selected.sortedBy { sentTimeById[it] ?: Long.MAX_VALUE }
                     selectionState = TimelineSelectionState.Empty
-                    navigator.forwardEvents(orderedTargets, timelineController)
+                    navigator.forwardEvents(orderedTargets)
                 }
                 MessagesEvent.BulkSaveSelected -> {
                     val targets = savableSelection(timelineState.timelineItems, selectionState.selectedIds)
@@ -486,7 +486,9 @@ class MessagesPresenter(
                 // TODO calculate this properly based on the thread list and the read state of each thread
                 hasUnreadThreads = false,
             ),
-            showLiveLocationShareBanner = isCurrentlySharingLiveLocationInRoom && timelineState.timelineMode !is Timeline.Mode.Thread,
+            showLiveLocationShareBanner = isCurrentlySharingLiveLocationInRoom &&
+                timelineState.timelineMode !is Timeline.Mode.Thread &&
+                !selectionState.isActive,
             selectionState = selectionState,
             selectionSaveProgress = saveProgress,
             isMultiSelectEnabled = isMultiSelectEnabled,
@@ -763,7 +765,7 @@ class MessagesPresenter(
 
     private fun handleForwardAction(event: TimelineItem.Event) {
         if (event.eventId == null) return
-        navigator.forwardEvents(eventIds = listOf(event.eventId), timelineProvider = timelineController)
+        navigator.forwardEvents(eventIds = listOf(event.eventId))
     }
 
     private fun handleReportAction(event: TimelineItem.Event) {

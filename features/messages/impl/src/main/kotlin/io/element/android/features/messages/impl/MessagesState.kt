@@ -20,6 +20,7 @@ import io.element.android.features.messages.impl.timeline.TimelineState
 import io.element.android.features.messages.impl.timeline.components.customreaction.CustomReactionState
 import io.element.android.features.messages.impl.timeline.components.reactionsummary.ReactionSummaryState
 import io.element.android.features.messages.impl.timeline.components.receipt.bottomsheet.ReadReceiptBottomSheetState
+import io.element.android.features.messages.impl.timeline.isSelectionModeActive
 import io.element.android.features.messages.impl.timeline.protection.TimelineProtectionState
 import io.element.android.features.roomcall.api.RoomCallState
 import io.element.android.features.roommembermoderation.api.RoomMemberModerationState
@@ -86,6 +87,12 @@ data class MessagesState(
         val eventId: EventId,
     ) : AsyncAction.Confirming
 }
+
+/** Whether the pinned messages banner should be shown. Selection mode takes over the screen, so no banner competes with it. */
+val MessagesState.showPinnedMessagesBanner: Boolean
+    get() = pinnedMessagesBannerState is PinnedMessagesBannerState.Visible &&
+        !timelineState.isSelectionModeActive &&
+        !selectionState.isActive
 
 /** Type of "shared history" icon to show in the top bar. */
 enum class SharedHistoryIcon {

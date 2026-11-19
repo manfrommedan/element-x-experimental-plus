@@ -17,10 +17,6 @@
     <string name="common_push_listener_alert_title_android">"Notification server unreachable"</string>
     <string name="common_push_listener_alert_text_android">"Cannot connect to %1$s for a while now. Notifications may be delayed."</string>
     <string name="common_built_in_push">"Built-in push"</string>
-    <string name="a11y_state_expanded">"Expanded"</string>
-    <string name="a11y_state_collapsed">"Collapsed"</string>
-    <string name="a11y_active">Active</string>
-    <string name="a11y_inactive">Inactive</string>
     <!-- Audio-call timeline card label, shown next to the icon when the
          phone-style voice mode is on. Falls back to the upstream
          common_call_started string when the mode is off. -->

@@ -14,18 +14,22 @@ android {
     namespace = "io.element.android.features.callnative.api"
 }
 
-// Temporary: `-PelementCallLocalVersion` points this at a locally published build of
-// element-call-android. Goes with the repositories in settings.gradle.kts.
+// `-PelementCallLocalVersion` points this at a locally published build of element-call-android.
+// Goes with the mavenLocal block in settings.gradle.kts.
 val elementCallVersion: String = providers.gradleProperty("elementCallLocalVersion")
     .getOrElse(libs.versions.element.call.get())
 
 dependencies {
-    // api, not implementation: ElementCallMatrixTransport is part of ElementCallTransportFactory's
-    // signature, and CallData of NativeCallEntryPoint's.
-    // api, so that consumers of this module inherit the versions the BOM pins - the artifact
-    // below is declared without one.
+    // api, not implementation: the RTC core's MatrixBackend is part of MatrixRtcBackendFactory's
+    // signature, and CallData of NativeCallEntryPoint's. The core comes with element-call, which
+    // exposes it as an api dependency.
+    // api, so that consumers of this module inherit the versions the BOM pins - the artifacts
+    // below are declared without one.
     api(platform("io.element.android:element-call-bom:$elementCallVersion"))
     api(libs.element.call.api)
+    api(libs.element.call.impl)
+    // ElementCallActivity.Host, which NativeCallScreenHost is.
+    api(libs.element.call.ui)
     api(projects.features.call.api)
     implementation(projects.libraries.architecture)
     implementation(projects.libraries.matrix.api)

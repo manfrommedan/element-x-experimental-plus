@@ -16,6 +16,7 @@ import io.element.android.features.messages.impl.timeline.factories.event.Timeli
 import io.element.android.features.messages.impl.timeline.factories.virtual.TimelineItemVirtualFactory
 import io.element.android.features.messages.impl.timeline.groups.TimelineItemGrouper
 import io.element.android.features.messages.impl.timeline.model.TimelineItem
+import io.element.android.features.messages.impl.timeline.model.virtual.TimelineItemReadMarkerModel
 import io.element.android.libraries.androidutils.diff.DiffCacheUpdater
 import io.element.android.libraries.androidutils.diff.MutableListDiffCache
 import io.element.android.libraries.core.coroutine.CoroutineDispatchers
@@ -55,10 +56,10 @@ class TimelineItemsFactory(
         detectMoves = false,
         cacheInvalidator = TimelineItemsCacheInvalidator()
     ) { old, new ->
-        if (old is MatrixTimelineItem.Event && new is MatrixTimelineItem.Event) {
-            old.uniqueId == new.uniqueId
-        } else {
-            false
+        when (old) {
+            is MatrixTimelineItem.Event if new is MatrixTimelineItem.Event -> old.uniqueId == new.uniqueId
+            is MatrixTimelineItem.Virtual if new is MatrixTimelineItem.Virtual -> old.uniqueId == new.uniqueId
+            else -> false
         }
     }
 
@@ -66,8 +67,8 @@ class TimelineItemsFactory(
 
     suspend fun replaceWith(
         timelineItems: List<MatrixTimelineItem>,
-        roomMembers: List<RoomMember>,
-        renderReadReceipts: Boolean,
+        roomMembers: List<RoomMember> = emptyList(),
+        renderReadReceipts: Boolean = true,
         collapseRedactedEvents: Boolean = true,
     ) = withContext(dispatchers.computation) {
         lock.withLock {
@@ -86,39 +87,47 @@ class TimelineItemsFactory(
         for (index in diffCache.indices().reversed()) {
             val cacheItem = diffCache.get(index)
             if (cacheItem == null) {
-                buildAndCacheItem(timelineItems, index, roomMembers, renderReadReceipts)?.also { timelineItemState ->
+                buildAndCacheItem(timelineItems, index)?.also { timelineItemState ->
                     newTimelineItemStates.add(timelineItemState)
                 }
             } else {
-                val updatedItem = if (cacheItem is TimelineItem.Event && roomMembers.isNotEmpty()) {
-                    eventItemFactory.update(
-                        timelineItem = cacheItem,
-                        receivedMatrixTimelineItem = timelineItems[index] as MatrixTimelineItem.Event,
-                        roomMembers = roomMembers,
-                        renderReadReceipts = renderReadReceipts,
-                    )
-                } else {
-                    cacheItem
-                }
-                newTimelineItemStates.add(updatedItem)
+                newTimelineItemStates.add(cacheItem)
             }
         }
-        val result = timelineItemGrouper.group(newTimelineItemStates, collapseRedactedEvents).toImmutableList()
+        val result = timelineItemGrouper.group(newTimelineItemStates, collapseRedactedEvents)
+            .withoutReadMarkerAtTheBottom()
+            .toImmutableList()
         this._timelineItems.emit(result)
+    }
+
+    /**
+     * The read marker separates the events which have been read from the unread ones. When all the events after it
+     * are filtered out, the marker becomes the last item of the timeline and draws the "new messages" line at the
+     * very bottom of the screen, with nothing left to separate, so it is not rendered.
+     *
+     * Items are ordered from the most recent one (index 0, at the bottom of the screen) to the oldest one, and the
+     * marker is kept when it is the only item, so that the timeline is not empty.
+     */
+    private fun List<TimelineItem>.withoutReadMarkerAtTheBottom(): List<TimelineItem> {
+        val bottomItem = firstOrNull()
+        val isReadMarker = (bottomItem as? TimelineItem.Virtual)?.model is TimelineItemReadMarkerModel
+        return if (isReadMarker && size > 1) {
+            drop(1)
+        } else {
+            this
+        }
     }
 
     private suspend fun buildAndCacheItem(
         timelineItems: List<MatrixTimelineItem>,
         index: Int,
-        roomMembers: List<RoomMember>,
-        renderReadReceipts: Boolean,
     ): TimelineItem? {
         val timelineItem =
             when (val currentTimelineItem = timelineItems[index]) {
                 is MatrixTimelineItem.Event -> if (currentTimelineItem.event.isKeyVerificationRequest()) {
                     null
                 } else {
-                    eventItemFactory.create(currentTimelineItem, index, timelineItems, roomMembers, renderReadReceipts)
+                    eventItemFactory.create(currentTimelineItem, index, timelineItems)
                 }
                 is MatrixTimelineItem.Virtual -> virtualItemFactory.create(currentTimelineItem)
                 MatrixTimelineItem.Other -> null

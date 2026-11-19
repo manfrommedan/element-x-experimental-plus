@@ -67,6 +67,7 @@ import io.element.android.features.preferences.api.PreferencesEntryPoint
 import io.element.android.features.roomdirectory.api.RoomDescription
 import io.element.android.features.roomdirectory.api.RoomDirectoryEntryPoint
 import io.element.android.features.securebackup.api.SecureBackupEntryPoint
+import io.element.android.features.securebackup.api.SecureBackupRecoveryKeyEntryPoint
 import io.element.android.features.startchat.api.StartChatEntryPoint
 import io.element.android.features.userprofile.api.UserProfileEntryPoint
 import io.element.android.features.verifysession.api.IncomingVerificationEntryPoint
@@ -97,6 +98,7 @@ import io.element.android.libraries.preferences.api.store.AppPreferencesStore
 import io.element.android.libraries.push.api.notifications.conversations.NotificationConversationService
 import io.element.android.libraries.ui.common.nodes.EmptyState
 import io.element.android.libraries.ui.common.nodes.emptyNode
+import io.element.android.libraries.ui.strings.CommonStrings
 import io.element.android.services.analytics.api.AnalyticsLongRunningTransaction
 import io.element.android.services.analytics.api.AnalyticsService
 import io.element.android.services.analytics.api.watchers.AnalyticsRoomListStateWatcher
@@ -129,6 +131,7 @@ class LoggedInFlowNode(
     private val startChatEntryPoint: StartChatEntryPoint,
     private val appNavigationStateService: AppNavigationStateService,
     private val secureBackupEntryPoint: SecureBackupEntryPoint,
+    private val secureBackupRecoveryKeyEntryPoint: SecureBackupRecoveryKeyEntryPoint,
     private val userProfileEntryPoint: UserProfileEntryPoint,
     private val ftueEntryPoint: FtueEntryPoint,
     private val linkNewDeviceEntryPoint: LinkNewDeviceEntryPoint,
@@ -286,6 +289,9 @@ class LoggedInFlowNode(
         ) : NavTarget
 
         @Parcelize
+        data object SetUpRecovery : NavTarget
+
+        @Parcelize
         data object Ftue : NavTarget
 
         @Parcelize
@@ -342,7 +348,7 @@ class LoggedInFlowNode(
                     }
 
                     override fun navigateToSetUpRecovery() {
-                        backstack.push(NavTarget.SecureBackup(initialElement = SecureBackupEntryPoint.InitialTarget.Root))
+                        backstack.push(NavTarget.SetUpRecovery)
                     }
 
                     override fun navigateToEnterRecoveryKey() {
@@ -549,6 +555,24 @@ class LoggedInFlowNode(
                     buildContext = buildContext,
                     params = SecureBackupEntryPoint.Params(initialElement = navTarget.initialElement),
                     callback = object : SecureBackupEntryPoint.Callback {
+                        override fun onDone() {
+                            backstack.pop()
+                        }
+
+                        // The session is already verified here, so signing out is never offered.
+                        override fun onSignOut() = Unit
+                    },
+                )
+            }
+            NavTarget.SetUpRecovery -> {
+                secureBackupRecoveryKeyEntryPoint.createNode(
+                    parentNode = this,
+                    buildContext = buildContext,
+                    inputs = SecureBackupRecoveryKeyEntryPoint.Inputs(
+                        mode = SecureBackupRecoveryKeyEntryPoint.Mode.Generate(isReplacingExistingKey = false),
+                        doneButtonText = CommonStrings.action_done,
+                    ),
+                    callback = object : SecureBackupRecoveryKeyEntryPoint.Callback {
                         override fun onDone() {
                             backstack.pop()
                         }

@@ -10,11 +10,13 @@ package io.element.android.libraries.matrix.impl.auth
 
 import dev.zacsweers.metro.AppScope
 import dev.zacsweers.metro.ContributesBinding
+import io.element.android.libraries.core.coroutine.CoroutineDispatchers
 import io.element.android.libraries.core.extensions.runCatchingExceptions
 import io.element.android.libraries.matrix.api.auth.HomeServerLoginCompatibilityChecker
 import io.element.android.libraries.matrix.impl.ClientBuilderProvider
 import io.element.android.libraries.matrix.impl.certificates.UserCertificatesProvider
 import io.element.android.libraries.matrix.impl.proxy.ProxyProvider
+import kotlinx.coroutines.withContext
 import timber.log.Timber
 
 @ContributesBinding(AppScope::class)
@@ -22,23 +24,26 @@ class RustHomeServerLoginCompatibilityChecker(
     private val clientBuilderProvider: ClientBuilderProvider,
     private val userCertificatesProvider: UserCertificatesProvider,
     private val proxyProvider: ProxyProvider,
-    ) : HomeServerLoginCompatibilityChecker {
-    override suspend fun check(url: String): Result<Boolean> = runCatchingExceptions {
-        clientBuilderProvider.provide()
-            .inMemoryStore()
-            .serverNameOrHomeserverUrl(url)
-            .addRootCertificates(userCertificatesProvider.provides())
-            // mxtr-proxy: route the /.well-known probe through the local
-            // CONNECT listener so the homeserver name doesn't leak in clear
-            // before login even completes.
-            .run { proxyProvider.provides()?.let { proxy(it) } ?: this }
-            .build()
-            .use {
-                it.homeserverLoginDetails()
-            }
-            .use {
-                Timber.d("Homeserver $url | OAuth: ${it.supportsOauthLogin()} | Password: ${it.supportsPasswordLogin()} | SSO: ${it.supportsSsoLogin()}")
-                it.supportsOauthLogin() || it.supportsPasswordLogin()
-            }
+    private val coroutineDispatchers: CoroutineDispatchers,
+) : HomeServerLoginCompatibilityChecker {
+    override suspend fun check(url: String): Result<Boolean> = withContext(coroutineDispatchers.io) {
+        runCatchingExceptions {
+            clientBuilderProvider.provide()
+                .inMemoryStore()
+                .serverNameOrHomeserverUrl(url)
+                .addRootCertificates(userCertificatesProvider.provides())
+                // mxtr-proxy: route the /.well-known probe through the local
+                // CONNECT listener so the homeserver name doesn't leak in clear
+                // before login even completes.
+                .run { proxyProvider.provides()?.let { proxy(it) } ?: this }
+                .build()
+                .use {
+                    it.homeserverLoginDetails()
+                }
+                .use {
+                    Timber.d("Homeserver $url | OAuth: ${it.supportsOauthLogin()} | Password: ${it.supportsPasswordLogin()} | SSO: ${it.supportsSsoLogin()}")
+                    it.supportsOauthLogin() || it.supportsPasswordLogin()
+                }
+        }
     }
 }

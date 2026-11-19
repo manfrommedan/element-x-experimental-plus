@@ -110,6 +110,8 @@ class PinnedMessagesListPresenter(
                     currentUserId = room.sessionId,
                     isDm = roomInfo.isDm,
                     name = roomInfo.name,
+                    // The pinned events timeline never shows read receipts.
+                    renderReadReceipts = false,
                     // We don't need to compute those values
                     userHasPermissionToSendMessage = false,
                     userHasPermissionToSendReaction = userEventPermissions.canSendReaction,
@@ -181,7 +183,7 @@ class PinnedMessagesListPresenter(
             }
             TimelineItemAction.Forward -> {
                 targetEvent.eventId?.let { eventId ->
-                    navigator.forwardEvent(eventId, timelineProvider)
+                    navigator.forwardEvent(eventId)
                 }
             }
             TimelineItemAction.Unpin -> handleUnpinAction(targetEvent)

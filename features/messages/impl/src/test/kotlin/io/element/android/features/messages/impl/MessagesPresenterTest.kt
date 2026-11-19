@@ -24,6 +24,7 @@ import io.element.android.features.messages.impl.link.aLinkState
 import io.element.android.features.messages.impl.messagecomposer.MessageComposerEvent
 import io.element.android.features.messages.impl.messagecomposer.MessageComposerState
 import io.element.android.features.messages.impl.messagecomposer.aMessageComposerState
+import io.element.android.features.messages.impl.pinned.banner.PinnedMessagesBannerState
 import io.element.android.features.messages.impl.pinned.banner.aLoadedPinnedMessagesBannerState
 import io.element.android.features.messages.impl.selection.FakeSelectionMediaSaver
 import io.element.android.features.messages.impl.selection.SelectionSaveCoordinator
@@ -32,6 +33,7 @@ import io.element.android.features.messages.impl.timeline.FakeMarkAsFullyRead
 import io.element.android.features.messages.impl.timeline.MarkAsFullyRead
 import io.element.android.features.messages.impl.timeline.TimelineController
 import io.element.android.features.messages.impl.timeline.TimelineEvent
+import io.element.android.features.messages.impl.timeline.TimelineState
 import io.element.android.features.messages.impl.timeline.aTimelineState
 import io.element.android.features.messages.impl.timeline.model.TimelineItemThreadInfo
 import io.element.android.features.messages.impl.timeline.model.event.TimelineItemFileContent
@@ -73,7 +75,6 @@ import io.element.android.libraries.matrix.api.room.StateEventType
 import io.element.android.libraries.matrix.api.room.history.RoomHistoryVisibility
 import io.element.android.libraries.matrix.api.room.tombstone.SuccessorRoom
 import io.element.android.libraries.matrix.api.timeline.Timeline
-import io.element.android.libraries.matrix.api.timeline.TimelineProvider
 import io.element.android.libraries.matrix.api.timeline.item.TimelineItemDebugInfo
 import io.element.android.libraries.matrix.api.timeline.item.event.EventOrTransactionId
 import io.element.android.libraries.matrix.api.timeline.item.event.LocalEventSendState
@@ -112,7 +113,6 @@ import io.element.android.tests.testutils.FakeLifecycleOwner
 import io.element.android.tests.testutils.WarmUpRule
 import io.element.android.tests.testutils.consumeItemsUntilPredicate
 import io.element.android.tests.testutils.consumeItemsUntilTimeout
-import io.element.android.tests.testutils.lambda.any
 import io.element.android.tests.testutils.lambda.assert
 import io.element.android.tests.testutils.lambda.lambdaError
 import io.element.android.tests.testutils.lambda.lambdaRecorder
@@ -190,6 +190,28 @@ class MessagesPresenterTest {
         presenter.testWithLifecycleOwner {
             val state = consumeItemsUntilTimeout().last()
             assertThat(state.showLiveLocationShareBanner).isTrue()
+        }
+    }
+
+    @Test
+    fun `present - selection mode hides the live location and pinned messages banners`() = runTest {
+        val liveLocationShareManager = FakeActiveLiveLocationShareManager(
+            startShareLambda = { _, _ -> Result.success(Unit) },
+        )
+        liveLocationShareManager.startShare(A_ROOM_ID, 60.seconds)
+        val presenter = createMessagesPresenter(
+            liveLocationShareManager = liveLocationShareManager,
+            timelineState = aTimelineState(timelineItems = persistentListOf(aMessageEvent())),
+        )
+
+        presenter.testWithLifecycleOwner {
+            val initialState = consumeItemsUntilTimeout().last()
+            initialState.eventSink(MessagesEvent.ToggleSelection(aMessageEvent()))
+            val state = consumeItemsUntilPredicate { it.selectionState.isActive }.last()
+            assertThat(state.showLiveLocationShareBanner).isFalse()
+            // The banner presenter still reports pinned messages: only the derived visibility accounts for selection mode.
+            assertThat(state.pinnedMessagesBannerState).isInstanceOf(PinnedMessagesBannerState.Visible::class.java)
+            assertThat(state.showPinnedMessagesBanner).isFalse()
         }
     }
 
@@ -317,7 +339,7 @@ class MessagesPresenterTest {
 
     @Test
     fun `present - handle action forward`() = runTest {
-        val onForwardEventClickLambda = lambdaRecorder<List<EventId>, TimelineProvider, Unit> { _, _ -> }
+        val onForwardEventClickLambda = lambdaRecorder<List<EventId>, Unit> { _ -> }
         val navigator = FakeMessagesNavigator(
             onForwardEventClickLambda = onForwardEventClickLambda,
         )
@@ -326,7 +348,7 @@ class MessagesPresenterTest {
             val initialState = awaitItem()
             initialState.eventSink(MessagesEvent.HandleAction(TimelineItemAction.Forward, aMessageEvent()))
             assertThat(awaitItem().actionListState.target).isEqualTo(ActionListState.Target.None)
-            onForwardEventClickLambda.assertions().isCalledOnce().with(value(listOf(AN_EVENT_ID)), any())
+            onForwardEventClickLambda.assertions().isCalledOnce().with(value(listOf(AN_EVENT_ID)))
         }
     }
 
@@ -1542,6 +1564,7 @@ class MessagesPresenterTest {
         clipboardHelper: FakeClipboardHelper = FakeClipboardHelper(),
         analyticsService: FakeAnalyticsService = FakeAnalyticsService(),
         timelineEventSink: (TimelineEvent) -> Unit = {},
+        timelineState: TimelineState = aTimelineState(eventSink = timelineEventSink),
         permalinkParser: PermalinkParser = FakePermalinkParser(),
         messageComposerPresenter: Presenter<MessageComposerState> = Presenter {
             aMessageComposerState(
@@ -1571,7 +1594,7 @@ class MessagesPresenterTest {
             room = joinedRoom,
             composerPresenter = messageComposerPresenter,
             voiceMessageComposerPresenterFactory = FakeDefaultVoiceMessageComposerPresenterFactory(backgroundScope),
-            timelinePresenter = { aTimelineState(eventSink = timelineEventSink) },
+            timelinePresenter = { timelineState },
             timelineProtectionPresenter = { aTimelineProtectionState() },
             identityChangeStatePresenter = { anIdentityChangeState() },
             linkPresenter = { aLinkState() },

@@ -296,6 +296,7 @@ internal fun aTimelineRoomInfo(
     currentUserId: UserId = UserId("@user:domain"),
     name: String = ROOM_NAME,
     isDm: Boolean = false,
+    renderReadReceipts: Boolean = true,
     userHasPermissionToSendMessage: Boolean = true,
     pinnedEventIds: List<EventId> = emptyList(),
     typingNotificationState: TypingNotificationState = aTypingNotificationState(),
@@ -303,6 +304,7 @@ internal fun aTimelineRoomInfo(
 ) = TimelineRoomInfo(
     currentUserId = currentUserId,
     isDm = isDm,
+    renderReadReceipts = renderReadReceipts,
     name = name,
     userHasPermissionToSendMessage = userHasPermissionToSendMessage,
     userHasPermissionToSendReaction = true,

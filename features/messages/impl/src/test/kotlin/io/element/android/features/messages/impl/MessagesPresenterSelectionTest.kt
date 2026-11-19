@@ -223,7 +223,7 @@ class MessagesPresenterSelectionTest {
         val items = persistentListOf<TimelineItem>(e1, e2, e3)
         val forwarded = mutableListOf<EventId>()
         val navigator = FakeMessagesNavigator(
-            onForwardEventClickLambda = { ids, _ -> forwarded += ids },
+            onForwardEventClickLambda = { ids -> forwarded += ids },
         )
         val presenter = createMessagesPresenter(
             navigator = navigator,

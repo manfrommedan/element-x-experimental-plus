@@ -13,6 +13,8 @@ import io.element.android.libraries.matrix.impl.FakeClientBuilderProvider
 import io.element.android.libraries.matrix.impl.fixtures.fakes.FakeFfiClient
 import io.element.android.libraries.matrix.impl.fixtures.fakes.FakeFfiClientBuilder
 import io.element.android.libraries.matrix.impl.fixtures.fakes.FakeFfiHomeserverLoginDetails
+import io.element.android.tests.testutils.testCoroutineDispatchers
+import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.runTest
 import org.junit.Test
 
@@ -41,7 +43,7 @@ class RustHomeserverLoginCompatibilityCheckerTest {
         assertThat(sut.check("https://matrix.host.org").isFailure).isTrue()
     }
 
-    private fun createChecker(
+    private fun TestScope.createChecker(
         result: () -> FakeFfiHomeserverLoginDetails,
     ) = RustHomeServerLoginCompatibilityChecker(
         clientBuilderProvider = FakeClientBuilderProvider {
@@ -51,5 +53,6 @@ class RustHomeserverLoginCompatibilityCheckerTest {
         },
         userCertificatesProvider = FakeUserCertificatesProvider(),
         proxyProvider = FakeProxyProvider(),
+        coroutineDispatchers = testCoroutineDispatchers(),
     )
 }

@@ -53,7 +53,7 @@ android {
     }
 }
 
-setupDependencyInjection()
+setupDependencyInjection(generateNodeFactories = false)
 
 dependencies {
     implementation(libs.androidx.corektx)
@@ -100,6 +100,7 @@ dependencies {
 
     testCommonDependencies(libs)
     testImplementation(libs.coil.test)
+    testImplementation(libs.sqldelight.driver.jvm)
     testImplementation(projects.libraries.matrix.test)
     testImplementation(projects.libraries.matrixmedia.test)
     testImplementation(projects.libraries.preferences.test)
