@@ -16,6 +16,7 @@ import io.element.android.libraries.matrix.api.core.EventId
 import io.element.android.libraries.matrix.api.core.RoomId
 import io.element.android.libraries.matrix.api.core.SessionId
 import io.element.android.libraries.matrix.api.room.JoinedRoom
+import io.element.android.libraries.matrix.api.search.MessageSearchEventResolver
 import io.element.android.libraries.matrix.test.FakeMatrixClient
 import io.element.android.services.analytics.test.FakeAnalyticsService
 import io.element.android.tests.testutils.lambda.lambdaError
@@ -41,6 +42,7 @@ class DefaultHomeEntryPointTest : RobolectricTest() {
                 declineInviteAndBlockUserEntryPoint = FakeDeclineInviteAndBlockEntryPoint(),
                 changeRoomMemberRolesEntryPoint = { _, _, _, _ -> lambdaError() },
                 leaveRoomRenderer = { _, _, _ -> lambdaError() },
+                messageSearchEventResolver = MessageSearchEventResolver { _, eventId -> Result.success(eventId) },
                 sessionCoroutineScope = backgroundScope,
             )
         }

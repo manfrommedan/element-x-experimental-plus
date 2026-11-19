@@ -57,6 +57,7 @@ import io.element.android.libraries.di.annotations.SessionCoroutineScope
 import io.element.android.libraries.matrix.api.MatrixClient
 import io.element.android.libraries.matrix.api.core.EventId
 import io.element.android.libraries.matrix.api.core.RoomId
+import io.element.android.libraries.matrix.api.search.MessageSearchEventResolver
 import io.element.android.services.analytics.api.AnalyticsService
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
@@ -86,6 +87,7 @@ class HomeFlowNode(
     private val declineInviteAndBlockUserEntryPoint: DeclineInviteAndBlockEntryPoint,
     private val changeRoomMemberRolesEntryPoint: ChangeRoomMemberRolesEntryPoint,
     private val leaveRoomRenderer: LeaveRoomRenderer,
+    private val messageSearchEventResolver: MessageSearchEventResolver,
     @SessionCoroutineScope private val sessionCoroutineScope: CoroutineScope,
 ) : BaseFlowNode<HomeFlowNode.NavTarget>(
     backstack = BackStack(
@@ -191,11 +193,12 @@ class HomeFlowNode(
 
                 val job = sessionCoroutineScope.launch {
                     runCatchingExceptions {
-                        matrixClient.getJoinedRoom(roomId)
+                        val resolvedEventId = eventId?.let { messageSearchEventResolver.resolve(roomId, it).getOrThrow() }
+                        matrixClient.getJoinedRoom(roomId) to resolvedEventId
                     }.fold(
-                        onSuccess = { joinedRoom ->
+                        onSuccess = { (joinedRoom, resolvedEventId) ->
                             if (isActive) {
-                                callback.navigateToRoom(roomId = roomId, eventId = eventId, joinedRoom = joinedRoom)
+                                callback.navigateToRoom(roomId = roomId, eventId = resolvedEventId, joinedRoom = joinedRoom)
                                 loadingJoinedRoomJob.value = AsyncData.Success(coroutineContext.job)
                                 // Wait a bit before resetting the state to avoid allowing to open several rooms
                                 delay(200.milliseconds)

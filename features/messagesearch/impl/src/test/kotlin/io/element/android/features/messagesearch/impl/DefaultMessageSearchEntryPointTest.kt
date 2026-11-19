@@ -11,8 +11,10 @@ import androidx.arch.core.executor.testing.InstantTaskExecutorRule
 import com.bumble.appyx.core.modality.BuildContext
 import com.google.common.truth.Truth.assertThat
 import io.element.android.features.messagesearch.api.MessageSearchEntryPoint
+import io.element.android.libraries.androidutils.toast.FakeToastHelper
 import io.element.android.libraries.matrix.api.core.EventId
 import io.element.android.libraries.matrix.api.core.RoomId
+import io.element.android.libraries.matrix.api.search.MessageSearchEventResolver
 import io.element.android.libraries.matrix.test.A_ROOM_ID
 import io.element.android.tests.testutils.lambda.lambdaError
 import io.element.android.tests.testutils.node.TestParentNode
@@ -46,6 +48,8 @@ class DefaultMessageSearchEntryPointTest {
                     assertThat(createdRoomId).isEqualTo(roomId)
                     createMessageSearchPresenter(roomId = createdRoomId)
                 },
+                messageSearchEventResolver = MessageSearchEventResolver { _, eventId -> Result.success(eventId) },
+                toastHelper = FakeToastHelper(),
             )
         }
         val result = entryPoint.createNode(
