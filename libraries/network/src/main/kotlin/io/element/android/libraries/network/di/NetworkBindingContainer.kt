@@ -13,6 +13,7 @@ import dev.zacsweers.metro.BindingContainer
 import dev.zacsweers.metro.ContributesTo
 import dev.zacsweers.metro.Provides
 import dev.zacsweers.metro.SingleIn
+import io.element.android.libraries.network.headers.HttpHeaders
 import io.element.android.libraries.network.interceptors.DynamicHttpLoggingInterceptor
 import io.element.android.libraries.network.interceptors.FormattedJsonHttpLogger
 import io.element.android.libraries.network.interceptors.UserAgentInterceptor
@@ -44,6 +45,8 @@ object NetworkBindingContainer {
     @SingleIn(AppScope::class)
     fun providesHttpLoggingInterceptor(): HttpLoggingInterceptor {
         val logger = FormattedJsonHttpLogger(HttpLoggingInterceptor.Level.BODY)
-        return HttpLoggingInterceptor(logger)
+        return HttpLoggingInterceptor(logger).apply {
+            redactHeader(HttpHeaders.Authorization)
+        }
     }
 }

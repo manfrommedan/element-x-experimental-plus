@@ -1,4 +1,5 @@
 import extension.setupDependencyInjection
+import extension.testCommonDependencies
 
 /*
  * Copyright (c) 2025 Element Creations Ltd.
@@ -30,4 +31,6 @@ dependencies {
     implementation(libs.network.retrofit)
     implementation(libs.network.retrofit.converter.serialization)
     implementation(libs.serialization.json)
+
+    testCommonDependencies(libs)
 }

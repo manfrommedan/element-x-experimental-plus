@@ -11,25 +11,35 @@ import dev.zacsweers.metro.ContributesBinding
 import dev.zacsweers.metro.SingleIn
 import io.element.android.libraries.androidutils.json.JsonProvider
 import io.element.android.libraries.core.extensions.mapCatchingExceptions
+import io.element.android.libraries.core.extensions.runCatchingExceptions
 import io.element.android.libraries.di.SessionScope
 import io.element.android.libraries.matrix.api.MatrixClient
 import io.element.android.libraries.matrix.api.core.EventId
 import io.element.android.libraries.matrix.api.core.RoomId
 import io.element.android.libraries.matrix.api.search.MessageSearchEventResolver
 import io.element.android.libraries.sessionstorage.api.SessionStore
+import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
+import okhttp3.Call
+import okhttp3.Callback
+import okhttp3.Request
+import okhttp3.Response
 import timber.log.Timber
+import java.io.IOException
 import java.net.URI
 import java.net.URLEncoder
+import kotlin.coroutines.resume
+import kotlin.coroutines.resumeWithException
 
 @ContributesBinding(SessionScope::class)
 @SingleIn(SessionScope::class)
 class DefaultMessageSearchEventResolver(
     private val matrixClient: MatrixClient,
     private val sessionStore: SessionStore,
+    private val callFactory: Call.Factory,
     private val json: JsonProvider,
 ) : MessageSearchEventResolver {
     override suspend fun resolve(roomId: RoomId, eventId: EventId): Result<EventId> {
@@ -37,9 +47,9 @@ class DefaultMessageSearchEventResolver(
             ?: return Result.failure(IllegalStateException("Missing session"))
         val accessToken = sessionData.accessToken.takeIf { it.isNotBlank() }
             ?: return Result.failure(IllegalStateException("Missing access token"))
-        val url = buildEventUrl(sessionData.homeserverUrl, roomId, eventId, accessToken)
+        val url = buildEventUrl(sessionData.homeserverUrl, roomId, eventId)
 
-        return matrixClient.getUrl(url).mapCatchingExceptions { body ->
+        return fetchEvent(url, accessToken).mapCatchingExceptions { body ->
             val content = json().parseToJsonElement(body.decodeToString()).jsonObject["content"]?.jsonObject
             val relation = content?.get("m.relates_to")?.jsonObject
             if (relation?.stringValue("rel_type") == "m.replace") {
@@ -54,14 +64,40 @@ class DefaultMessageSearchEventResolver(
             eventId
         }
     }
+
+    private suspend fun fetchEvent(url: String, accessToken: String): Result<ByteArray> = runCatchingExceptions {
+        val request = Request.Builder()
+            .url(url)
+            .header("Authorization", "Bearer $accessToken")
+            .build()
+        execute(request).use { response ->
+            if (!response.isSuccessful) {
+                throw IllegalStateException("Event request failed with HTTP ${response.code}")
+            }
+            response.body.bytes()
+        }
+    }
+
+    private suspend fun execute(request: Request): Response = suspendCancellableCoroutine { continuation ->
+        val call = callFactory.newCall(request)
+        continuation.invokeOnCancellation { call.cancel() }
+        call.enqueue(object : Callback {
+            override fun onResponse(call: Call, response: Response) {
+                continuation.resume(response) { _, value, _ -> value.close() }
+            }
+
+            override fun onFailure(call: Call, e: IOException) {
+                continuation.resumeWithException(e)
+            }
+        })
+    }
 }
 
-private fun buildEventUrl(homeserverUrl: String, roomId: RoomId, eventId: EventId, accessToken: String): String {
+private fun buildEventUrl(homeserverUrl: String, roomId: RoomId, eventId: EventId): String {
     val base = if (homeserverUrl.endsWith("/")) homeserverUrl else "$homeserverUrl/"
     val encodedRoomId = URLEncoder.encode(roomId.value, "UTF-8")
     val encodedEventId = URLEncoder.encode(eventId.value, "UTF-8")
-    val encodedAccessToken = URLEncoder.encode(accessToken, "UTF-8")
-    return URI(base).resolve("_matrix/client/v3/rooms/$encodedRoomId/event/$encodedEventId?access_token=$encodedAccessToken").toString()
+    return URI(base).resolve("_matrix/client/v3/rooms/$encodedRoomId/event/$encodedEventId").toString()
 }
 
 private fun JsonObject.stringValue(key: String): String? {
