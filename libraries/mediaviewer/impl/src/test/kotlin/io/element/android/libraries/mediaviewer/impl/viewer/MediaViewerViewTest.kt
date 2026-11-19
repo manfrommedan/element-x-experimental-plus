@@ -251,6 +251,16 @@ class MediaViewerViewTest : RobolectricTest() {
     }
 
     @Test
+    fun `loading media shows progress over the thumbnail`() = runAndroidComposeUiTest {
+        val data = aMediaViewerPageData(downloadedMedia = AsyncData.Loading())
+        setMediaViewerView(aMediaViewerState(listData = listOf(data)))
+
+        mainClock.advanceTimeBy(101)
+
+        onNodeWithContentDescription(activity!!.getString(CommonStrings.common_downloading)).assertExists()
+    }
+
+    @Test
     fun `error case, click on retry emits the expected Event`() = runAndroidComposeUiTest {
         val eventsRecorder = EventsRecorder<MediaViewerEvent>()
         val data = aMediaViewerPageData(
