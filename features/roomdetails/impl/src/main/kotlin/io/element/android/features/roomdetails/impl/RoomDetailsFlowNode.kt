@@ -371,7 +371,7 @@ class RoomDetailsFlowNode(
                     }
 
                     override fun forward(eventId: EventId) {
-                        callback.startForwardEventFlow(eventId, fromPinnedEvents = false)
+                        callback.startForwardEventFlow(eventId)
                     }
                 }
                 mediaGalleryEntryPoint.createNode(
@@ -407,7 +407,7 @@ class RoomDetailsFlowNode(
                     }
 
                     override fun forwardEvent(eventId: EventId) {
-                        callback.startForwardEventFlow(eventId, fromPinnedEvents = true)
+                        callback.startForwardEventFlow(eventId)
                     }
 
                     override fun navigateToRoom(roomId: RoomId) {
