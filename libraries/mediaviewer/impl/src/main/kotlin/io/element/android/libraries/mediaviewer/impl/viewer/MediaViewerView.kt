@@ -30,11 +30,12 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.TopAppBarDefaults
@@ -86,6 +87,7 @@ import io.element.android.libraries.designsystem.components.async.AsyncLoading
 import io.element.android.libraries.designsystem.components.button.BackButton
 import io.element.android.libraries.designsystem.components.dialogs.RetryDialog
 import io.element.android.libraries.designsystem.preview.ElementPreviewDark
+import io.element.android.libraries.designsystem.theme.components.CircularProgressIndicator
 import io.element.android.libraries.designsystem.theme.components.HorizontalDivider
 import io.element.android.libraries.designsystem.theme.components.Icon
 import io.element.android.libraries.designsystem.theme.components.IconButton
@@ -415,15 +417,6 @@ private fun MediaViewerPage(
                 )
             }
 
-            if (showProgress) {
-                LinearProgressIndicator(
-                    modifier = Modifier
-                        .padding(WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal + WindowInsetsSides.Top).asPaddingValues())
-                        .fillMaxWidth()
-                        .height(2.dp)
-                )
-            }
-
             Box(contentAlignment = Alignment.Center) {
                 val zoomableState = rememberZoomableState(
                     zoomSpec = ZoomSpec(maxZoomFactor = 4f, overzoomEffect = OverzoomEffect.NoLimits)
@@ -485,7 +478,25 @@ private fun MediaViewerPage(
                     )
                 }
             }
+
+            if (showProgress) {
+                MediaDownloadProgress(modifier = Modifier.align(Alignment.Center))
+            }
         }
+    }
+}
+
+@Composable
+private fun MediaDownloadProgress(modifier: Modifier = Modifier) {
+    val downloadingDescription = stringResource(CommonStrings.common_downloading)
+    Box(
+        modifier = modifier
+            .size(72.dp)
+            .background(Color.Black.copy(alpha = 0.6f), CircleShape)
+            .semantics { contentDescription = downloadingDescription },
+        contentAlignment = Alignment.Center,
+    ) {
+        CircularProgressIndicator(modifier = Modifier.size(48.dp))
     }
 }
 
