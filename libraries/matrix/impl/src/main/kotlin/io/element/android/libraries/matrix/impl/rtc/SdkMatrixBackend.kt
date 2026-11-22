@@ -27,6 +27,7 @@ import org.matrix.rtc.MatrixBackend
 import org.matrix.rtc.RoomSink
 import org.matrix.rtc.ToDeviceSink
 import org.matrix.rustcomponents.sdk.Client
+import org.matrix.rustcomponents.sdk.DelayedEventUpdateAction
 import org.matrix.rustcomponents.sdk.RequestConfigOverride
 import org.matrix.rustcomponents.sdk.Room
 import timber.log.Timber
@@ -63,12 +64,13 @@ class SdkMatrixBackend(
         send("sendStickyEvent($eventType)") { room(roomId).use { it.sendStickyRaw(eventType, contentJson, durationMs, noRetry) } }
 
     /**
-     * The bindings have no delayed events (matrix-rust-sdk#6973), so this answers as a homeserver without MSC4140:
-     * the core joins without a dead man's switch, never asks again this session, and shortens the membership's
-     * lifetime instead.
+     * MSC4140, the call's dead man's switch. A homeserver without it answers `M_UNRECOGNIZED`, and the core then joins
+     * without one, never asks again this session, and shortens the membership's lifetime instead.
      */
     override suspend fun sendDelayedStateEvent(roomId: String, eventType: String, stateKey: String, contentJson: String, delayMs: ULong): String =
-        throw delayedEventsNotSupported()
+        send("sendDelayedStateEvent($eventType)") {
+            room(roomId).use { it.sendDelayedStateEvent(eventType, stateKey, contentJson, delayMs, noRetry) }
+        }
 
     override suspend fun sendDelayedStickyEvent(
         roomId: String,
@@ -76,12 +78,19 @@ class SdkMatrixBackend(
         contentJson: String,
         stickyDurationMs: ULong,
         delayMs: ULong,
-    ): String = throw delayedEventsNotSupported()
+    ): String = send("sendDelayedStickyEvent($eventType)") {
+        room(roomId).use {
+            // Not the core's argument order: the delay comes before the sticky duration here.
+            it.sendStickyDelayedEvent(eventType, contentJson, delayMs = delayMs, stickyDurationMs = stickyDurationMs, requestConfigOverride = noRetry)
+        }
+    }
 
-    // Never called: no delayed event was ever scheduled.
-    override suspend fun restartDelayedEvent(roomId: String, delayId: String) = throw delayedEventsNotSupported()
+    // A delayed event is the client's, not the room's: the SDK needs only its id.
+    override suspend fun restartDelayedEvent(roomId: String, delayId: String) =
+        send("restartDelayedEvent") { client.updateDelayedEvent(delayId, DelayedEventUpdateAction.RESTART, noRetry) }
 
-    override suspend fun cancelDelayedEvent(roomId: String, delayId: String) = throw delayedEventsNotSupported()
+    override suspend fun cancelDelayedEvent(roomId: String, delayId: String) =
+        send("cancelDelayedEvent") { client.updateDelayedEvent(delayId, DelayedEventUpdateAction.CANCEL, noRetry) }
 
     override suspend fun sendStateEvent(roomId: String, eventType: String, stateKey: String, contentJson: String): String =
         send("sendStateEvent($eventType)") { room(roomId).use { it.sendStateEventRaw(eventType, stateKey, contentJson, noRetry) } }
@@ -160,14 +169,6 @@ class SdkMatrixBackend(
 
     /** The SDK falls back to the well-known when the homeserver lacks the MSC4143 endpoint; neither answering is none. */
     override suspend fun rtcTransports(): String = send("rtcTransports") { client.discoverRtcTransports().orEmpty().toJson() }
-
-    private fun delayedEventsNotSupported() = FfiBackendException.Failed(
-        errcode = "M_UNRECOGNIZED",
-        status = null,
-        retryAfterMs = null,
-        permanent = false,
-        reason = "Delayed events are not exposed by the SDK bindings",
-    )
 
     /** The caller closes it. */
     private fun room(roomId: String): Room {
